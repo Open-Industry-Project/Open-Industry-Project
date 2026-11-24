@@ -15,7 +15,7 @@ import { FAULT, StFault } from './faults'
 import type { Env } from './program'
 import { bool, calendarRangeError, idiv, imod, num, roundEven, unboundMessage, wrap } from './runtime'
 import { generateWasmBody, generateWasmValue } from './scanWasm'
-import type { Expr, MethodDef, ScalarType, SourcePos, Stmt, TagValue } from './types'
+import type { Expr, MethodDef, ScalarType, SourcePos, Stmt, TagValue, Value } from './types'
 import { StError } from './types'
 import { type PouLayout, type StructLayout, type TypeLayout, TypedUnsupported } from './typed/layout'
 
@@ -77,10 +77,10 @@ export interface TypedScope {
 /** The interpreter's own pieces a body needs: the store rules and loop signals the walker uses, so the engines
  *  agree. */
 export interface GenInternals {
-  eq(l: TagValue, r: TagValue): boolean
+  eq(l: Value, r: Value): boolean
   fits(t: ScalarType, exact: number, kept: number, pos: SourcePos | undefined): number
-  checkRange(target: Expr, v: TagValue, pos: SourcePos): TagValue
-  coercerFor(type: ScalarType, maxLen: number | undefined, pos: SourcePos | undefined): (v: TagValue) => TagValue
+  checkRange(target: Expr, v: Value, pos: SourcePos): Value
+  coercerFor(type: ScalarType, maxLen: number | undefined, pos: SourcePos | undefined): (v: Value) => Value
   placeMaxLen(target: Expr): number | undefined
   EXIT: symbol
   CONTINUE: symbol

@@ -26,8 +26,9 @@ export function rankTagNames(query: string, names: readonly string[], limit: num
   return { shown: scored.slice(0, limit).map((s) => s.name), more: Math.max(0, scored.length - limit) }
 }
 
-/** The types a part's tag can carry a program variable of: one bit or one number. */
-const CARRIED = new Set(['BOOL', 'SINT', 'INT', 'DINT', 'LINT', 'USINT', 'UINT', 'UDINT', 'ULINT', 'REAL', 'LREAL', 'BYTE', 'WORD', 'DWORD', 'LWORD'])
+/** The types a part's tag can carry a program variable of: one bit or one number. Not a 64-bit integer: a tag carries
+ *  a number, which holds one exactly only up to 2^53 (plc/pou.ts tagged). */
+const CARRIED = new Set(['BOOL', 'SINT', 'INT', 'DINT', 'USINT', 'UINT', 'UDINT', 'REAL', 'LREAL', 'BYTE', 'WORD', 'DWORD'])
 
 /** The program's tags a field may name: of its declared ST type when it has one, else any single bit or number. */
 export function programTagChoices(tags: readonly ProgramTag[], stType: string | undefined): ProgramTag[] {

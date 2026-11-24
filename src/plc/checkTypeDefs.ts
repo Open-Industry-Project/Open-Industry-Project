@@ -103,7 +103,9 @@ export function foldCapacities(ast: Ast, consts: Map<string, number>, sink: Diag
 export function registerConstant(d: Decl, constants: Map<string, number>): void {
   if (!d.constant || !d.init || !isScalarType(d.type) || !isInt(d.type)) return
   try {
-    constants.set(identKey(d.name), foldBound(d.init, constants))
+    // (a 64-bit constant past 2^53 is no bound: a number would have rounded it)
+    const v = foldBound(d.init, constants)
+    if (Number.isSafeInteger(v)) constants.set(identKey(d.name), v)
   } catch {
     // not foldable: the constant exists, it just cannot size an array
   }
@@ -243,9 +245,6 @@ const BUILTIN_FB = new Set<string>(FB_TYPES)
  * with the reason, so they can judge whether it matters for their program.
  */
 const UNSUPPORTED_TYPES: Record<string, string> = {
-  LINT: '64-bit integers need exact arithmetic a JS number cannot provide; use DINT, or LREAL if the range matters more than the last digits',
-  ULINT: '64-bit integers need exact arithmetic a JS number cannot provide; use UDINT, or LREAL if the range matters more than the last digits',
-  LWORD: '64-bit bit strings need exact arithmetic a JS number cannot provide; use DWORD, or two of them',
   WSTRING: 'wide (UTF-16) strings are not implemented; STRING is',
   LDATE: 'the 64-bit calendar types are IEC 3rd edition and not implemented; DATE is',
   LTOD: 'the 64-bit calendar types are IEC 3rd edition and not implemented; TOD is',

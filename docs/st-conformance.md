@@ -20,7 +20,7 @@ document is the ledger behind that claim: the subset boundary, the divergences, 
 |-------|----------------|-------|
 | Unit suite | Behaviour of each language feature | [src/plc/plc.test.ts](../src/plc/plc.test.ts) |
 | Golden corpus | Expected values derived by hand from IEC 61131-3 and checked against the open-source oracles below, never taken from running our own engine | [src/plc/conformanceCases.ts](../src/plc/conformanceCases.ts) |
-| Differential | The AST interpreter and the ST→TS emitter agree scan-for-scan, so "shown == executed" | [src/plc/conformance.test.ts](../src/plc/conformance.test.ts) |
+| Differential | The typed engine every program runs on and the AST walker, its reference, agree on everything each holds after every scan | [src/plc/scanEngines.test.ts](../src/plc/scanEngines.test.ts), [docs/plc-typed-storage.md](plc-typed-storage.md) |
 | **External oracle (2nd ed.)** | The goldens themselves are right: the corpus is replayed through MATIEC (`iec2c`), a real IEC compiler | [scripts/oracle-matiec.mjs](../scripts/oracle-matiec.mjs), [.github/workflows/st-oracle.yml](../.github/workflows/st-oracle.yml) |
 | **External oracle (3rd ed.)** | The edition boundary: a 3rd-edition compiler builds what MATIEC refuses only for being old; with `--execute`, every case it compiles is built with g++, run scan by scan and diffed against the goldens, its known gaps listed in `RUN_GAPS` | [scripts/oracle-strucpp.mjs](../scripts/oracle-strucpp.mjs), [src/plc/oracleStrucpp.ts](../src/plc/oracleStrucpp.ts) |
 | **External oracle (interchange)** | Every exported document is valid against PLCopen's own TC6 schema | [scripts/oracle-plcopen.mjs](../scripts/oracle-plcopen.mjs) |
@@ -103,8 +103,9 @@ the generated code, not an OpenPLC runtime. STruC++ 0.6.2's gaps are in `RUN_GAP
 - different answers: `REAL_TO_INT` rounding a tie away from zero (pinned at every integer width and from
   `LREAL`), `NOT` of an integer literal as a logical NOT, `CTD` / `CTUD` counting on the falling edge of `CD`, a
   PROGRAM's array and expression-valued `CONSTANT` losing their starting value (a function block's and a
-  FUNCTION's keep theirs), `DATE - DATE` as days, a calendar value printed as its count, and a PROGRAM with no
-  task put on the first task.
+  FUNCTION's keep theirs), `DATE - DATE` as days, a calendar value printed as its count, a PROGRAM with no
+  task put on the first task, and a `FOR` bound written as a literal past 2^53 read as the nearest double (one
+  pass too many; the same bound in a `LINT` variable is read exactly).
 
 These are gaps in what OpenPLC's newer editor builds, not in this engine, so the engine keeps its answers and the
 export warns where a program meets one (`export.ts` `strucppWarnings`, "OpenPLC v4 (its compiler, STruC++
@@ -136,31 +137,19 @@ STruC++ 0.6.2 builds the case. So it is an `editionReject`, checked both ways on
 provide the unsigned names, so no single BCD spelling compiles both here and on a strict 2nd-edition toolchain:
 **a program bound for such a toolchain needs its BCD calls changed to the unsigned names by hand.**
 
-### Interpreter and emitted TypeScript
+### What no external compiler can be asked
 
-The differential layer holds the interpreter and the emitted TypeScript ([emit.ts](../src/plc/emit.ts)) to the
-same answers, so the emitted module calls runtime helpers wherever JS would differ:
-
-- BOOL `AND` / `OR` through `andB` / `orB`, which evaluate both operands (divergence 11); `XOR` stays an
-  operator, and a bit-string `AND` / `OR` combines every bit.
-- Subscripts through `elemAt` / `elemSet`, with the bounds and the interpreter's message. An indexed place is
-  never a JS lvalue: the last index goes through `elemSet`, earlier ones through `elemAt`, in `assignPlace`'s
-  order, covering all three store sites (assignment, `VAR_IN_OUT` copy-back, output binding).
-- A subrange store through `inRange`, after the width coercion and before the store, mirroring `checkRange`.
-- `WHILE` / `REPEAT` past `MAX_LOOP_ITERATIONS`, and `FOR ... BY 0`, fault. The cap lives in `runtime.ts` so both
-  backends count to the same number; `loopGuard` and `forStep` carry it into the emitted module.
-
-The emitted TypeScript is an export and teaching artifact, not the execution path. Checks that cannot go to an
-external compiler (an out-of-range store is undefined behaviour in C; a runaway loop hangs the replay binary) are
-pinned on the helpers in `builtins.test.ts` and on the emitter in `plc.test.ts`, as is the side effect of a call
-on the decided side of an `AND` (it needs a FUNCTION reaching a global, permissiveness 1). A corpus case whose
-golden is a fault reaches the external run by shape: `npm run st-oracle` reports "expected 0 scan lines, got 1"
-against its `divergence` field and stays green.
+Some checks cannot go to an external compiler: an out-of-range store is undefined behaviour in C, and a runaway
+loop hangs the replay binary. Those are pinned in-process, on both engines: a loop past `MAX_LOOP_ITERATIONS`, a
+`FOR ... BY 0`, a store outside a subrange and a write outside an array in `builtins.test.ts` ("faults that stop a
+scan"), and the side effect of a call on the decided side of an `AND` in `plc.test.ts` (it needs a FUNCTION
+reaching a global, permissiveness 1). A corpus case whose golden is a fault reaches the external run by shape:
+`npm run st-oracle` reports "expected 0 scan lines, got 1" against its `divergence` field and stays green.
 
 ### Object orientation and references: METHOD, EXTENDS, INTERFACE, REF_TO
 
 IEC's 3rd edition put methods, interfaces and inheritance on function blocks, and added references (`REF_TO`).
-They are implemented in the checker, both scan engines and the emitted TypeScript. MATIEC refuses all of it, so
+They are implemented in the checker and both scan engines. MATIEC refuses all of it, so
 every OOP case is an `editionReject`; STruC++ 0.6.2 builds each case but the interface variables and the gaps below,
 and `--execute` runs what it builds. Interface variables are checked in-process only.
 
@@ -299,8 +288,9 @@ must be a variable of exactly the declared type, since the block writes through 
 (`END_IF`) is read as a tolerated input form and written back with it on export
 ([Known permissiveness](#known-permissiveness) item 5).
 
-**Types.** `BOOL`; signed (`SINT`/`INT`/`DINT`), unsigned (`USINT`/`UINT`/`UDINT`) and bit-string
-(`BYTE`/`WORD`/`DWORD`) integers kept apart; `REAL`, `LREAL`, `TIME`, `DATE`, `TIME_OF_DAY`/`TOD`,
+**Types.** `BOOL`; signed (`SINT`/`INT`/`DINT`/`LINT`), unsigned (`USINT`/`UINT`/`UDINT`/`ULINT`) and bit-string
+(`BYTE`/`WORD`/`DWORD`/`LWORD`) integers kept apart, the 64-bit ones exact over their whole range (see
+[64-bit integers](#64-bit-integers)); `REAL`, `LREAL`, `TIME`, `DATE`, `TIME_OF_DAY`/`TOD`,
 `DATE_AND_TIME`/`DT` (see [Dates and times of day](#dates-and-times-of-day)), `STRING`; with width-correct
 two's-complement wrapping, IEC widening, ties-to-even narrowing, truncating integer division and `MOD` taking the
 dividend's sign.
@@ -311,7 +301,7 @@ shifts/rotates on bit strings. `aByte + 1`, `NOT anInt` and `SHR(anInt, 1)` are 
 `w AND 255` and `nw := NOT 0` are ordinary ST.
 
 **`REAL` is single precision**, as on every target (MATIEC maps it to C `float`): it rounds to f32 after every
-operation through the one `wrap()` both the interpreter and the emitter call, so `0.4` reads `0.4000000059604645`.
+operation, so `0.4` reads `0.4000000059604645`.
 
 **`TIME` is a distinct type carrying milliseconds.** `PT` and `ET` are `TIME`, so `PT := 300` does not compile and
 `T#1s + 1` is not 1001. Durations add, subtract, scale by a number and compare, and never mix with numbers
@@ -377,12 +367,42 @@ value (known gap `omitted-input-no-initial`). A positional call gives every inpu
 short).
 
 **Identifiers are case-insensitive**: names colliding only in case are duplicates, and the declared spelling is
-what the watch table, emitter and tag bindings see.
+what the watch table and tag bindings see.
+
+### 64-bit integers
+
+`LINT`, `ULINT` and `LWORD` are exact over their whole range: literals, arithmetic, comparisons, bit operations,
+shifts, bit access (`w.63`), conversions, `CASE`, `FOR`, arrays, structures, function blocks and functions. A
+JavaScript number holds a whole number exactly only up to 2^53, so a value of one of these types is never a number
+inside the engine: it is a bigint in the walker and an `i64` in a WebAssembly body, and the oracle holds the two
+together ([int64.test.ts](../src/plc/int64.test.ts), which also runs programs made at random on both).
+
+- **Literals.** A whole-number literal past 32 bits is a `LINT`, and a `ULINT` past 2^63 - 1. One past 2^64 - 1 is
+  refused. `LINT#`, `ULINT#` and `LWORD#` typed literals and based literals (`16#FFFF_FFFF_FFFF_FFFF`) keep every
+  digit.
+- **Overflow wraps** at 64 bits, as it does at every width. The least `LINT` divided by -1 wraps to itself.
+- **Widening.** Each family gains its 64-bit member (`DINT` into `LINT`, `UDINT` into `ULINT`, `DWORD` into
+  `LWORD`), and a 64-bit integer goes into a real without a conversion, rounding to the nearest value the real
+  holds. Narrowing needs the conversion and keeps the low bits (`LINT_TO_DINT`).
+- **Outside the engine a value is a number or its digits.** The watch table, `get`, a saved value and an agent's
+  read give a 64-bit integer as a number while a number holds it exactly, and as its decimal digits in a string past
+  2^53, so nothing meets a bigint (which JSON refuses). `BigInt(value)` is exact from either form, and a write takes
+  either. The editor shows the digits unquoted. A value typed into the Watch dock or held by a force travels to the
+  simulation as a number, so it is exact up to 2^53 and refused past it.
+- **A 64-bit variable is not wired to a part or a protocol client.** A scene tag and every protocol here carry a
+  number. Such a variable is left out of the program's inputs, outputs and wirable tags, the Inspector and the
+  Problems panel say why a tag naming one connects to nothing, the OPC UA server does not publish it, and a
+  long-word address (`%IL0`) is refused. Convert it into a `DINT` or an `LREAL` variable and wire that.
+
+Three rules are this engine's own, where IEC asks for a conversion and so defines nothing (divergences 13 to 15).
+
+MATIEC builds and agrees with every replayed case. STruC++ agrees with all but one, a `FOR` bound written as a
+literal past 2^53 (known gap `for-bound-literal-past-2-53`; export warns).
 
 ### Timers read the controller clock
 
 The engine keeps a controller clock in whole nanoseconds (MATIEC's resolution), moved on each scan by its `dt`,
-rounded the way the tier-2 harness steps `__CURRENT_TIME`; the emitted TypeScript keeps it on `S.__now`. `TON`,
+rounded the way the tier-2 harness steps `__CURRENT_TIME`. `TON`,
 `TOF` and `TP` follow IEC's bodies: the starting call notes the clock (`START_TIME`) and evaluates nothing else, so
 `ET` is 0 on that scan, and later calls measure `CURRENT_TIME - START_TIME`. A `TON` with `PT := T#0.3s` at 0.1 s
 fires on the fourth scan, and `TP`'s completion scan sets `Q := FALSE` and `ET := PT` together.
@@ -526,8 +546,8 @@ both; the tier-2 harness backs each address with storage in `LOCATED_VARIABLES.h
 
 | Area | Missing |
 |------|---------|
-| Types | `WSTRING` (a double-quoted literal is rejected by name, so the message says which type is missing rather than "unexpected character"); `LDATE`/`LTOD`/`LDT`; `LINT`, `ULINT`, `LWORD` (64-bit needs exact arithmetic a JS number cannot give; the checker says so by name rather than reporting "unknown type"); a default value on an alias, enumeration or array `TYPE` declaration (`TYPE Count : INT := 5;`; a `STRUCT` field's default is supported) |
-| Declarations | `VAR_ACCESS`, `VAR_CONFIG`, `RETAIN`/`NON_RETAIN` (accepted, no effect), 64-bit (`L`) located variables, and a direct address used in code (see [Located variables](#located-variables)) |
+| Types | `WSTRING` (a double-quoted literal is rejected by name, so the message says which type is missing rather than "unexpected character"); `LDATE`/`LTOD`/`LDT`; a default value on an alias, enumeration or array `TYPE` declaration (`TYPE Count : INT := 5;`; a `STRUCT` field's default is supported) |
+| Declarations | `VAR_ACCESS`, `VAR_CONFIG`, `RETAIN`/`NON_RETAIN` (accepted, no effect), 64-bit (`L`) located variables (no I/O point here is 64 bits wide: see [64-bit integers](#64-bit-integers)), and a direct address used in code (see [Located variables](#located-variables)) |
 | Configuration | event tasks (`SINGLE`), instance wiring in the `CONFIGURATION`, more than one `RESOURCE`, `WITH` on a function-block instance (see [Tasks and programs](#tasks-and-programs)) |
 | Statements | FB calls as expressions; leaving an input out of a formal call to a standard function (MATIEC takes it; every input is asked for here) |
 | Library | `SEMA`, a function that reads the date (IEC has none), and the case-mapping/trim string extensions vendors add on top of IEC's nine |
@@ -581,6 +601,21 @@ Each is exercised by a corpus case carrying a `divergence` note.
     otherwise; MATIEC checks neither and reads past the array, which hides the bug until much later. The
     read and the subrange store are corpus cases; the out-of-range write is pinned in `builtins.test.ts` (undefined
     behaviour in C).
+13. **An operation whose result is a 64-bit integer converts both operands to that type first.** IEC does not
+    define an operation across the signed and unsigned families. The result type is the wider one (rule 1 for a
+    tie), and at 64 bits there is nothing wider to work in, so each operand is reinterpreted as the result type and
+    the operation is that type's: a `ULINT` divided by a `DINT` of -1 divides by 2^64 - 1. This is what C does.
+    Sums and products are the same either way; only `/` and `MOD` can tell.
+14. **Two whole numbers compare by their values, whatever their types.** A `LINT` of -1 is less than a `ULINT` of
+    2^64 - 1, though the two are the same 64 bits. A 64-bit integer beside a `REAL`, an `LREAL` or a `TIME` is
+    converted to a number first, so it compares as the nearest value a double holds.
+15. **A `FOR` over a 64-bit counter counts in the counter's own type.** Its bounds are converted to that type and
+    its step to a `LINT`, and the loop also ends where the next value would leave the type's range. A narrower
+    counter counts on in wider numbers and wraps only what it stores; at 64 bits there is nothing wider. A narrower
+    counter with a 64-bit bound is refused when the program is checked.
+16. **An `LWORD` shifted by 64 or more is 0**, as a narrower bit string shifted by its whole width is. MATIEC
+    writes a C shift, which is undefined at the full width of a 64-bit value (built for x86 it leaves the word
+    unchanged), so that case is withheld from it.
 
 ## Known permissiveness
 

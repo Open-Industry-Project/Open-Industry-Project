@@ -7,7 +7,7 @@ import { checkMcall, isNull, pointerOf } from './checkCalls'
 import { become, declTypeName, exprEnum, lookup, placeText, sameDataType, type Scope, typeName } from './checkScope'
 import { LD_ROLES, ladderRole } from './ladder/ladder'
 import { type EnumDefMap, fbDecls, type FbDefMap, identKey, isFb, isScalarType } from './program'
-import { FB_POSITIONAL, fbMemberType, isBitString, isCalendar, isInt, isReal, isString, isTime, widen, wrap } from './runtime'
+import { FB_POSITIONAL, fbMemberType, is64, isBitString, isCalendar, isInt, isReal, isString, isTime, widen, wrap, wrap64 } from './runtime'
 import type { DataType, Decl, DeclType, Expr, FbArg, ScalarType, SourcePos, UserFbRef } from './types'
 import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
 
@@ -53,7 +53,7 @@ function fbOutput(ref: UserFbRef, member: string, fbDefs: FbDefMap): { name: str
  *
  * The parser cannot do this: it does not know the instance's TYPE, so it does not know what
  * the block's parameters are. Naming them here, before any of the checks below run, means
- * everything downstream - the type checks, the interpreter, the emitter, both exporters -
+ * everything downstream - the type checks, both scan engines, both exporters -
  * keeps seeing an ordinary named call and needs no case of its own.
  *
  * A short list is allowed, leaving the trailing parameters unwritten, because a formal call
@@ -136,12 +136,28 @@ export function inferType(e: Expr, scope: Scope): DataType {
       // at DINT width instead of wrapping at INT's 16 bits. (The lexer only produces
       // non-negative literals; `-` is a unary op on top.)
       if (e.declared) {
+        if (is64(e.declared)) {
+          // a 64-bit integer is judged by its exact value, which `value` may have rounded
+          const exact = e.real || !Number.isInteger(e.value) ? null : BigInt(e.big ?? e.value)
+          if (exact === null || wrap64(e.declared, exact) !== exact) throw new StError(`${exact ?? e.value} does not fit in ${e.declared}`, e.pos)
+          e.t = e.declared
+          e.big = exact.toString()
+          return e.declared
+        }
         if (isInt(e.declared) && (!Number.isInteger(e.value) || wrap(e.declared, e.value) !== e.value)) {
-          throw new StError(`${e.value} does not fit in ${e.declared}`, e.pos)
+          throw new StError(`${e.big ?? e.value} does not fit in ${e.declared}`, e.pos)
         }
         e.t = e.declared
         e.value = wrap(e.declared, e.value) // a REAL literal is stored at f32
         return e.declared
+      }
+      // past 32 bits a whole number is a 64-bit integer: LINT while it fits, ULINT up to 2^64 - 1
+      if (!e.real && e.value > 4294967295) {
+        const exact = BigInt(e.big ?? e.value)
+        if (exact > 0xffff_ffff_ffff_ffffn) throw new StError(`${exact} does not fit in any integer type: the widest (LINT, ULINT, LWORD) hold 64 bits`, e.pos)
+        e.big = exact.toString()
+        e.t = exact <= 0x7fff_ffff_ffff_ffffn ? 'LINT' : 'ULINT'
+        return e.t
       }
       // not rounded to the inferred type: literal typing here is by magnitude, not by
       // context, so pre-rounding an untyped `0.1` to REAL would silently throw away the
@@ -287,7 +303,7 @@ export function inferType(e: Expr, scope: Scope): DataType {
       if (!isScalarType(ot) || !isInt(ot) || exprEnum(e.obj)) {
         throw new StError(`'${text}' addresses a bit, and '${placeText(e.obj)}' is ${typeName(ot)}: only an integer (SINT, INT, DINT, BYTE, WORD, DWORD...) has bits`, e.pos, text.length)
       }
-      const width = ot === 'SINT' || ot === 'USINT' || ot === 'BYTE' ? 8 : ot === 'INT' || ot === 'UINT' || ot === 'WORD' ? 16 : 32
+      const width = ot === 'SINT' || ot === 'USINT' || ot === 'BYTE' ? 8 : ot === 'INT' || ot === 'UINT' || ot === 'WORD' ? 16 : is64(ot) ? 64 : 32
       if (e.bit >= width) throw new StError(`'${text}': ${ot} has bits 0..${width - 1}`, e.pos, text.length)
       e.t = 'BOOL'
       return 'BOOL'
@@ -473,7 +489,7 @@ function needBitString(op: string, t: ScalarType, side: Expr): void {
 /** The mirror: arithmetic is `ANY_NUM`, so a bit string has to be converted to do sums. */
 function needNumeric(op: string, t: ScalarType, side: Expr): void {
   if (!isBitString(t) || isLiteralTree(side)) return
-  const asNum = t === 'BYTE' ? 'USINT' : t === 'WORD' ? 'UINT' : 'UDINT'
+  const asNum = t === 'BYTE' ? 'USINT' : t === 'WORD' ? 'UINT' : t === 'LWORD' ? 'ULINT' : 'UDINT'
   throw new StError(
     `${op} is arithmetic; '${t}' is a bit string, which IEC does not do arithmetic on (convert it: ${t}_TO_${asNum}(...))`,
     side.pos,

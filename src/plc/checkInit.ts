@@ -219,8 +219,8 @@ function structHoldsDefaults(def: StructDef, structs: StructDefMap): boolean {
 }
 
 /**
- * Fold the STRUCT field defaults into a declaration's initializer, so every engine (the walker, the typed engine, the
- * emitted TypeScript) starts the variable where the type says without knowing field defaults exist: a field the
+ * Fold the STRUCT field defaults into a declaration's initializer, so both engines (the walker, the typed engine)
+ * start the variable where the type says without knowing field defaults exist: a field the
  * program's own initializer names keeps that value, every other one gets its default, nested as deep as the type is.
  * What is added is marked `implied` for the exporters, which leave it out: the type declaration carries it.
  *

@@ -18,12 +18,15 @@
       "SINT",
       "INT",
       "DINT",
+      "LINT",
       "USINT",
       "UINT",
       "UDINT",
+      "ULINT",
       "BYTE",
       "WORD",
       "DWORD",
+      "LWORD",
       "REAL",
       "LREAL",
       "TIME",
@@ -119,12 +122,15 @@
         "SINT",
         "INT",
         "DINT",
+        "LINT",
         "USINT",
         "UINT",
         "UDINT",
+        "ULINT",
         "BYTE",
         "WORD",
         "DWORD",
+        "LWORD",
         "REAL",
         "LREAL",
         "TIME",
@@ -172,7 +178,9 @@
     "FUNCTION_BLOCK",
     "IF",
     "INT",
+    "LINT",
     "LREAL",
+    "LWORD",
     "MOD",
     "NOT",
     "OF",
@@ -190,6 +198,7 @@
     "TYPE",
     "UDINT",
     "UINT",
+    "ULINT",
     "UNTIL",
     "USINT",
     "VAR",
@@ -438,6 +447,14 @@
       "verdict": "compiles"
     },
     {
+      "id": "wide-integers",
+      "category": "Types",
+      "intent": "supported",
+      "title": "LINT, ULINT and LWORD: 64-bit integers, exact past 2^53",
+      "st": "VAR\n  total : LINT := 9007199254740993;\n  count : ULINT;\n  mask : LWORD := 16#8000_0000_0000_0000;\nEND_VAR\ntotal := total + 1;\ncount := count + 1;\nmask := SHR(mask, 1);",
+      "verdict": "compiles"
+    },
+    {
       "id": "real-lreal",
       "category": "Types",
       "intent": "supported",
@@ -556,33 +573,6 @@
       "title": "The nine IEC string functions, 1-based",
       "st": "VAR s : STRING := 'hello world'; part : STRING; at : INT; END_VAR\npart := MID(s, 5, 1);\nat := FIND(s, 'world');\npart := REPLACE(s, 'X', 1, 1);",
       "verdict": "compiles"
-    },
-    {
-      "id": "lint",
-      "category": "Types the subset lacks",
-      "intent": "unsupported",
-      "title": "LINT (64-bit signed)",
-      "st": "VAR n : LINT; END_VAR",
-      "verdict": "refused",
-      "message": "LINT is not supported: 64-bit integers need exact arithmetic a JS number cannot provide; use DINT, or LREAL if the range matters more than the last digits"
-    },
-    {
-      "id": "ulint",
-      "category": "Types the subset lacks",
-      "intent": "unsupported",
-      "title": "ULINT (64-bit unsigned)",
-      "st": "VAR n : ULINT; END_VAR",
-      "verdict": "refused",
-      "message": "ULINT is not supported: 64-bit integers need exact arithmetic a JS number cannot provide; use UDINT, or LREAL if the range matters more than the last digits"
-    },
-    {
-      "id": "lword",
-      "category": "Types the subset lacks",
-      "intent": "unsupported",
-      "title": "LWORD (64-bit bit string)",
-      "st": "VAR n : LWORD; END_VAR",
-      "verdict": "refused",
-      "message": "LWORD is not supported: 64-bit bit strings need exact arithmetic a JS number cannot provide; use DWORD, or two of them"
     },
     {
       "id": "wstring",
@@ -1369,14 +1359,30 @@
       {
         "case": "faults a method called through an interface that refers to no instance",
         "note": "IEC 61131-3 makes a call through an interface that refers to no instance (NULL) an error and leaves what a controller then does to the implementation. This engine faults the scan, naming it, as it faults a NULL REF_TO dereferenced; a program tests `itf <> NULL` (or `<> 0`) first"
+      },
+      {
+        "case": "the least LINT divided by -1 wraps to itself",
+        "note": "the quotient is 2^63, one more than a LINT holds. IEC leaves an overflow open; here it wraps, as every other overflow does, so the quotient is the least LINT again and the remainder 0"
+      },
+      {
+        "case": "a LINT and a ULINT compare by their values, not their bits",
+        "note": "IEC does not define a comparison across the signed and unsigned families. Here two whole numbers compare by their exact values, as the narrower ones do (docs/st-conformance.md, \"64-bit integers\")"
+      },
+      {
+        "case": "a 64-bit operation converts both operands to its result type first",
+        "note": "IEC does not define an operation across the signed and unsigned families. Here the wider type is the result type, and both operands are converted to it before the operation, as C converts them (docs/st-conformance.md, \"64-bit integers\")"
+      },
+      {
+        "case": "a LINT beside an LREAL compares as a number",
+        "note": "IEC does not define a comparison of an integer with a real. Here the integer is converted to a number first, as a narrower one is, and a 64-bit one rounds to the nearest a double holds"
       }
     ]
   },
   "corpus": {
-    "groups": 25,
-    "cases": 251,
-    "rejectionCases": 67,
-    "replayedByOracle": 173,
+    "groups": 26,
+    "cases": 271,
+    "rejectionCases": 70,
+    "replayedByOracle": 187,
     "withheldFromOracle": [
       {
         "case": "integer division by zero faults the scan",
@@ -1392,7 +1398,7 @@
       },
       {
         "case": "a bit write rewrites only that bit, of a variable or an array element",
-        "why": "partial access (`.%Xn`) is an IEC 3rd-edition feature, which MATIEC, a 2nd-edition compiler, does not read; not yet replayed on STruC++, so the goldens are checked in-process, through both backends"
+        "why": "partial access (`.%Xn`) is an IEC 3rd-edition feature, which MATIEC, a 2nd-edition compiler, does not read; not yet replayed on STruC++, so the goldens are checked in-process, through both engines"
       },
       {
         "case": "R_TRIG / F_TRIG single-scan pulses",
@@ -1412,15 +1418,15 @@
       },
       {
         "case": "an array of timers keeps one clock per element",
-        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both backends"
+        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both engines"
       },
       {
         "case": "an array of user function blocks, called by index with output bindings",
-        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both backends"
+        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both engines"
       },
       {
         "case": "a function block holds an array of timers of its own",
-        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both backends"
+        "why": "no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration (\"invalid item data type in array specification\"), and STruC++ 0.6.2 cannot parse a call on an array element (\"Expected `Assign`, found `(`\"), so it never reaches the check. The goldens are checked in-process, through both engines"
       },
       {
         "case": "a function-block instance in VAR_GLOBAL is one instance every POU shares",
@@ -1428,15 +1434,15 @@
       },
       {
         "case": "assigning one timer in an array to another is rejected",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "writing a timer output through an array element is rejected",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "a FUNCTION cannot hold function-block instances inside an array",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "a formal call of a standard function that leaves an input out is rejected",
@@ -1444,15 +1450,15 @@
       },
       {
         "case": "a named array type passes into a FUNCTION by value and is its result",
-        "why": "MATIEC compiles this program, which is its verdict that the ST is valid, but the C it generates cannot pass an array into a function or take one back as the result (\"aggregate value used where an integer was expected\"), so the replay has nothing to run. STruC++ (3rd edition) builds it. The goldens are checked in-process, through both backends"
+        "why": "MATIEC compiles this program, which is its verdict that the ST is valid, but the C it generates cannot pass an array into a function or take one back as the result (\"aggregate value used where an integer was expected\"), so the replay has nothing to run. STruC++ (3rd edition) builds it. The goldens are checked in-process, through both engines"
       },
       {
         "case": "an array of structs starts from a list of field lists",
-        "why": "no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct's initializer, or field lists inside an array's [...] list, whether the array type is named or spelled out (\"Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype\"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both backends"
+        "why": "no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct's initializer, or field lists inside an array's [...] list, whether the array type is named or spelled out (\"Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype\"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both engines"
       },
       {
         "case": "an array field starts from a [...] list inside a struct's initializer",
-        "why": "no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct's initializer, or field lists inside an array's [...] list, whether the array type is named or spelled out (\"Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype\"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both backends"
+        "why": "no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct's initializer, or field lists inside an array's [...] list, whether the array type is named or spelled out (\"Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype\"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both engines"
       },
       {
         "case": "a store truncates to the declared capacity",
@@ -1516,39 +1522,39 @@
       },
       {
         "case": "rejects an override that takes other parameters than the method it replaces",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "rejects an instance of an ABSTRACT block",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "a method called through a REF_TO a base class runs the class of the instance it refers to",
-        "why": "no external compiler here runs it. MATIEC has no references; STruC++ 0.6.2 refuses a METHOD called through a dereferenced reference (\"Expected `Semicolon`, found `(`\" at drive^.Gain()) and does not build REF() of a function block either. The goldens are checked in-process, through both engines and the emitted TypeScript"
+        "why": "no external compiler here runs it. MATIEC has no references; STruC++ 0.6.2 refuses a METHOD called through a dereferenced reference (\"Expected `Semicolon`, found `(`\" at drive^.Gain()) and does not build REF() of a function block either. The goldens are checked in-process, through both engines"
       },
       {
         "case": "faults when a REF_TO that is NULL is dereferenced",
-        "why": "the fault is a null dereference in every compiled target: a scan fault has no comparable image, and asking an external run for one asks its harness to stop. The rule is pinned in-process, through both engines and the emitted TypeScript"
+        "why": "the fault is a null dereference in every compiled target: a scan fault has no comparable image, and asking an external run for one asks its harness to stop. The rule is pinned in-process, through both engines"
       },
       {
         "case": "rejects REF() of a CONSTANT, which the reference would write through to",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "an INTERFACE variable runs the implementation of the instance it refers to, and is passed to a block as an input",
-        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript"
+        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines"
       },
       {
         "case": "faults a method called through an interface that refers to no instance",
-        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript"
+        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines"
       },
       {
         "case": "rejects an instance given to an interface its class does not implement",
-        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript"
+        "why": "MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines"
       },
       {
         "case": "an ARRAY OF an interface: a loop calls the implementation of each instance an element refers to, and skips an empty one",
-        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript"
+        "why": "no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one (\"Cannot assign BELT to IDRIVE\") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines"
       },
       {
         "case": "rejects an ARRAY OF REF_TO, which this engine does not implement",
@@ -1689,6 +1695,30 @@
       {
         "case": "a STRING capacity written as a constant",
         "why": "IEC writes a STRING capacity as an integer, never a constant expression: an input form the engine reads. The export (export.ts `foldedCapacities`) writes the folded integer, but the oracle renders the text target directly, which cannot fold it"
+      },
+      {
+        "case": "the least LINT divided by -1 wraps to itself",
+        "why": "the generated C divides the least 64-bit integer by -1, which is undefined behaviour in C and traps on x86: there is no image to compare"
+      },
+      {
+        "case": "64-bit division by zero faults the scan",
+        "why": "same as integer division by zero - the fault is not observable in the generated C"
+      },
+      {
+        "case": "a LINT and a ULINT compare by their values, not their bits",
+        "why": "the operands are of different families (signed with unsigned, or an integer with a real), which IEC requires a conversion between. What the mix means here is this engine's rule, so no IEC compiler is asked about it"
+      },
+      {
+        "case": "a 64-bit operation converts both operands to its result type first",
+        "why": "the operands are of different families (signed with unsigned, or an integer with a real), which IEC requires a conversion between. What the mix means here is this engine's rule, so no IEC compiler is asked about it"
+      },
+      {
+        "case": "a LINT beside an LREAL compares as a number",
+        "why": "the operands are of different families (signed with unsigned, or an integer with a real), which IEC requires a conversion between. What the mix means here is this engine's rule, so no IEC compiler is asked about it"
+      },
+      {
+        "case": "an LWORD shifted by its whole width is 0",
+        "why": "MATIEC writes the shift as a C shift, and a 64-bit value shifted by 64 is undefined behaviour in C: built for x86 it leaves the word unchanged (measured: SHL(w, 64) answers w). A narrower word is promoted to int first, so its whole-width shift is defined and is replayed above"
       }
     ],
     "editionRejects": [
@@ -1791,7 +1821,8 @@
       "located variables: AT binds a variable to an I/O point (%I, %Q) or to memory (%M)",
       "object orientation and references: METHOD, EXTENDS, INTERFACE and REF_TO",
       "ladder diagram",
-      "tolerated input forms, exported in IEC form"
+      "tolerated input forms, exported in IEC form",
+      "64-bit integers: LINT, ULINT and LWORD are exact past what a number holds"
     ]
   },
   "oracleCoverage": {
@@ -1803,8 +1834,8 @@
       "excluded": "cases the oracle skips (never replayed) and `rejects` cases (they prove refusal, not behaviour)",
       "grades": "executed = replayed through MATIEC tier 2. compiledOnly = reached only by an `editionReject` case, which MATIEC is expected to refuse, so nothing ever ran it. Kept apart so the headline cannot drift upward on the weaker evidence as more editionReject cases accrue."
     },
-    "casesConsidered": 129,
-    "casesExecuted": 111,
+    "casesConsidered": 140,
+    "casesExecuted": 122,
     "compiledOnly": [
       "BCD_TO_INT",
       "DIV_TIME",
@@ -1820,7 +1851,9 @@
         "DT",
         "DWORD",
         "INT",
+        "LINT",
         "LREAL",
+        "LWORD",
         "REAL",
         "SINT",
         "STRING",
@@ -1828,6 +1861,7 @@
         "TOD",
         "UDINT",
         "UINT",
+        "ULINT",
         "USINT",
         "WORD"
       ],
@@ -1916,7 +1950,7 @@
       "unverified": []
     },
     "summary": {
-      "types": "17/17",
+      "types": "20/20",
       "functionBlocks": "10/10",
       "functions": "54/58"
     }

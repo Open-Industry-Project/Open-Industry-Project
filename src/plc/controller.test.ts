@@ -5,7 +5,6 @@
 
 import { describe, expect, it } from 'vitest'
 import { diagnostics } from './checker'
-import { toTypeScript } from './emit'
 import { exportProgram, toPlcopenXml } from './exchange/export'
 import { renderIecText } from './exchange/exportText'
 import { compile } from './interpreter'
@@ -296,16 +295,6 @@ describe('TaskScheduler', () => {
     expect(s.advance(0.001).scans).toBe(1) // the backlog was dropped, not carried
     for (let i = 0; i < 3; i++) s.advance(0.01)
     expect(s.overruns).toBe(1)
-  })
-})
-
-describe('the emitted TypeScript', () => {
-  it('carries the task table, an instance per PROGRAM line and a scanTask per task', () => {
-    const ts = toTypeScript(TWO_RATES)
-    expect(ts).toContain(`  { name: "Fast", kind: 'periodic', periodSec: 0.01, priority: 1, programs: ["FastCount"] },`)
-    expect(ts).toContain('class Counter {')
-    expect(ts).toContain('  S.SlowCount = new Counter();')
-    expect(ts).toContain('export function scanTask(S, i, dt) {')
   })
 })
 

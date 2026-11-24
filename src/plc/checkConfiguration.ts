@@ -82,7 +82,7 @@ export function checkLocated(groups: { decls: Decl[]; home: LocatedHome }[], con
         continue
       }
       if (parsed.size === 'L') {
-        fail(d, `${addr} is a long-word (64-bit) address, and 64-bit types are not supported here`)
+        fail(d, `${addr} is a long-word (64-bit) address, which is not supported: no I/O point or memory address here is 64 bits wide (a 64-bit variable is an ordinary one, with no address)`)
         continue
       }
       const t = typeof d.type === 'string' && isScalarType(d.type) ? d.type : null

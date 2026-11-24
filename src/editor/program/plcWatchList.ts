@@ -9,7 +9,7 @@
 import { KEYWORDS } from '../../plc'
 import type { TagValue } from '../../plc'
 import { keySetOf } from '../../core/watchKeys'
-import { watchElementKey, watchElementsUnder, watchKeysOf } from '../../core/watchTable'
+import { isWatchWord, watchBit, watchElementKey, watchElementsUnder, watchKeysOf } from '../../core/watchTable'
 import { currentDocumentId } from '../project/documentStore'
 import { ownSharedProject } from '../project/sharedProject'
 
@@ -65,8 +65,9 @@ export function resolveWatch(name: string, watch: Readonly<Record<string, TagVal
   const bit = /^(.+)\.([0-9]+)$/.exec(name)
   const wordKey = bit ? upperIndex(watch).get(bit[1]!.toUpperCase()) : undefined
   const word = wordKey !== undefined ? watch[wordKey] : undefined
-  if (bit && typeof word === 'number' && Number(bit[2]) < 32) {
-    return { name, key: `${wordKey}.${bit[2]}`, value: ((word >>> Number(bit[2])) & 1) === 1, members: [], more: 0 }
+  // (a 64-bit word reaches bit 63, and past 2^53 is held as its digits)
+  if (bit && isWatchWord(word) && Number(bit[2]) < 64) {
+    return { name, key: `${wordKey}.${bit[2]}`, value: watchBit(word, Number(bit[2]))!, members: [], more: 0 }
   }
   const prefix = name.toUpperCase()
   // a variable of a program instance, written without the instance (`Count` for `Line.Count`), as the code beside it

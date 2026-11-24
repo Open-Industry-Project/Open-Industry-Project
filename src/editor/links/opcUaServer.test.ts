@@ -46,6 +46,11 @@ describe('publishedVariables', () => {
     expect(nodes['C1.CV']).toMatchObject({ builtin: 4, writable: false })
   })
 
+  it('does not publish a 64-bit integer, which a node could not carry exactly', () => {
+    const nodes = byName(publishedVariables(new LocalPlcLink('VAR\n  Total : LINT := 9007199254740993;\n  Count : DINT;\nEND_VAR\nCount := Count + 1;'), new Set()))
+    expect(Object.keys(nodes)).toEqual(['Count'])
+  })
+
   it('keys a CONFIGURATION program instance by its name, which becomes a folder on the server', () => {
     const src = `PROGRAM Conveyor
 VAR Run : BOOL; END_VAR

@@ -1,9 +1,10 @@
-// A typed controller's memory: one ArrayBuffer, sized when the program is compiled and never replaced, and the eight
+// A typed controller's memory: one ArrayBuffer, sized when the program is compiled and never replaced, and the ten
 // views every access goes through (docs/plc-typed-storage.md, "The arena"). Addresses are bytes; a place's layout
 // (layout.ts) aligns it to its own size, so `I32[addr >> 2]` is exact.
 
 import { WATCH_KIND } from '../../core/watchTable'
-import type { NumberCells, ScalarType, TagValue } from '../types'
+import { tagOfBig } from '../runtime'
+import type { NumberCells, ScalarType, TagValue, Value } from '../types'
 import type { ScalarLayout } from './layout'
 
 /** the most code units handed to String.fromCharCode in one call: its arguments go on the stack */
@@ -27,6 +28,9 @@ export class Arena {
   readonly U32: Uint32Array
   readonly F32: Float32Array
   readonly F64: Float64Array
+  /** the 64-bit integers: LINT through the signed view, ULINT and LWORD through the unsigned one */
+  readonly I64: BigInt64Array
+  readonly U64: BigUint64Array
 
   constructor(bytes: number) {
     // (a memory is whole 64 KB pages, so every view covers all of it)
@@ -41,11 +45,16 @@ export class Arena {
     this.U32 = new Uint32Array(this.buffer)
     this.F32 = new Float32Array(this.buffer)
     this.F64 = new Float64Array(this.buffer)
+    this.I64 = new BigInt64Array(this.buffer)
+    this.U64 = new BigUint64Array(this.buffer)
   }
 
-  /** The value of the scalar at `addr`, as the engine's surfaces answer it: a BOOL a boolean, a STRING text. */
+  /** The value of the scalar at `addr`, as the engine's surfaces answer it: a BOOL a boolean, a STRING text, a 64-bit
+   *  integer a number while a number holds it exactly and its decimal digits past that (types.ts TagValue). */
   load(slot: ScalarLayout, addr: number): TagValue {
     switch (slot.scalar) {
+      case 'LINT': return tagOfBig(this.I64[addr >> 3]!)
+      case 'ULINT': case 'LWORD': return tagOfBig(this.U64[addr >> 3]!)
       case 'BOOL': return this.U8[addr] !== 0
       case 'SINT': return this.I8[addr]!
       case 'USINT': case 'BYTE': return this.U8[addr]!
@@ -59,8 +68,15 @@ export class Arena {
     }
   }
 
+  /** The value of the scalar at `addr` as the engine itself holds it: {@link load}'s, but a 64-bit integer a bigint. */
+  raw(slot: ScalarLayout, addr: number): Value {
+    if (slot.scalar === 'LINT') return this.I64[addr >> 3]!
+    if (slot.scalar === 'ULINT' || slot.scalar === 'LWORD') return this.U64[addr >> 3]!
+    return this.load(slot, addr)
+  }
+
   /** Where the scalar at `addr` is as one stored number: the view that holds it, and its index there. None for a
-   *  STRING, which is a length and its characters. */
+   *  STRING, which is a length and its characters, and none for a 64-bit integer, which no number view holds. */
   cell(slot: ScalarLayout, addr: number): { cells: NumberCells; index: number } | undefined {
     switch (slot.scalar) {
       case 'BOOL': case 'USINT': case 'BYTE': return { cells: this.U8, index: addr }
@@ -71,13 +87,15 @@ export class Arena {
       case 'UDINT': case 'DWORD': return { cells: this.U32, index: addr >> 2 }
       case 'REAL': return { cells: this.F32, index: addr >> 2 }
       case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return { cells: this.F64, index: addr >> 3 }
-      case 'STRING': return undefined
+      case 'STRING': case 'LINT': case 'ULINT': case 'LWORD': return undefined
     }
   }
 
   /** Store a value already in the slot's form (coerced by the store rules, pou.ts), as the slot's view holds it. */
-  store(slot: ScalarLayout, addr: number, v: TagValue): void {
+  store(slot: ScalarLayout, addr: number, v: Value): void {
     switch (slot.scalar) {
+      case 'LINT': this.I64[addr >> 3] = v as bigint; return
+      case 'ULINT': case 'LWORD': this.U64[addr >> 3] = v as bigint; return
       case 'BOOL': this.U8[addr] = v ? 1 : 0; return
       case 'SINT': this.I8[addr] = v as number; return
       case 'USINT': case 'BYTE': this.U8[addr] = v as number; return
@@ -150,6 +168,8 @@ export function watchKindOf(t: ScalarType): number {
     case 'REAL': return WATCH_KIND.F32
     case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return WATCH_KIND.F64
     case 'STRING': return WATCH_KIND.STRING
+    case 'LINT': return WATCH_KIND.I64
+    case 'ULINT': case 'LWORD': return WATCH_KIND.U64
   }
 }
 

@@ -66,6 +66,13 @@ instruction at an address worked out when the body is written.
   with no call to the host. The other standard blocks and the motion kernel are imports.
 - **Numbers.** A BOOL and an integer up to 32 bits is an i32, a REAL, an LREAL and the time types an f64. Integer
   arithmetic is done in i64 and held to the type's width after, which gives what the walker's wrap gives.
+- **64-bit integers.** A LINT, a ULINT and an LWORD are an i64, and their arithmetic is the i64's own, which wraps
+  as the walker wraps its bigints. The emitter tracks whether the bits are read signed (LINT) or unsigned (ULINT,
+  LWORD), which decides a division, a comparison, a conversion to a real and an array bound check. Two cases need
+  more than one instruction: the least LINT divided by -1 (the instruction traps, so the quotient is written as a
+  negation), and a signed value compared with an unsigned one (a negative number is below every unsigned one, and
+  the rest compare unsigned). A helper the body imports sees an i64 as a bigint, so a builtin function is handed
+  the same values on both engines. docs/st-conformance.md, "64-bit integers".
 - **Texts stay with the host.** A STRING place is read and written in the arena. A text a call answers is kept by the
   host and handed on by its place in that list, and given back when it is read.
 - **Nothing is evaluated as JavaScript.** A program's names and literals are data the module is handed (a table of
@@ -77,7 +84,7 @@ instruction at an address worked out when the body is written.
 ## The arena
 
 One `ArrayBuffer` per compiled program, sized when it is compiled (a program's shape never changes after; an edit is a
-new compile, and values cross by name). Eight views over it: `I8 U8 I16 U16 I32 U32 F32 F64`. Addresses are byte
+new compile, and values cross by name). Ten views over it: `I8 U8 I16 U16 I32 U32 F32 F64 I64 U64`. Addresses are byte
 addresses, and an access is `I32[(addr) >> 2]`. **The first 8 bytes are a guard no place occupies**, so an address that
 lost its base reads and writes the guard, not a variable. Without the guard, with the globals at address 0, a bug of
 exactly that kind, planted on purpose, passes silently.
@@ -93,6 +100,8 @@ exactly that kind, planted on purpose, passes silently.
 | UDINT, DWORD | U32 | 4 |
 | REAL | F32 | 4 |
 | LREAL, TIME, DATE, TOD, DT | F64 | 8 |
+| LINT | I64, a bigint | 8 |
+| ULINT, LWORD | U64, a bigint | 8 |
 | STRING[n] | U16: the length, then n UTF-16 code units | 2 + 2n, align 2 |
 
 - **Strings live in the arena.** A side table of JS strings would read faster, but an aggregate holding a string would
@@ -102,6 +111,10 @@ exactly that kind, planted on purpose, passes silently.
   Any other read builds the text (`strAt`).
 - **BOOL is a byte**, read `!== 0` and written `? 1 : 0` in generated code. Every surface outside the scan (watch,
   memory, get, ports) answers `true` / `false`, as `TagValue` promises.
+- **A 64-bit integer leaves the arena as a number or its digits.** `Arena.load` and the watch table answer a number
+  while a number holds the value exactly, and its decimal digits in a string past 2^53 (`TagValue`, types.ts), so no
+  surface hands out a bigint. `Arena.raw` answers the bigint, for the engine's own use. A port over one has no
+  `cell`: no number view holds it.
 - **The coercions do not disappear.** An integer view stores modulo its width, but IEC narrows a REAL by
   round-half-even, and refuses a value that does not fit: the store rules ([pou.ts](../src/plc/pou.ts)
   `coerceScalar`, `fits`) still run before a value reaches a slot. What the arena removes is the possibility of a slot

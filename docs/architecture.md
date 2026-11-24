@@ -66,8 +66,8 @@ See `docs/part-authoring-guide.md` for the author-facing tour of the SDK.
 ## The PLC engine: one model, IEC front ends
 
 The PLC engine in `src/plc/` is one model and one runtime: the IEC 61131-3 software model
-(configuration, task, program instance; program TYPE kept apart from instance), a checker, an
-interpreter and a TypeScript emitter, the task scheduler on sim time, and the sim link. It
+(configuration, task, program instance; program TYPE kept apart from instance), a checker, two
+scan engines (docs/plc-typed-storage.md), the task scheduler on sim time, and the sim link. It
 implements a subset of IEC 61131-3, a subset of the PLCopen motion function blocks and the PLCopen
 XML 2.01 exchange format. It is not certified. Open-source implementations (OpenPLC, MATIEC,
 STruC++) are test oracles. Vendor controllers are connection targets. None is the specification.

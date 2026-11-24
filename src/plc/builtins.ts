@@ -2,16 +2,15 @@
 // selectors SEL/MUX, the REAL math set, the bit shifts/rotates, and the full
 // `<src>_TO_<dst>` conversion family). Function blocks (TON/CTUD/...) live in runtime.ts.
 //
-// Each builtin is wired into three surfaces, kept side by side here so they can't drift:
-//   - the type checker  -> `builtinResultType` (validates args, returns the result type)
-//   - the interpreter   -> `evalBuiltin`       (computes the value)
-//   - the ST->TS emitter -> `emitBuiltin`      (the equivalent JS expression)
+// Each builtin is wired into two surfaces, kept side by side here so they can't drift:
+//   - the type checker -> `builtinResultType` (validates args, returns the result type)
+//   - both scan engines -> `evalBuiltin`      (computes the value; a WebAssembly body calls it as an import)
 // The non-trivial semantics (width-correct shifts/rotates, rounding conversions) live as
-// shared helpers in runtime.ts, so "shown" and "executed" call the exact same code.
+// helpers in runtime.ts.
 
-import { bcdToInt, bool, calendarValue, conv, idiv, intToBcd, isBitString, isCalendar, isInt, isInt32, isReal, isString, isTime, num, rol, ror, shl, shr, str, strDelete, strFind, strInsert, strLeft, strMid, strReplace, strRight, widen, wrap } from './runtime'
+import { bcdToInt, big, bool, calendarValue, conv, idiv, intToBcd, is64, isBitString, isCalendar, isInt, isInt32, isReal, isString, isTime, num, rol, ror, shift64, shl, shr, str, strDelete, strFind, strInsert, strLeft, strMid, strReplace, strRight, widen, wrap, wrap64 } from './runtime'
 import { SCALAR_TYPES, StError } from './types'
-import type { ScalarType, SourcePos, TagValue } from './types'
+import type { Expr, ScalarType, SourcePos, Value } from './types'
 
 /**
  * IEC's time and date functions: two operands of fixed types, one operator between them. The set is IEC
@@ -383,6 +382,7 @@ export function builtinResultType(name: string, argTypes: ScalarType[], pos: Sou
     case 'BCD_TO_INT':
       arity(name, n, 1, 1, pos)
       needBits(name, argTypes[0]!, pos)
+      if (is64(argTypes[0])) throw new StError(`'${name}' reads a BYTE, WORD or DWORD; an INT holds four digits (convert it: LWORD_TO_WORD(...))`, pos, name.length)
       return 'INT'
     case 'INT_TO_BCD':
       arity(name, n, 1, 1, pos)
@@ -464,7 +464,7 @@ function coerceNum(rt: ScalarType, x: number): number {
  * every call (a conversion parse, a time-function lookup, a string switch) and MIN / MAX spread a fresh array; the
  * generated scan engine (scanCodegen.ts) calls these instead. builtins.test.ts holds every case to evalBuiltin.
  */
-export function builtinFor(name: string, rt: ScalarType, arity: number): ((a: TagValue, b: TagValue, c: TagValue) => TagValue) | null {
+export function builtinFor(name: string, rt: ScalarType, arity: number): ((a: Value, b: Value, c: Value) => Value) | null {
   const cv = parseConv(name)
   if (cv) {
     const { src, dst } = cv
@@ -472,7 +472,8 @@ export function builtinFor(name: string, rt: ScalarType, arity: number): ((a: Ta
     if (arity !== 1 || isString(src) || isString(dst) || isCalendar(src) || isCalendar(dst)) return null
     return (a) => conv(src, dst, a)
   }
-  if (rt === 'STRING' || TIME_FUNCTIONS[name]) return null
+  // (a 64-bit result is computed in bigints, which is evalBuiltin's)
+  if (rt === 'STRING' || is64(rt) || TIME_FUNCTIONS[name]) return null
   switch (name) {
     case 'ABS': return arity === 1 ? (a) => coerceNum(rt, Math.abs(num(a))) : null
     case 'MIN': return arity === 2 ? (a, b) => coerceNum(rt, Math.min(num(a), num(b))) : null
@@ -482,12 +483,68 @@ export function builtinFor(name: string, rt: ScalarType, arity: number): ((a: Ta
   return null
 }
 
-/** Evaluate a builtin call given its result type and already-evaluated scalar args. */
-export function evalBuiltin(name: string, rt: ScalarType, args: TagValue[]): TagValue {
+/**
+ * How a comparison function compares its arguments when one is a 64-bit integer, by their static types (the
+ * operators' rule, runtime.ts): 'big', every argument a whole number, compared exactly; 'num', a real or a duration
+ * among them, so each is compared as a number. Null for any other call. A caller hands the arguments over in that
+ * form ({@link comparisonArgs}), since a value alone does not say whether it was a whole number's or a real's.
+ */
+export function comparisonMode(name: string, args: readonly Expr[]): 'big' | 'num' | null {
+  if (COMPARISONS[name] === undefined) return null
+  let wide = false
+  let whole = true
+  for (const a of args) {
+    if (is64(a.t)) wide = true
+    else if (a.t === undefined || !isInt(a.t)) whole = false
+  }
+  return wide ? (whole ? 'big' : 'num') : null
+}
+
+/** A comparison function's arguments in the form {@link comparisonMode} says it compares them in. */
+export function comparisonArgs(mode: 'big' | 'num', args: Value[]): Value[] {
+  return mode === 'big' ? args.map(big) : args.map((a) => (typeof a === 'bigint' ? Number(a) : a))
+}
+
+/** Evaluate a builtin call given its result type and already-evaluated scalar args. A 64-bit result is a bigint
+ *  held to its type, and no other result is one, whatever the arguments were. */
+export function evalBuiltin(name: string, rt: ScalarType, args: Value[]): Value {
+  const r = evalRaw(name, rt, args)
+  if (is64(rt)) return wrap64(rt, big(r))
+  return typeof r === 'bigint' ? (rt === 'BOOL' ? r !== 0n : rt === 'STRING' ? r.toString() : Number(r)) : r
+}
+
+/** A 64-bit builtin's arguments, each converted to the result type first (runtime.ts). */
+const wide = (rt: ScalarType, args: Value[]): bigint[] => args.map((a) => wrap64(rt, big(a)))
+
+function evalRaw(name: string, rt: ScalarType, args: Value[]): Value {
   const cv = parseConv(name)
   if (cv) return conv(cv.src, cv.dst, args[0]!)
   const tf = TIME_FUNCTIONS[name]
   if (tf) return timeResult(rt, tf.op, num(args[0]!), num(args[1]!))
+  if (is64(rt)) {
+    switch (name) {
+      case 'ABS': {
+        const v = big(args[0]!)
+        return v < 0n ? -v : v
+      }
+      case 'MIN': return wide(rt, args).reduce((a, b) => (b < a ? b : a))
+      case 'MAX': return wide(rt, args).reduce((a, b) => (b > a ? b : a))
+      case 'LIMIT': {
+        const [lo, v, hi] = wide(rt, args) as [bigint, bigint, bigint]
+        const floor = v > lo ? v : lo
+        return floor < hi ? floor : hi
+      }
+      case 'SHL': case 'SHR': case 'ROL': case 'ROR': return shift64(name, rt, big(args[0]!), num(args[1]!))
+      case 'ADD': return wide(rt, args).reduce((a, b) => wrap64(rt, a + b))
+      case 'MUL': return wide(rt, args).reduce((a, b) => wrap64(rt, a * b))
+      case 'SUB': case 'DIV': {
+        const [a, b] = wide(rt, args) as [bigint, bigint]
+        if (name === 'SUB') return a - b
+        if (b === 0n) throw new Error('division by zero')
+        return a / b
+      }
+    }
+  }
   switch (name) {
     case 'ABS': return coerceNum(rt, Math.abs(num(args[0]!)))
     // MIN/MAX/LIMIT are generic over ordered values: on STRING they order lexicographically
@@ -577,7 +634,16 @@ function timeResult(rt: ScalarType, op: '+' | '-' | '*' | '/', a: number, b: num
 }
 
 /** One link of a comparison chain, with the same BOOL/number/STRING handling as the operators. */
-function compareOnce(op: string, l: TagValue, r: TagValue): boolean {
+function compareOnce(op: string, l: Value, r: Value): boolean {
+  if (typeof l === 'bigint' || typeof r === 'bigint') {
+    // two 64-bit whole numbers compare exactly; one beside anything else compares as a number (a caller that knows
+    // the arguments' types has already put them in one form: comparisonArgs)
+    if (typeof l === 'bigint' && typeof r === 'bigint') {
+      return op === '===' ? l === r : op === '!==' ? l !== r : op === '>' ? l > r : op === '>=' ? l >= r : op === '<' ? l < r : l <= r
+    }
+    l = num(l)
+    r = num(r)
+  }
   if (op === '===' || op === '!==') {
     const same = typeof l === 'boolean' || typeof r === 'boolean' ? bool(l) === bool(r) : l === r
     return op === '===' ? same : !same
@@ -590,81 +656,3 @@ function compareOnce(op: string, l: TagValue, r: TagValue): boolean {
   const b = num(r)
   return op === '>' ? a > b : op === '>=' ? a >= b : op === '<' ? a < b : a <= b
 }
-
-// ---- emission (ST -> TS) ----
-
-/** Emit a builtin call as a JS expression. `a` are the already-emitted argument sources. */
-export function emitBuiltin(name: string, rt: ScalarType, a: string[]): string {
-  const cv = parseConv(name)
-  if (cv) return `conv('${cv.src}', '${cv.dst}', ${a[0]})`
-  // a date result is range-checked, as the operators' are (emit.ts); a duration divides as an integer does
-  const dated = (expr: string): string => (isCalendar(rt) ? `calendarValue('${rt}', ${expr})` : `(${expr})`)
-  const tf = TIME_FUNCTIONS[name]
-  if (tf) return tf.op === '/' ? `idiv(${a[0]}, ${a[1]})` : dated(`${a[0]} ${tf.op} ${a[1]}`)
-  // integers wrap to their width and REAL rounds to f32 - both go through the same runtime
-  // helper the interpreter calls, so "shown" and "executed" cannot drift
-  const w = (expr: string): string => (isInt(rt) || rt === 'REAL' ? `wrap('${rt}', ${expr})` : `(${expr})`)
-  switch (name) {
-    case 'ABS': return w(`Math.abs(${a[0]})`)
-    case 'MIN':
-      if (rt === 'STRING') return `[${a.join(', ')}].reduce((x, y) => (y < x ? y : x))`
-      return w(`Math.min(${a.join(', ')})`)
-    case 'MAX':
-      if (rt === 'STRING') return `[${a.join(', ')}].reduce((x, y) => (y > x ? y : x))`
-      return w(`Math.max(${a.join(', ')})`)
-    case 'LIMIT':
-      if (rt === 'STRING') return `((v, lo, hi) => (v < lo ? lo : v > hi ? hi : v))(${a[1]}, ${a[0]}, ${a[2]})`
-      return w(`Math.min(Math.max(${a[1]}, ${a[0]}), ${a[2]})`)
-    case 'LEN': return `wrap('INT', (${a[0]}).length)`
-    case 'FIND': return `wrap('INT', strFind(${a[0]}, ${a[1]}))`
-    case 'LEFT': return `strLeft(${a[0]}, ${a[1]})`
-    case 'RIGHT': return `strRight(${a[0]}, ${a[1]})`
-    case 'MID': return `strMid(${a[0]}, ${a[1]}, ${a[2]})`
-    case 'INSERT': return `strInsert(${a[0]}, ${a[1]}, ${a[2]})`
-    case 'DELETE': return `strDelete(${a[0]}, ${a[1]}, ${a[2]})`
-    case 'REPLACE': return `strReplace(${a[0]}, ${a[1]}, ${a[2]}, ${a[3]})`
-    case 'CONCAT': return `(${a.join(' + ')})`
-    case 'SEL': return `(${a[0]} ? ${a[2]} : ${a[1]})`
-    case 'MUX': return `([${a.slice(1).join(', ')}][${a[0]}] ?? 0)`
-    case 'SQRT': return w(`Math.sqrt(${a[0]})`)
-    case 'LN': return w(`Math.log(${a[0]})`)
-    case 'LOG': return w(`Math.log10(${a[0]})`)
-    case 'EXP': return w(`Math.exp(${a[0]})`)
-    case 'SIN': return w(`Math.sin(${a[0]})`)
-    case 'COS': return w(`Math.cos(${a[0]})`)
-    case 'TAN': return w(`Math.tan(${a[0]})`)
-    case 'ASIN': return w(`Math.asin(${a[0]})`)
-    case 'ACOS': return w(`Math.acos(${a[0]})`)
-    case 'ATAN': return w(`Math.atan(${a[0]})`)
-    case 'EXPT': return w(`Math.pow(${a[0]}, ${a[1]})`)
-    case 'TRUNC': return `wrap('DINT', Math.trunc(${a[0]}))`
-    case 'SHL': return `shl('${rt}', ${a[0]}, ${a[1]})`
-    case 'SHR': return `shr('${rt}', ${a[0]}, ${a[1]})`
-    case 'ROL': return `rol('${rt}', ${a[0]}, ${a[1]})`
-    case 'ROR': return `ror('${rt}', ${a[0]}, ${a[1]})`
-    case 'BCD_TO_INT': return `wrap('INT', bcdToInt(${a[0]}))`
-    case 'INT_TO_BCD': return `intToBcd('WORD', ${a[0]})`
-    case 'MOVE': return `(${a[0]})`
-  }
-  const va = VARIADIC_ARITH[name]
-  if (va === '*' && isInt32(rt)) return w(a.reduce((x, y) => `Math.imul(${x} | 0, ${y} | 0)`))
-  // an integer wraps and a REAL rounds after each step, as `a + b + c` does (evalBuiltin)
-  if (va) return isCalendar(rt) ? dated(a.join(` ${va} `)) : a.reduce((x, y) => w(`${x} ${va} ${y}`))
-  if (BINARY_ARITH[name]) {
-    if (name === 'SUB') return isCalendar(rt) ? dated(`${a[0]} - ${a[1]}`) : w(`${a[0]} - ${a[1]}`)
-    if (isTime(rt)) return `idiv(${a[0]}, ${a[1]})`
-    return isInt(rt) ? `wrap('${rt}', idiv(${a[0]}, ${a[1]}))` : w(`${a[0]} / ${a[1]}`)
-  }
-  const cmp = COMPARISONS[name]
-  if (cmp) return `(${a.slice(0, -1).map((x, i) => `${x} ${cmp} ${a[i + 1]}`).join(' && ')})`
-  throw new Error(`unknown builtin '${name}'`)
-}
-
-/** Runtime helper names emitted code may call beyond the four it always imports: the ones a
- *  builtin emits, plus `copyData` for a whole array or struct (so the emitter can import only
- *  what's used). */
-export const BUILTIN_RUNTIME_HELPERS = [
-  'shl', 'shr', 'rol', 'ror', 'conv', 'bcdToInt', 'intToBcd',
-  'strLeft', 'strRight', 'strMid', 'strInsert', 'strDelete', 'strReplace', 'strFind', 'strLimit',
-  'copyData', 'calendarValue',
-] as const

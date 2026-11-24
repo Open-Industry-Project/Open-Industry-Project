@@ -192,6 +192,8 @@ export abstract class StmtParser extends ExprParser {
     }
     const t = this.peek()
     if (t.kind !== 'num' || t.real) throw new StError('expected an integer CASE label', t.pos)
+    // (a label is kept as a number, which holds a whole number exactly only this far)
+    if (t.big !== undefined) throw new StError('a CASE label past 2^53 is not supported', t.pos, t.value.length)
     this.next()
     return neg ? -t.num : t.num
   }

@@ -1,7 +1,7 @@
 // The type checker's assignment rules: which implicit widenings IEC allows, and how an untyped literal takes
 // the type of the place it is stored into.
 
-import { isCalendar, isInt, isReal, isString, isTime, wrap } from './runtime'
+import { is64, isCalendar, isInt, isReal, isString, isTime, wrap, wrap64 } from './runtime'
 import type { Expr, ScalarType, SourcePos } from './types'
 import { StError } from './types'
 
@@ -10,9 +10,9 @@ import { StError } from './types'
 // The three integer families. A value widens freely inside its family and never across one:
 // SINT -> DINT is safe, SINT -> UDINT is not (a negative has no unsigned counterpart), and
 // UINT -> WORD is a reinterpretation rather than a widening.
-const SIGNED_WIDENING: ScalarType[] = ['SINT', 'INT', 'DINT']
-const UNSIGNED_WIDENING: ScalarType[] = ['USINT', 'UINT', 'UDINT']
-const BITSTRING_WIDENING: ScalarType[] = ['BYTE', 'WORD', 'DWORD']
+const SIGNED_WIDENING: ScalarType[] = ['SINT', 'INT', 'DINT', 'LINT']
+const UNSIGNED_WIDENING: ScalarType[] = ['USINT', 'UINT', 'UDINT', 'ULINT']
+const BITSTRING_WIDENING: ScalarType[] = ['BYTE', 'WORD', 'DWORD', 'LWORD']
 const FAMILIES = [SIGNED_WIDENING, UNSIGNED_WIDENING, BITSTRING_WIDENING]
 
 /**
@@ -89,11 +89,52 @@ function foldConst(e: Expr): number {
   }
 }
 
+/** A literal tree of whole numbers folded exactly, or null when it is not foldable that way (a real among its
+ *  leaves, NOT, an operator that depends on the width). What a 64-bit integer type is judged by. */
+function foldBig(e: Expr): bigint | null {
+  switch (e.node) {
+    case 'num': return e.real || !Number.isInteger(e.value) ? null : BigInt(e.big ?? e.value)
+    case 'unary': {
+      const v = foldBig(e.expr)
+      return v === null ? null : e.op === 'NEG' ? -v : e.op === 'POS' ? v : null
+    }
+    case 'binary': {
+      const l = foldBig(e.left)
+      const r = foldBig(e.right)
+      if (l === null || r === null) return null
+      return e.op === '+' ? l + r : e.op === '-' ? l - r : e.op === '*' ? l * r : null
+    }
+    default: return null
+  }
+}
+
+/** Is any literal of the tree a whole number past what a number holds exactly? */
+function hasBig(e: Expr): boolean {
+  if (e.node === 'num') return e.big !== undefined && !Number.isSafeInteger(e.value)
+  if (e.node === 'unary') return hasBig(e.expr)
+  return e.node === 'binary' && (hasBig(e.left) || hasBig(e.right))
+}
+
 /** Does every literal in the tree fit the type its context wants? A foldable tree is judged
  *  by its folded value (so `-32768` fits INT even though `32768` alone does not); otherwise
  *  each leaf is judged on its own. */
 function literalTreeFits(e: Expr, tt: ScalarType): boolean {
   if (isReal(tt)) return true // any numeric literal is representable in a real
+  if (is64(tt)) {
+    const exact = foldBig(e)
+    if (exact !== null) return wrap64(tt, exact) === exact
+    const leafFits64 = (x: Expr): boolean => {
+      if (x.node === 'num') {
+        const v = foldBig(x)
+        return v !== null && wrap64(tt, v) === v
+      }
+      if (x.node === 'unary') return leafFits64(x.expr)
+      return x.node === 'binary' && leafFits64(x.left) && leafFits64(x.right)
+    }
+    return leafFits64(e)
+  }
+  // a narrower integer holds no literal past 2^53, and folding such a tree in numbers would round it
+  if (hasBig(e)) return false
   const folded = foldConst(e)
   if (!Number.isNaN(folded)) return Number.isInteger(folded) && wrap(tt, folded) === folded
   const leafFits = (x: Expr): boolean => {
@@ -111,6 +152,8 @@ export function retypeLiteralTree(e: Expr, tt: ScalarType): boolean {
   const stamp = (x: Expr): void => {
     x.t = tt
     if (x.node === 'num' && isReal(tt)) x.value = wrap(tt, x.value)
+    // a 64-bit literal is read by its exact value (types.ts): every one that fits is a whole number
+    if (x.node === 'num' && is64(tt) && x.big === undefined) x.big = BigInt(x.value).toString()
     if (x.node === 'unary') stamp(x.expr)
     if (x.node === 'binary') { stamp(x.left); stamp(x.right) }
   }

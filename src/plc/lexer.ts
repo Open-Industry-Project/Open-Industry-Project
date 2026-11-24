@@ -212,7 +212,8 @@ function lexText(src: string): Token[] {
    * with an optional fraction and exponent (`42`, `1.5`, `1.0E-3`). `_` is a separator
    * everywhere, per IEC. Returns the raw text (for diagnostics) alongside the value.
    */
-  const readNumber = (): { raw: string; num: number; real: boolean } => {
+  // `big`: a whole number's exact value, when a number does not hold it (past 2^53, which only a 64-bit integer needs)
+  const readNumber = (): { raw: string; num: number; real: boolean; big?: string } => {
     let raw = ''
     while (i < src.length && isDigitPart(src[i]!)) {
       raw += src[i]
@@ -226,7 +227,10 @@ function lexText(src: string): Token[] {
       advance()
       const body = digitsFor(base)
       if (!body) throw new StError(`empty base-${base} literal`, here())
-      return { raw: `${base}#${body}`, num: parseInt(body.replace(/_/g, ''), base), real: false }
+      const digits = body.replace(/_/g, '')
+      const num = parseInt(digits, base)
+      if (Number.isSafeInteger(num)) return { raw: `${base}#${body}`, num, real: false }
+      return { raw: `${base}#${body}`, num, real: false, big: BigInt(`${base === 2 ? '0b' : base === 8 ? '0o' : '0x'}${digits}`).toString() }
     }
     let real = false
     if (src[i] === '.' && isDigit(src[i + 1] ?? '')) {
@@ -251,7 +255,9 @@ function lexText(src: string): Token[] {
         advance()
       }
     }
-    return { raw, num: Number(raw.replace(/_/g, '')), real }
+    const text = raw.replace(/_/g, '')
+    const num = Number(text)
+    return real || Number.isSafeInteger(num) ? { raw, num, real } : { raw, num, real, big: BigInt(text).toString() }
   }
 
   while (i < src.length) {
@@ -332,7 +338,7 @@ function lexText(src: string): Token[] {
     if (isDigit(c)) {
       const pos = here()
       const lit = readNumber()
-      toks.push({ kind: 'num', value: lit.raw, num: lit.num, real: lit.real, pos })
+      toks.push({ kind: 'num', value: lit.raw, num: lit.num, real: lit.real, pos, ...(lit.big !== undefined ? { big: lit.big } : {}) })
       continue
     }
     // identifier / keyword / literal prefix
@@ -383,7 +389,7 @@ function lexText(src: string): Token[] {
             advance()
           }
           const lit = readNumber()
-          toks.push({ kind: 'num', value: `${up}#${lit.raw}`, num: sign * lit.num, real: lit.real, type: up as ScalarType, pos })
+          toks.push({ kind: 'num', value: `${up}#${lit.raw}`, num: sign * lit.num, real: lit.real, type: up as ScalarType, pos, ...(lit.big !== undefined ? { big: sign < 0 ? `-${lit.big}` : lit.big } : {}) })
           continue
         }
         // `Mode#Idle`: an enumeration value spelled with its type, IEC's way of saying which

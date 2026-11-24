@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { keySetOf } from '../../core/watchKeys'
-import { watchElementKey, watchKeysOf } from '../../core/watchTable'
+import { isWatchWord, watchElementKey, watchKeysOf } from '../../core/watchTable'
 import type { TagValue } from '../../plc'
 import { deviceTags, devicesForTag, type DeviceTags, type DeviceTagUse, type TaggedPart } from '../../plc/bindings'
 
@@ -73,7 +73,7 @@ export function forceKeyOf(tag: string, watch: Readonly<Record<string, TagValue>
   if (key !== undefined) return typeof watch[key] === 'string' ? null : key
   const bit = /^(.+)\.([0-9]+)$/.exec(name)
   const word = bit ? upperKey(watch, bit[1]!) : undefined
-  return word !== undefined && typeof watch[word] === 'number' && Number(bit![2]) < 32 ? `${word}.${bit![2]}` : null
+  return word !== undefined && isWatchWord(watch[word]) && Number(bit![2]) < 64 ? `${word}.${bit![2]}` : null
 }
 
 /**

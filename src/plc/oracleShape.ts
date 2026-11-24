@@ -194,6 +194,14 @@ function readback(field: string, v: string, kind: string, iecType: string | unde
   if (iecType === 'TIME' || iecType === 'DATE' || iecType === 'TOD' || iecType === 'DT') {
     return `  printf("%s\\"${field}\\":%.17g", sep, (double)(${v}.tv_sec) * 1000.0 + (double)(${v}.tv_nsec) / 1e6); sep = ",";`
   }
+  // A 64-bit integer as the corpus writes one (types.ts TagValue): a number while a number holds it exactly, its
+  // decimal digits in a string past that. Before the golden's own shape is asked, since such a golden is a string.
+  if (iecType === 'LINT') {
+    return `  { long long x = (long long)(${v}); printf(x >= -9007199254740991LL && x <= 9007199254740991LL ? "%s\\"${field}\\":%lld" : "%s\\"${field}\\":\\"%lld\\"", sep, x); } sep = ",";`
+  }
+  if (iecType === 'ULINT' || iecType === 'LWORD') {
+    return `  { unsigned long long x = (unsigned long long)(${v}); printf(x <= 9007199254740991ULL ? "%s\\"${field}\\":%llu" : "%s\\"${field}\\":\\"%llu\\"", sep, x); } sep = ",";`
+  }
   if (kind === 'string' || iecType === 'STRING') return `  printf("%s\\"${field}\\":", sep); emit_string(${v}.body, ${v}.len); sep = ",";`
   if (kind === 'real' || iecType === 'REAL' || iecType === 'LREAL') return `  printf("%s\\"${field}\\":%.17g", sep, (double)(${v})); sep = ",";`
   return `  printf("%s\\"${field}\\":%lld", sep, (long long)(${v})); sep = ",";`

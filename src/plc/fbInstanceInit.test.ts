@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { diagnostics } from './checker'
-import { toTypeScript } from './emit'
 import { compile } from './interpreter'
 
 // `Inst : Block := (Param := value)`: what one instance starts with, in place of what the block declares. IEC allows it.
@@ -66,10 +65,5 @@ describe('a function block instance starts with its own values', () => {
     expect(errors(program('  B : Scale := (Gain := 1, gain := 2);', '  X := X;'))[0]).toMatch(/gives 'Gain' twice/)
     expect(errors(program("  B : Scale := (Gain := 'two');", '  X := X;'))[0]).toMatch(/cannot assign STRING/)
     expect(errors(program('  B : Scale := 5;', '  X := X;'))[0]).toMatch(/function-block instance, which cannot take an initial value/)
-  })
-
-  it('the TypeScript shown for it starts the instance the same way', () => {
-    const ts = toTypeScript(program('  B : Scale := (Gain := 5);', '  B(In := X, Total := Sum);'))
-    expect(ts).toMatch(/Object\.assign\(new Scale\(\), \{ Gain: 5 \}\)/)
   })
 })

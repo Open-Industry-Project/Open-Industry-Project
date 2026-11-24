@@ -1,5 +1,5 @@
-// Execution-time helpers shared by the interpreter and the ST->TS emitter, so the
-// IEC semantics live in exactly one place. Every scalar type is kept faithful on top of
+// Execution-time helpers: the IEC semantics of a value, in one place, for the walker and for
+// what a WebAssembly body calls out to. Every scalar type is kept faithful on top of
 // JS numbers by pushing results through `wrap` after each operation: integers wrap to the
 // declared bit width (two's complement), and REAL rounds to single precision.
 //
@@ -7,18 +7,78 @@
 // about implements it that way (MATIEC maps REAL to C `float`, IEEE 754 single precision).
 // Treating REAL as a JS double would silently drift
 // from the hardware on any accumulation or comparison - the exact class of divergence this
-// engine's portability promise cannot afford. `wrap` is the one place that happens, so the
-// interpreter and the emitter cannot disagree about it.
+// engine's portability promise cannot afford. `wrap` is the one place that happens.
 
-import type { FbType, ScalarType, TagValue } from './types'
+import type { FbType, ScalarType, Value } from './types'
+import { wideValue } from '../core/watchTable'
 import { MotionChannel, type MotionOutputs } from './motionChannel'
 
 export function isInt(t: ScalarType): boolean {
   return (
     t === 'SINT' || t === 'INT' || t === 'DINT' ||
     t === 'USINT' || t === 'UINT' || t === 'UDINT' ||
-    t === 'BYTE' || t === 'WORD' || t === 'DWORD'
+    t === 'BYTE' || t === 'WORD' || t === 'DWORD' ||
+    t === 'LINT' || t === 'ULINT' || t === 'LWORD'
   )
+}
+
+// ---- the 64-bit integers ----
+//
+// LINT, ULINT and LWORD are whole numbers past what a JS number holds exactly, so a value of one is a bigint here
+// and an i64 in a WebAssembly body. Every operation on them is exact and wraps to 64 bits (two's complement). Where
+// IEC leaves a choice open the rule is this engine's own:
+//   - an operator whose result is 64 bits wide converts both operands to the result type first, then operates (so a
+//     division of a ULINT by a negative DINT divides by the large unsigned number that DINT becomes);
+//   - two whole numbers compare by their exact values, signed against unsigned included;
+//   - a 64-bit integer beside a REAL, an LREAL or a TIME is converted to a number first, rounding to the nearest
+//     one a double holds.
+
+/** A 64-bit integer type. */
+export function is64(t: ScalarType | undefined): boolean {
+  return t === 'LINT' || t === 'ULINT' || t === 'LWORD'
+}
+
+/** A 64-bit result held to its type: LINT signed, ULINT and LWORD unsigned. */
+export function wrap64(t: ScalarType, x: bigint): bigint {
+  return t === 'LINT' ? BigInt.asIntN(64, x) : BigInt.asUintN(64, x)
+}
+
+/** A whole number from a number: one that is no number (NaN, an infinity) is 0, and a fraction is cut off. */
+export function bigOf(x: number): bigint {
+  return Number.isFinite(x) ? BigInt(Math.trunc(x)) : 0n
+}
+
+/** The whole-number view of a value, exact: what an operand of a 64-bit operation is read as. */
+export function big(v: Value): bigint {
+  return typeof v === 'bigint' ? v : typeof v === 'number' ? bigOf(v) : typeof v === 'string' ? stringToBig(v) : v ? 1n : 0n
+}
+
+/** The low 32 bits of a 64-bit integer as a number, for a narrower integer type to wrap to its own width. */
+export function low32(v: bigint): number {
+  return Number(BigInt.asIntN(32, v))
+}
+
+/** A 64-bit integer as a surface outside the engine reads it (types.ts TagValue): the number when a number holds it
+ *  exactly, else its decimal digits. The rule is the watch table's, which reads the same bytes on its own. */
+export const tagOfBig = wideValue
+
+/** Text read as a whole number, exactly: decimal digits with an optional sign, or a based literal (`16#FF`). Text
+ *  with a fraction or an exponent is read as a number and rounded (ties to even). Anything else is 0. */
+export function stringToBig(s: string): bigint {
+  const text = s.trim().replace(/_/g, '')
+  const dec = /^[+-]?\d+$/.exec(text)
+  if (dec) return BigInt(text)
+  const based = /^([+-]?)(2|8|16)#([0-9a-fA-F]+)$/.exec(text)
+  if (based) {
+    const prefix = based[2] === '2' ? '0b' : based[2] === '8' ? '0o' : '0x'
+    try {
+      const v = BigInt(prefix + based[3]!)
+      return based[1] === '-' ? -v : v
+    } catch {
+      return 0n
+    }
+  }
+  return bigOf(roundEven(stringToNum('LREAL', s)))
 }
 
 export function isReal(t: ScalarType): boolean {
@@ -42,7 +102,7 @@ export function isTime(t: ScalarType): boolean {
  * simulator and could not build on any target.
  */
 export function isBitString(t: ScalarType): boolean {
-  return t === 'BYTE' || t === 'WORD' || t === 'DWORD'
+  return t === 'BYTE' || t === 'WORD' || t === 'DWORD' || t === 'LWORD'
 }
 
 /** STRING - character data. Ordered (so it compares) but not arithmetic: `+` on two
@@ -171,7 +231,8 @@ export function isInt32(t: ScalarType): boolean {
 }
 
 /** Coerce a number into its IEC type: integers wrap to their bit width (two's complement),
- *  REAL rounds to single precision. LREAL / BOOL pass through. */
+ *  REAL rounds to single precision. LREAL / BOOL pass through, and so does a 64-bit integer type, whose values are
+ *  bigints held by {@link wrap64}. */
 export function wrap(t: ScalarType, x: number): number {
   switch (t) {
     case 'SINT': return (x << 24) >> 24 // i8
@@ -194,6 +255,7 @@ const RANK: Record<ScalarType, number> = {
   SINT: 1, USINT: 1.25, BYTE: 1.5,
   INT: 2, UINT: 2.25, WORD: 2.5,
   DINT: 3, UDINT: 3.25, DWORD: 3.5,
+  LINT: 3.6, ULINT: 3.7, LWORD: 3.8,
   REAL: 4, LREAL: 5,
   // TIME, the calendar types and STRING never participate in a widening mix - the checker
   // rejects those operand pairs before widen() is reached. Present only so the table stays total.
@@ -281,6 +343,21 @@ export function ror(t: ScalarType, x: number, n: number): number {
   const w = bitWidth(t)
   n = ((Math.trunc(n) % w) + w) % w
   return n === 0 ? wrap(t, x) : rol(t, x, w - n)
+}
+
+/** SHL, SHR, ROL and ROR on a 64-bit bit string: the rules of the narrower ones above, over 64 bits. */
+export function shift64(op: 'SHL' | 'SHR' | 'ROL' | 'ROR', t: ScalarType, x: bigint, by: number): bigint {
+  const u = BigInt.asUintN(64, x)
+  const n = Math.trunc(by)
+  if (op === 'SHL' || op === 'SHR') {
+    if (!(n > 0)) return wrap64(t, u)
+    if (n >= 64) return 0n
+    return wrap64(t, op === 'SHL' ? u << BigInt(n) : u >> BigInt(n))
+  }
+  if (!Number.isFinite(n)) return wrap64(t, u)
+  let k = ((n % 64) + 64) % 64
+  if (op === 'ROR') k = (64 - k) % 64
+  return k === 0 ? wrap64(t, u) : wrap64(t, (u << BigInt(k)) | (u >> BigInt(64 - k)))
 }
 
 // ---- BCD ----
@@ -449,12 +526,28 @@ function stringToNum(dst: ScalarType, s: string): number {
 /** IEC type conversion `<src>_TO_<dst>`: REAL->int rounds (ties to even); int->int reinterprets
  *  the low bits (two's-complement wrap); anything ->BOOL is `<> 0`. STRING converts by
  *  formatting and parsing (`INT_TO_STRING(42)` = '42', `STRING_TO_INT('42x')` = 42). */
-export function conv(src: ScalarType, dst: ScalarType, v: TagValue): TagValue {
+export function conv(src: ScalarType, dst: ScalarType, v: Value): Value {
   if (dst === 'STRING') {
     if (typeof v === 'string') return v
     if (src === 'BOOL' || typeof v === 'boolean') return bool(v) ? 'TRUE' : 'FALSE'
+    if (typeof v === 'bigint') return v.toString()
     if (isCalendar(src)) return calendarToString(src, v)
     return numToString(src, v)
+  }
+  // into a 64-bit integer: text read exactly, a real rounded (ties to even), a duration's fraction of a millisecond
+  // cut off as a 32-bit integer's is, another integer reinterpreted at 64 bits
+  if (is64(dst)) {
+    if (typeof v === 'bigint') return wrap64(dst, v)
+    if (typeof v === 'string') return wrap64(dst, stringToBig(v))
+    if (typeof v === 'boolean') return v ? 1n : 0n
+    return wrap64(dst, bigOf(isReal(src) ? roundEven(v) : v))
+  }
+  if (typeof v === 'bigint') {
+    // out of one: a truth, a number (the nearest a double holds), or the low bits a narrower integer keeps
+    if (dst === 'BOOL') return v !== 0n
+    if (isInt(dst)) return wrap(dst, low32(v))
+    if (isCalendar(dst)) return Number(v)
+    return wrap(dst, Number(v))
   }
   // the calendar conversions, which are the only ones the checker admits into a calendar type: a
   // STRING read as its literal, and a DT taken apart into its DATE and its TIME_OF_DAY
@@ -480,21 +573,12 @@ export function conv(src: ScalarType, dst: ScalarType, v: TagValue): TagValue {
 /** The numeric view of a value. A STRING never reaches here in a checked program - the
  *  checker rejects string operands everywhere arithmetic is possible - so the 0 is a
  *  total-function fallback, and no program should rely on it as a coercion. */
-export function num(v: TagValue): number {
-  return typeof v === 'number' ? v : typeof v === 'string' ? 0 : v ? 1 : 0
+export function num(v: Value): number {
+  return typeof v === 'number' ? v : typeof v === 'bigint' ? Number(v) : typeof v === 'string' ? 0 : v ? 1 : 0
 }
 
-/** A store into a subrange place, checked the way the interpreter checks it (checkRange, applied
- *  after the width coercion, which is the only call site there is). MATIEC does not
- *  check a subrange, so this is a deliberate fault, not conformance - see docs/st-conformance.md. */
-export function inRange(v: number, name: string, lo: number, hi: number): number {
-  if (v < lo || v > hi) throw new Error(`${v} is outside ${name} (${lo}..${hi})`)
-  return v
-}
-
-/** Safety cap: a runaway WHILE/REPEAT or huge FOR throws instead of freezing the tab. Lives here,
- *  not in the interpreter, because the emitted module has to count to the same number - a JS
- *  `while` with no guard does not fault where the interpreter does, it hangs. */
+/** Safety cap: a runaway WHILE/REPEAT or huge FOR throws instead of freezing the tab. Both engines count to this
+ *  same number. */
 export const MAX_LOOP_ITERATIONS = 1_000_000
 
 /**
@@ -511,82 +595,12 @@ export function unboundMessage(kind: 'ref' | 'iface'): string {
   return kind === 'ref' ? 'a REF_TO that is NULL was dereferenced (give it a reference with REF() first)' : 'a method was called through an interface that refers to no instance (assign it one first)'
 }
 
-/** What a REF_TO holds in the emitted module: the record (or array) holding the place it refers to, and the key there
- *  - the interpreter's RefCell. 0 is NULL. */
-export interface RefCellJs {
-  o: Record<string | number, unknown>
-  k: string | number
-}
-/** The emitted module's read through a REF_TO, r^. */
-export function refGet(c: RefCellJs | 0): unknown {
-  if (c === 0) throw new Error(unboundMessage('ref'))
-  return c.o[c.k]
-}
-/** The emitted module's write through a REF_TO, r^ := v. */
-export function refSet(c: RefCellJs | 0, v: unknown): void {
-  if (c === 0) throw new Error(unboundMessage('ref'))
-  c.o[c.k] = v
-}
-/** An array element as a place a REF_TO refers to, REF(a[i]), its subscript checked as a read's is. */
-export function refElem(arr: unknown[], i: number, lo: number, hi: number): RefCellJs {
-  if (i < lo || i > hi) throw new Error(`array index ${i} out of bounds [${lo}..${hi}]`)
-  return { o: arr as unknown as Record<number, unknown>, k: i - lo }
-}
-/** The instance an interface refers to, for a method called through it in the emitted module. */
-export function itfGet<T>(x: T | 0): T {
-  if (x === 0) throw new Error(unboundMessage('iface'))
-  return x
-}
-
-/** One iteration of a loop in the emitted module. `kind` is FOR / WHILE / REPEAT, so the message
- *  matches the interpreter's word for word. */
-export function loopGuard(n: number, kind: string): void {
-  if (n > MAX_LOOP_ITERATIONS) throw new Error(`${kind} loop exceeded its iteration limit`)
-}
-
-/** A FOR loop's BY, checked at entry the way the interpreter checks it: a zero step never advances,
- *  so the emitted loop would spin forever on `from >= to` and silently skip otherwise. */
-export function forStep(by: number): number {
-  if (by === 0) throw new Error('FOR loop step is zero')
-  return by
-}
-
-/** Read one array element, bounds-checked. The emitted module cannot write `a[i - lo]` directly:
- *  JS would hand back `undefined` for an index the interpreter faults on, which is a silent
- *  disagreement between the two backends. Mirrors interpreter.ts evalExpr 'index', including its
- *  guard for a container that is not an array (a checked program never has one). */
-export function elemAt(arr: unknown, i: number, lo: number, hi: number): unknown {
-  if (!Array.isArray(arr)) return 0
-  if (i < lo || i > hi) throw new Error(`array index ${i} out of bounds [${lo}..${hi}]`)
-  return arr[i - lo] ?? 0
-}
-
-/** Write one array element, bounds-checked - the store half of at(). JS would grow the array on an
- *  out-of-range index; the interpreter faults (assignPlace), so this does too. */
-export function elemSet(arr: unknown, i: number, lo: number, hi: number, v: unknown): void {
-  if (!Array.isArray(arr)) return
-  if (i < lo || i > hi) throw new Error(`array index ${i} out of bounds [${lo}..${hi}]`)
-  arr[i - lo] = v
-}
-
-/** BOOL AND / OR for the emitted module. These are calls, not operators, so both operands are
- *  evaluated before they combine - JS `&&` / `||` would stop at a decided operand, and the
- *  interpreter does not (see docs/st-conformance.md). XOR needs both sides anyway,
- *  so the emitter still writes it as an operator. */
-export function andB(l: boolean, r: boolean): boolean {
-  return l && r
-}
-
-export function orB(l: boolean, r: boolean): boolean {
-  return l || r
-}
-
-export function bool(v: TagValue): boolean {
-  return typeof v === 'boolean' ? v : typeof v === 'string' ? v.length > 0 : v !== 0
+export function bool(v: Value): boolean {
+  return typeof v === 'boolean' ? v : typeof v === 'string' ? v.length > 0 : typeof v === 'bigint' ? v !== 0n : v !== 0
 }
 
 /** The string view of a value, for the string library's arguments (checker-guaranteed). */
-export function str(v: TagValue): string {
+export function str(v: Value): string {
   return typeof v === 'string' ? v : String(v)
 }
 
@@ -594,7 +608,7 @@ export function str(v: TagValue): string {
 
 // A user FUNCTION_BLOCK can take a STRING input, so this is TagValue-wide. The builtin
 // blocks below read their inputs through num()/bool(), which are total over TagValue.
-export type FbArgs = Record<string, TagValue | undefined>
+export type FbArgs = Record<string, Value | undefined>
 
 /** A stateful block. `now` is the controller's clock, in whole nanoseconds, at the scan making
  *  the call: the timers read it, and a user block passes it on to the blocks inside it. */
@@ -1016,7 +1030,6 @@ export function fbMemberType(fb: FbType, member: string): ScalarType | null {
  * array), and swapping in a fresh object would silently cut the alias, so the caller would never
  * see the copy. Nothing is coerced: the checker only lets a copy through between exactly equal
  * types, and never one holding a function-block instance, so every leaf already fits its slot.
- * Shared by the interpreter and the emitted TypeScript, so the two cannot copy differently.
  */
 export function copyData(dst: unknown, src: unknown): void {
   if (Array.isArray(dst) && Array.isArray(src)) {

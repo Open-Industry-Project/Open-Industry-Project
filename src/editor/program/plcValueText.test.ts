@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { declaredTypeSets, typeOfKey } from './plcValueText'
+import { declaredTypeSets, formatPlcValue, typeOfKey } from './plcValueText'
 
 const SOURCE = `TYPE MotorData : STRUCT
   Running : BOOL;
@@ -46,5 +46,14 @@ describe('typeOfKey', () => {
     // a structure's member is not the variable of the same name elsewhere
     expect(typeOfKey(types, 'Motor.Count')).toBeUndefined()
     expect(typeOfKey(types, 'Nope')).toBeUndefined()
+  })
+})
+
+describe('formatPlcValue', () => {
+  it('shows a 64-bit integer past 2^53 as the number it is, where a STRING is quoted', () => {
+    expect(formatPlcValue('18446744073709551615', 'ULINT')).toBe('18446744073709551615')
+    expect(formatPlcValue('-9223372036854775808', 'LINT')).toBe('-9223372036854775808')
+    expect(formatPlcValue(42, 'LINT')).toBe('42')
+    expect(formatPlcValue('18446744073709551615', 'STRING')).toBe("'18446744073709551615'")
   })
 })

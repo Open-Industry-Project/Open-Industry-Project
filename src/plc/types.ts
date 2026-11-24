@@ -17,19 +17,22 @@ export interface SourcePos {
 // target expects a duration, and `T#1s + 1` must not silently mean 1001. Its runtime
 // representation is milliseconds (IEC leaves the resolution open; milliseconds is this engine's rule, and the
 // resolution PLC timers are commonly given in), so TIME_TO_DINT here is a count of milliseconds.
-// Three distinct integer families: signed (SINT/INT/DINT), unsigned
-// (USINT/UINT/UDINT) and bit-string (BYTE/WORD/DWORD). They share widths but not meaning,
+// Three distinct integer families: signed (SINT/INT/DINT/LINT), unsigned
+// (USINT/UINT/UDINT/ULINT) and bit-string (BYTE/WORD/DWORD/LWORD). They share widths but not meaning,
 // and IEC keeps them apart - crossing between families needs an explicit conversion.
 // STRING is a distinct type too, and a bounded one: `STRING[20]` holds at most 20
 // characters and a longer store truncates, which is what targets do (MATIEC cuts
 // silently). The bound is a property of the declaration, not
 // of the type - `maxLen` below - because IEC assignment compatibility ignores it: any
 // STRING stores into any STRING place, it just may not survive the trip whole.
+// The 64-bit integers (LINT, ULINT, LWORD) are whole numbers a JS number cannot hold exactly past 2^53, so inside the
+// engine a value of one is a bigint (the walker) or an i64 (a WebAssembly body). See `Value` below for how a surface
+// outside the engine reads one.
 export const SCALAR_TYPES = [
   'BOOL',
-  'SINT', 'INT', 'DINT',
-  'USINT', 'UINT', 'UDINT',
-  'BYTE', 'WORD', 'DWORD',
+  'SINT', 'INT', 'DINT', 'LINT',
+  'USINT', 'UINT', 'UDINT', 'ULINT',
+  'BYTE', 'WORD', 'DWORD', 'LWORD',
   'REAL', 'LREAL', 'TIME',
   'DATE', 'TOD', 'DT',
   'STRING',
@@ -238,18 +241,21 @@ export type BinOp =
 
 export type UnOp = 'NOT' | 'NEG' | 'POS'
 
-// `t` is filled in by the type checker and used by the interpreter/emitter to
+// `t` is filled in by the type checker and used by the engines to
 // apply width-correct integer coercion. It is absent until a program is checked.
 export type Expr =
   // `declared` is the type of a typed literal (`INT#5`); without it the checker types the
   // literal by magnitude. `value` is normalised to `t` by the checker (a REAL literal is
   // rounded to f32 there), so both backends read the same number.
-  | { node: 'num'; value: number; real: boolean; declared?: ScalarType; pos: SourcePos; t?: ScalarType }
+  // `big` is the literal's exact value, in decimal digits, where `value` may not be it: a whole number past 2^53
+  // (the lexer), and any literal whose type is 64 bits wide (the checker). An engine reads it when `t` is a 64-bit
+  // integer (program.ts `literal64`), else `value`. Digits, not a bigint, so a tree still copies as JSON.
+  | { node: 'num'; value: number; real: boolean; declared?: ScalarType; pos: SourcePos; t?: ScalarType; big?: string }
   | { node: 'bool'; value: boolean; pos: SourcePos; t?: ScalarType }
   // a single-quoted STRING literal, already unescaped by the lexer ('a$$b' -> `a$b`)
   | { node: 'str'; value: string; pos: SourcePos; t?: ScalarType }
   // `global` is set by the checker when the name resolved to a VAR_GLOBAL rather than a
-  // POU local, so the emitter knows which storage object to reach into. `enum` carries the
+  // POU local, so a reader knows which storage it names. `enum` carries the
   // enumeration a value belongs to: enum values are integers at runtime (so `t` is the
   // integer type and all the width machinery applies unchanged), but they are a distinct
   // type for assignment, which is what this tag tracks.
@@ -526,8 +532,8 @@ export interface FuncDef {
   retMaxLen?: number
   /** bounds when the return type is a subrange, enforced on every store into the result */
   retRange?: Range
-  /** set by the checker when some formal call leaves one of its inputs out (the call's `slots`), so the
-   *  emitted function fills an input it was not handed with the input's start value */
+  /** set by the checker when some formal call leaves one of its inputs out (the call's `slots`): such an input
+   *  keeps its start value */
   omittable?: boolean
   decls: Decl[]
   body: Stmt[]
@@ -699,6 +705,8 @@ export interface Token {
   raw?: string
   num: number
   real: boolean
+  /** a whole-number literal's exact value in decimal digits, when `num` cannot hold it (past 2^53) */
+  big?: string
   /** set on a typed literal (`INT#5`, `REAL#1.5`) - the type the author spelled out */
   type?: ScalarType
   /** set on an enumeration value spelled with its type (`Mode#Idle`): the type name, while
@@ -710,8 +718,16 @@ export interface Token {
 /** A PLC tag value crossing the sim<->controller boundary. `string` is here for STRING
  *  variables: they show up in the watch table and the inline value overlay like any other
  *  scalar. Scene tag bindings remain numeric/boolean - nothing in the sim consumes a string
- *  tag - so a host reading these should treat a string as display-only. */
+ *  tag - so a host reading these should treat a string as display-only.
+ *
+ *  A 64-bit integer (LINT, ULINT, LWORD) crosses as a number when a number holds it exactly (up to 2^53 either
+ *  way), and as its decimal digits in a string when it does not, so nothing a host does with a value (JSON, a
+ *  structured clone, arithmetic) meets a bigint. `BigInt(value)` gives the exact value from either. A write takes
+ *  either form too. */
 export type TagValue = boolean | number | string
+
+/** A scalar inside the engine: a {@link TagValue}, or the bigint a 64-bit integer is there. */
+export type Value = TagValue | bigint
 
 /**
  * One task of a controller, as a scheduler sees it.
@@ -790,6 +806,12 @@ export interface CompiledProgram {
    * the scene's to say - see plc/wiring.ts `wiredBindings`.
    */
   readonly bindable: string[]
+  /**
+   * The variables a scene part would be wired to by name but for their type: a 64-bit integer, which a tag's number
+   * does not hold exactly, so none is in `inputs`, `outputs` or `bindable`. Each by the name it would be wired by,
+   * with its type, for whoever has to say why a tag of that name connects to nothing. Absent when there are none.
+   */
+  readonly unwirable?: Readonly<Record<string, string>>
   /** snapshot of every scalar variable's current value (for a watch table) */
   readonly watch: Readonly<Record<string, TagValue>>
   /**

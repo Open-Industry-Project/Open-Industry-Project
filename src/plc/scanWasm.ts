@@ -6,16 +6,18 @@
 // Values on the WebAssembly stack: a BOOL and the integers up to 32 bits are an i32 ('b', 'i'; UDINT and DWORD the
 // same bits read unsigned, 'u'), REAL, LREAL and the time types an f64 ('f'). Integer arithmetic is done in i64, where
 // a sum or a product of two 32-bit numbers is exact, and held against its own width as the generator's `add_DINT` is.
+// A 64-bit integer is an i64 ('l' a LINT; 'L' a ULINT or an LWORD, the same bits read unsigned), and its arithmetic
+// is the i64's own, which wraps as the walker's bigints are wrapped (runtime.ts, "the 64-bit integers").
 
 import { isBuiltinFunc } from './builtins'
-import { identKey } from './program'
-import { isCalendar, isInt, isReal, MAX_LOOP_ITERATIONS } from './runtime'
+import { identKey, literal64 } from './program'
+import { is64, isCalendar, isInt, isReal, MAX_LOOP_ITERATIONS, wrap64 } from './runtime'
 import type { GenBody, GenInternals, GenScope } from './scanCodegen'
 import { HELPERS } from './scanCodegen'
 import { clearRanges, type TypeLayout } from './typed/layout'
 import { memoryOf } from './typed/arena'
-import type { Expr, ScalarType, SourcePos, Stmt, TagValue } from './types'
-import { no, wasmStats, type Kind, type Held, I32, I64, F64, VOID, SIGNED_NARROW, MASK, WIDE, isWidth, RANGE, kindOf, type Link, linkOf, Bytes, type Address, type Host, textOf, type Import, type Fn, readsOnly } from './scanWasmBase'
+import type { Expr, ScalarType, SourcePos, Stmt, TagValue, Value } from './types'
+import { no, wasmStats, type Kind, type Held, I32, I64, F64, VOID, SIGNED_NARROW, MASK, WIDE, isWidth, isLong, RANGE, kindOf, type Link, linkOf, Bytes, type Address, type Host, textOf, type Import, type Fn, readsOnly } from './scanWasmBase'
 import type { WasmBody } from './scanWasmBase'
 import * as calls from './scanWasmCalls'
 
@@ -95,17 +97,20 @@ export class Emitter {
 
   /** `k` on the stack, as an f64 */
   toF(k: Kind): void {
-    if (k !== 'f') this.w.u8(k === 'u' ? 0xb8 : 0xb7)
+    // (a 64-bit integer becomes the nearest number a double holds, as Number() of the walker's bigint is)
+    if (k !== 'f') this.w.u8(k === 'l' ? 0xb9 : k === 'L' ? 0xba : k === 'u' ? 0xb8 : 0xb7)
   }
   /** `k` on the stack (a whole number), as an i64 */
   toL(k: Kind): void {
     // (an f64 here is a whole number a call answered: the checker allows no real where a whole number is needed)
+    if (isLong(k)) return
     if (k === 'f') this.w.op(0xfc, 0x06)
     else this.w.u8(k === 'u' ? 0xad : 0xac)
   }
   /** `k` on the stack as the 32 bits a bit operation works on: a number held as a real gives its whole part's */
   toBits(k: Kind): void {
     if (k === 'f') this.w.op(0xfc, 0x06).u8(0xa7)
+    else if (isLong(k)) this.w.u8(0xa7)
   }
   /** the i64 on the stack held to `t`'s width, as an i64 */
   wrapL(t: ScalarType): void {
@@ -149,12 +154,17 @@ export class Emitter {
     if (e.node === 'num') {
       const v = e.value
       if (typeof v !== 'number' || Object.is(v, -0)) return false
+      if (is64(t)) {
+        if (e.real || !Number.isInteger(v)) return false
+        const exact = BigInt(e.big ?? v)
+        return wrap64(t, exact) === exact
+      }
       if (isWidth(t)) return Number.isInteger(v) && v >= RANGE[t]![0] && v <= RANGE[t]![1]
       if (t === 'REAL') return Math.fround(v) === v
       return t === 'LREAL'
     }
     if (e.node === 'bool') return t === 'BOOL' && typeof e.value === 'boolean'
-    if (e.t !== t || !(t === 'BOOL' || isWidth(t) || t === 'REAL' || t === 'LREAL')) return false
+    if (e.t !== t || !(t === 'BOOL' || isWidth(t) || is64(t) || t === 'REAL' || t === 'LREAL')) return false
     switch (e.node) {
       case 'var': return e.constValue === undefined
       case 'member': return true
@@ -172,11 +182,11 @@ export class Emitter {
     return own !== undefined && own[0] >= range[0] && own[1] <= range[1]
   }
 
-  /** The value on the stack (`k`, or 'l' an i64) made what a store into a `t` place makes of it (coercerFor). */
-  coerceStack(t: ScalarType, k: Kind | 'l', pos: SourcePos | undefined): Kind {
+  /** The value on the stack, of kind `k`, made what a store into a `t` place makes of it (coercerFor). */
+  coerceStack(t: ScalarType, k: Kind, pos: SourcePos | undefined): Kind {
     const w = this.w
     if (t === 'BOOL') {
-      if (k === 'l') w.u8(0x50).u8(0x45)
+      if (isLong(k)) w.u8(0x50).u8(0x45)
       else if (k === 'f') w.u8(0x44).f64(0).u8(0x62)
       else if (k !== 'b') w.u8(0x41).sleb(0).u8(0x47)
       return 'b'
@@ -199,12 +209,21 @@ export class Emitter {
         w.u8(0x0b)
         return kindOf(t)
       }
-      if (k !== 'l') this.toL(k)
+      // (a 64-bit integer keeps its low bits)
+      this.toL(k)
       this.fit(t, tk, p)
       return kindOf(t)
     }
-    if (k === 'l') w.u8(0xb9)
-    else this.toF(k)
+    if (is64(t)) {
+      // a narrower whole number widened (the same bits: a negative one into a ULINT is the large number it wraps to), a
+      // 64-bit one as it is. Anything held as a real goes by the store's own rule, which rounds it.
+      if (k === 'f') {
+        w.u8(0x41).sleb(this.wk(this.x.coercerFor(t, undefined, pos)))
+        w.u8(0x10).uleb(this.import('coL', [F64, I32], [I64], (h) => (x: number, ci: number) => (h.W[ci] as (v: Value) => Value)(x) as bigint))
+      } else this.toL(k === 'b' ? 'u' : k)
+      return kindOf(t)
+    }
+    this.toF(k)
     if (t === 'REAL') w.u8(0xb6).u8(0xbb)
     else if (t === 'STRING') no('a STRING store')
     // (LREAL and the time types: a number is stored as it is, runtime.ts wrap)
@@ -228,7 +247,7 @@ export class Emitter {
   /** `e`'s value coerced for a store into a `t` place (scanCodegen.ts coerce) */
   coerce(t: ScalarType, pos: SourcePos | undefined, e: Expr): Kind {
     if (this.canonical(e, t)) {
-      if (e.node === 'num') return this.constOf(t, e.value)
+      if (e.node === 'num') return this.constOf(t, e.value, e.big)
       return this.expr(e)
     }
     if (isWidth(t) && e.node !== 'call' && isWidth(e.t) && this.canonical(e, e.t) && this.within(e, t)) {
@@ -238,9 +257,10 @@ export class Emitter {
     return this.coerceStack(t, this.expr(e), pos)
   }
   /** a literal that `t` holds as written, in `t`'s kind */
-  constOf(t: ScalarType, v: number): Kind {
+  constOf(t: ScalarType, v: number, exact?: string): Kind {
     const k = kindOf(t)
-    if (k === 'f') this.w.u8(0x44).f64(v)
+    if (isLong(k)) this.w.u8(0x42).slebBig(BigInt(exact ?? v))
+    else if (k === 'f') this.w.u8(0x44).f64(v)
     else this.w.u8(0x41).sleb(v | 0)
     return k
   }
@@ -254,6 +274,7 @@ export class Emitter {
   cond(e: Expr): void {
     const k = this.expr(e)
     if (k === 'f') this.w.u8(0x44).f64(0).u8(0x62)
+    else if (isLong(k)) this.w.u8(0x50).u8(0x45)
     else if (k !== 'b') this.w.u8(0x41).sleb(0).u8(0x47)
   }
 
@@ -261,6 +282,12 @@ export class Emitter {
     const w = this.w
     switch (e.node) {
       case 'num':
+        // a 64-bit literal: its exact value, held to its type (the walker's evalExpr)
+        if (is64(e.t)) {
+          w.u8(0x42).slebBig(literal64(e))
+          return kindOf(e.t!)
+        }
+        return this.lit(e.value)
       case 'bool':
         return this.lit(e.value)
       case 'var':
@@ -271,7 +298,8 @@ export class Emitter {
       case 'bit': {
         const k = this.num(e.obj)
         if (k === 'f') return no('a bit of a real')
-        w.u8(0x41).sleb(e.bit).u8(0x76).u8(0x41).sleb(1).u8(0x71)
+        if (isLong(k)) w.u8(0x42).sleb(e.bit).u8(0x88).u8(0xa7).u8(0x41).sleb(1).u8(0x71)
+        else w.u8(0x41).sleb(e.bit).u8(0x76).u8(0x41).sleb(1).u8(0x71)
         return 'b'
       }
       case 'index':
@@ -290,6 +318,14 @@ export class Emitter {
           this.cond(e.expr)
           w.u8(0x45)
           return 'b'
+        }
+        if (is64(e.t) && e.op !== 'POS') {
+          // the complement, or 0 minus it: an i64's own, which wraps
+          if (e.op === 'NEG') w.u8(0x42).sleb(0)
+          this.toL(this.num(e.expr))
+          if (e.op === 'NEG') w.u8(0x7d)
+          else w.u8(0x42).sleb(-1).u8(0x85)
+          return kindOf(e.t!)
         }
         if (e.op === 'NOT' && isWidth(e.t)) {
           this.toBits(this.num(e.expr))
@@ -350,6 +386,7 @@ export class Emitter {
       const a = this.num(e.left)
       const mark = w.len
       const b = this.num(e.right)
+      if (is64(lt) || is64(rt)) return this.compareLong(op, lt, rt, a, b, mark)
       const ints = a !== 'f' && b !== 'f'
       if (ints && a === b) {
         const u = a === 'u'
@@ -368,6 +405,12 @@ export class Emitter {
         this.cond(e.right)
         w.u8(op === 'AND' ? 0x71 : op === 'OR' ? 0x72 : 0x73)
         return 'b'
+      }
+      if (is64(t)) {
+        this.toL(this.num(e.left))
+        this.toL(this.num(e.right))
+        w.u8(op === 'AND' ? 0x83 : op === 'OR' ? 0x84 : 0x85)
+        return kindOf(t)
       }
       if (!isWidth(t)) return no(`${op} of ${t}`)
       this.toBits(this.num(e.left))
@@ -393,6 +436,7 @@ export class Emitter {
       if (t === 'REAL') w.u8(0xb6).u8(0xbb)
       return 'f'
     }
+    if (is64(t)) return this.arithLong(e, t)
     if (!isWidth(t)) {
       // a duration: sums and products are a number's (interpreter.ts fits leaves anything but an integer alone)
       if (t !== 'TIME') return no(`${op} of ${t}`)
@@ -447,16 +491,111 @@ export class Emitter {
     w.u8(0x0b)
     return kindOf(t)
   }
+  /**
+   * A comparison with a 64-bit integer on a side, both operands already on the stack (`a` then `b`; the left one's
+   * code ended at `mark`). Two whole numbers compare by their exact values, signed against unsigned included; beside
+   * a real or a duration both compare as numbers. Decided by the operands' types, as the walker decides it
+   * (interpreter.ts evalBinary).
+   */
+  compareLong(op: string, lt: ScalarType, rt: ScalarType, a: Kind, b: Kind, mark: number): Kind {
+    const w = this.w
+    if (!(isInt(lt) && isInt(rt))) {
+      if (a !== 'f') this.splice(mark, a === 'l' ? 0xb9 : a === 'L' ? 0xba : a === 'u' ? 0xb8 : 0xb7)
+      this.toF(b)
+      w.u8(op === '=' ? 0x61 : op === '<>' ? 0x62 : op === '<' ? 0x63 : op === '>' ? 0x64 : op === '<=' ? 0x65 : 0x66)
+      return 'b'
+    }
+    // (a whole number held as a real is one a call answered: its whole part)
+    if (a === 'f') this.splice(mark, 0xfc, 0x06)
+    else if (!isLong(a)) this.splice(mark, a === 'u' ? 0xad : 0xac)
+    this.toL(b)
+    const compare = (o: string, unsigned: boolean): number =>
+      o === '=' ? 0x51 : o === '<>' ? 0x52 : o === '<' ? (unsigned ? 0x54 : 0x53) : o === '>' ? (unsigned ? 0x56 : 0x55) : o === '<=' ? (unsigned ? 0x58 : 0x57) : unsigned ? 0x5a : 0x59
+    // 'u' is never negative, so widened it reads the same signed or unsigned
+    if ((a === 'L') === (b === 'L') || a === 'u' || b === 'u') {
+      w.u8(compare(op, a === 'L' || b === 'L'))
+      return 'b'
+    }
+    // signed against unsigned: a negative number is below every unsigned one, and any other compares as unsigned
+    const y = this.local(I64)
+    const x = this.local(I64)
+    w.u8(0x21).uleb(y).u8(0x21).uleb(x)
+    const signed = a === 'L' ? y : x
+    const other = a === 'L' ? x : y
+    // the relation with the signed operand on the left
+    const rel = a === 'L' ? ({ '<': '>', '>': '<', '<=': '>=', '>=': '<=' }[op] ?? op) : op
+    w.u8(0x41).sleb(rel === '<' || rel === '<=' || rel === '<>' ? 1 : 0)
+    w.u8(0x20).uleb(signed).u8(0x20).uleb(other).u8(compare(rel, true))
+    w.u8(0x20).uleb(signed).u8(0x42).sleb(0).u8(0x53)
+    w.u8(0x1b)
+    return 'b'
+  }
+  /**
+   * Arithmetic whose result is a 64-bit integer: both operands as i64 (a narrower one widened, which is the result
+   * type's reading of it), then the i64's own operation, which wraps. A quotient or a remainder is signed for a LINT
+   * and unsigned for a ULINT, and by zero it faults, as the walker's does.
+   */
+  arithLong(e: Extract<Expr, { node: 'binary' }>, t: ScalarType): Kind {
+    const w = this.w
+    const op = e.op
+    this.toL(this.num(e.left))
+    if (op === '+' || op === '-' || op === '*') {
+      this.toL(this.num(e.right))
+      w.u8(op === '+' ? 0x7c : op === '-' ? 0x7d : 0x7e)
+      return kindOf(t)
+    }
+    if (op !== '/' && op !== 'MOD') return no(`the operator ${op}`)
+    const mod = op === 'MOD'
+    const l = this.local(I64)
+    const r = this.local(I64)
+    w.u8(0x21).uleb(l)
+    this.toL(this.num(e.right))
+    w.u8(0x22).uleb(r).u8(0x50)
+    w.u8(0x04).u8(VOID)
+    w.u8(0x41).sleb(mod ? 1 : 0).u8(0x41).sleb(this.wk(e.pos))
+    w.u8(0x10).uleb(this.import('zeroL', [I32, I32], [], (h) => (m: number, pi: number) => void (h.H[m ? 'modI' : 'divI'] as (t: unknown, l: number, r: number, p: unknown) => number)('DINT', 0, 0, h.W[pi])))
+    w.u8(0x00)
+    w.u8(0x0b)
+    if (t !== 'LINT') {
+      w.u8(0x20).uleb(l).u8(0x20).uleb(r).u8(mod ? 0x82 : 0x80)
+      return kindOf(t)
+    }
+    // The least LINT divided by -1 is one more than an i64 holds, and the instruction traps on it. The quotient wraps
+    // to the least LINT again (0 minus it), and the remainder is 0.
+    w.u8(0x20).uleb(r).u8(0x42).sleb(-1).u8(0x51)
+    w.u8(0x04).u8(I64)
+    if (mod) w.u8(0x42).sleb(0)
+    else w.u8(0x42).sleb(0).u8(0x20).uleb(l).u8(0x7d)
+    w.u8(0x05)
+    w.u8(0x20).uleb(l).u8(0x20).uleb(r).u8(mod ? 0x81 : 0x7f)
+    w.u8(0x0b)
+    return kindOf(t)
+  }
   /** num(e) as an f64 */
   toFAfter(e: Expr): void {
     this.toF(this.num(e))
   }
-  /** one byte put in at `at` (a conversion of a value whose code ended there) */
-  splice(at: number, byte: number): void {
+  /** bytes put in at `at` (a conversion of a value whose code ended there) */
+  splice(at: number, ...bytes: number[]): void {
     const w = this.w
-    w.u8(0)
-    w.buf.copyWithin(at + 1, at, w.len - 1)
-    w.buf[at] = byte
+    for (let i = 0; i < bytes.length; i++) w.u8(0)
+    w.buf.copyWithin(at + bytes.length, at, w.len - bytes.length)
+    for (let i = 0; i < bytes.length; i++) w.buf[at + i] = bytes[i]!
+  }
+  /**
+   * The subscript in the i64 local `v` checked against its dimension, faulting outside it. `k` is the kind it came
+   * from: a ULINT's bits are compared unsigned, so one past 2^63 is not read as a negative index inside the bounds.
+   */
+  bounds(v: number, k: Kind, d: { lo: number; hi: number }, pos: SourcePos): void {
+    const w = this.w
+    if (k !== 'L') w.u8(0x20).uleb(v).u8(0x42).sleb(d.lo).u8(0x53).u8(0x20).uleb(v).u8(0x42).sleb(d.hi).u8(0x55).u8(0x72)
+    else if (d.hi < 0) w.u8(0x41).sleb(1)
+    else w.u8(0x20).uleb(v).u8(0x42).sleb(Math.max(d.lo, 0)).u8(0x54).u8(0x20).uleb(v).u8(0x42).sleb(d.hi).u8(0x56).u8(0x72)
+    w.u8(0x04).u8(VOID)
+    w.u8(0x20).uleb(v).u8(k === 'L' ? 0xba : 0xb9).u8(0x44).f64(d.lo).u8(0x44).f64(d.hi).u8(0x41).sleb(this.wk(pos))
+    w.u8(0x10).uleb(this.import('ixFault', [F64, F64, F64, I32], [], (h) => (i: number, lo: number, hi: number, pi: number) => void (h.H.ixFault as (i: number, lo: number, hi: number, p: unknown) => never)(i, lo, hi, h.W[pi])))
+    w.u8(0x00)
+    w.u8(0x0b)
   }
 
   // ---- places ----
@@ -516,17 +655,12 @@ export class Emitter {
           w.u8(0x10).uleb(this.import('ixFault', [F64, F64, F64, I32], [], (h) => (i: number, lo: number, hi: number, pi: number) => void (h.H.ixFault as (i: number, lo: number, hi: number, p: unknown) => never)(i, lo, hi, h.W[pi])))
           w.u8(0x00)
           w.u8(0x0b)
-          w.u8(0x20).uleb(fv).op(0xfc, 0x06).u8(0x22).uleb(v)
+          w.u8(0x20).uleb(fv).op(0xfc, 0x06).u8(0x21).uleb(v)
         } else {
           this.toL(k)
-          w.u8(0x22).uleb(v)
+          w.u8(0x21).uleb(v)
         }
-        w.u8(0x42).sleb(d.lo).u8(0x53).u8(0x20).uleb(v).u8(0x42).sleb(d.hi).u8(0x55).u8(0x72)
-        w.u8(0x04).u8(VOID)
-        w.u8(0x20).uleb(v).u8(0xb9).u8(0x44).f64(d.lo).u8(0x44).f64(d.hi).u8(0x41).sleb(this.wk(e.pos))
-        w.u8(0x10).uleb(this.import('ixFault', [F64, F64, F64, I32], [], (h) => (i: number, lo: number, hi: number, pi: number) => void (h.H.ixFault as (i: number, lo: number, hi: number, p: unknown) => never)(i, lo, hi, h.W[pi])))
-        w.u8(0x00)
-        w.u8(0x0b)
+        this.bounds(v, k, d, e.pos)
         w.u8(0x20).uleb(v).u8(0x42).sleb(d.lo).u8(0x7d).u8(0xa7)
         if (stride !== 1) w.u8(0x41).sleb(stride).u8(0x6c)
       })
@@ -565,12 +699,8 @@ export class Emitter {
     const k = this.num(ix)
     const v = this.local(I64)
     this.toL(k)
-    w.u8(0x22).uleb(v).u8(0x42).sleb(d.lo).u8(0x53).u8(0x20).uleb(v).u8(0x42).sleb(d.hi).u8(0x55).u8(0x72)
-    w.u8(0x04).u8(VOID)
-    w.u8(0x20).uleb(v).u8(0xb9).u8(0x44).f64(d.lo).u8(0x44).f64(d.hi).u8(0x41).sleb(this.wk(pos))
-    w.u8(0x10).uleb(this.import('ixFault', [F64, F64, F64, I32], [], (h) => (i: number, lo: number, hi: number, pi: number) => void (h.H.ixFault as (i: number, lo: number, hi: number, p: unknown) => never)(i, lo, hi, h.W[pi])))
-    w.u8(0x00)
-    w.u8(0x0b)
+    w.u8(0x21).uleb(v)
+    this.bounds(v, k, d, pos)
     w.u8(0x20).uleb(v).u8(0x42).sleb(d.lo).u8(0x7d).u8(0xa7)
   }
 
@@ -637,6 +767,8 @@ export class Emitter {
       case 'DINT': this.at(a, 0x28, 2); return 'i'
       case 'UDINT': case 'DWORD': this.at(a, 0x28, 2); return 'u'
       case 'REAL': this.at(a, 0x2a, 2); this.w.u8(0xbb); return 'f'
+      case 'LINT': this.at(a, 0x29, 3); return 'l'
+      case 'ULINT': case 'LWORD': this.at(a, 0x29, 3); return 'L'
       case 'STRING': return no('a STRING read')
       default: this.at(a, 0x2b, 3); return 'f'
     }
@@ -652,6 +784,7 @@ export class Emitter {
         case 'INT': case 'UINT': case 'WORD': return [0x3b, 1, false]
         case 'DINT': case 'UDINT': case 'DWORD': return [0x36, 2, false]
         case 'REAL': return [0x38, 2, true]
+        case 'LINT': case 'ULINT': case 'LWORD': return [0x37, 3, false]
         case 'STRING': return no('a STRING store')
         default: return [0x39, 3, false]
       }
@@ -668,6 +801,22 @@ export class Emitter {
     if (target.node === 'var' || target.node === 'index' || target.node === 'member') return this.storeAt(this.addr(target), v)
     if (target.node === 'bit') {
       const t = target.obj.t
+      if (is64(t)) {
+        // one bit of a 64-bit word: the word with the bit set, or cleared, by the truth of the value
+        const word = this.local(I64)
+        const out = this.local(I64)
+        this.toL(this.num(target.obj))
+        w.u8(0x21).uleb(word)
+        if (k === 'f' || isLong(k)) return no('a number as a bit')
+        const bit = 1n << BigInt(target.bit)
+        w.u8(0x20).uleb(word).u8(0x42).slebBig(bit).u8(0x84)
+        w.u8(0x20).uleb(word).u8(0x42).slebBig(~bit).u8(0x83)
+        w.u8(0x20).uleb(v)
+        if (k !== 'b') w.u8(0x41).sleb(0).u8(0x47)
+        w.u8(0x1b)
+        w.u8(0x21).uleb(out)
+        return this.place(target.obj, out, kindOf(t!))
+      }
       if (!isWidth(t)) return no('a bit of this')
       const word = this.local(I32)
       const out = this.local(I32)
@@ -688,7 +837,7 @@ export class Emitter {
     return no('this place')
   }
   typeOfKind(k: Kind): number {
-    return k === 'f' ? F64 : I32
+    return k === 'f' ? F64 : isLong(k) ? I64 : I32
   }
 
   // ---- statements ----
@@ -775,7 +924,11 @@ export class Emitter {
         const k = this.coerce(t, s.pos, s.value)
         const v = this.local(this.typeOfKind(k))
         w.u8(0x22).uleb(v)
-        if (ranged) {
+        if (ranged && isLong(k)) {
+          // (a 64-bit integer goes to the check as it is, so the bounds meet its exact value)
+          w.u8(0x41).sleb(k === 'L' ? 1 : 0).u8(0x41).sleb(this.wk(s.target)).u8(0x41).sleb(this.wk(s.pos))
+          w.u8(0x10).uleb(this.import('rangeL', [I64, I32, I32, I32], [], (h) => (x: bigint, u: number, ti: number, pi: number) => void h.x.checkRange(h.W[ti] as Expr, u ? BigInt.asUintN(64, x) : x, h.W[pi] as SourcePos)))
+        } else if (ranged) {
           // the store's own check, after the coercion (interpreter.ts checkRange): it answers the value or faults
           this.toF(k)
           w.u8(0x41).sleb(this.wk(s.target)).u8(0x41).sleb(this.wk(s.pos))
@@ -804,6 +957,7 @@ export class Emitter {
         const same = (v: number): void => {
           w.u8(0x20).uleb(sel)
           if (k === 'f') w.u8(0x44).f64(v)
+          else if (isLong(k)) w.u8(0x42).sleb(v)
           else if (Number.isInteger(v) && v >= -2147483648 && v <= 4294967295) w.u8(0x41).sleb(v | 0)
           else no('a CASE label past 32 bits')
         }
@@ -811,7 +965,22 @@ export class Emitter {
         for (const cl of s.cases) {
           if (cl.labels.length === 0) w.u8(0x41).sleb(0)
           cl.labels.forEach((l, i) => {
-            if (l.kind === 'range') {
+            if (isLong(k)) {
+              // a 64-bit selector meets its labels exactly. An unsigned one is never a negative label, and is
+              // compared unsigned, so one past 2^63 is not read as a negative number inside a range.
+              const lo = l.kind === 'range' ? l.lo : (l.value as number)
+              const hi = l.kind === 'range' ? l.hi : (l.value as number)
+              if (k === 'L' && hi < 0) w.u8(0x41).sleb(0)
+              else if (l.kind !== 'range') {
+                same(lo)
+                w.u8(0x51)
+              } else {
+                same(k === 'L' ? Math.max(lo, 0) : lo)
+                w.u8(k === 'L' ? 0x5a : 0x59)
+                same(hi)
+                w.u8(k === 'L' ? 0x58 : 0x57).u8(0x71)
+              }
+            } else if (l.kind === 'range') {
               same(l.lo)
               w.u8(k === 'f' ? 0x66 : k === 'u' ? 0x4f : 0x4e)
               same(l.hi)
@@ -948,7 +1117,7 @@ export class Emitter {
     w.u8(0x10).uleb(
       this.import('textPut', [I32, I32, I32, I32], [], (h) => (a: number, cap: number, ci: number, li: number) => {
         const strPut = h.H.strPut as (a: number, cap: number, s: string) => void
-        strPut(a, cap, (h.W[ci] as (v: TagValue) => TagValue)(li < 0 ? h.text : (h.W[li] as string)) as string)
+        strPut(a, cap, (h.W[ci] as (v: Value) => Value)(li < 0 ? h.text : (h.W[li] as string)) as string)
       }),
     )
   }
@@ -974,6 +1143,7 @@ export class Emitter {
   forLoop(s: Extract<Stmt, { node: 'for' }>): void {
     const w = this.w
     const vt = (this.scope.env.get(identKey(s.varName)) ?? this.scope.genv!.get(identKey(s.varName)))!.type as ScalarType
+    if (is64(vt)) return this.forLong(s, vt)
     if (!isWidth(vt)) return no('a FOR counter that is not a whole number')
     const n = this.#loop++
     const end = this.local(I64)
@@ -1014,6 +1184,57 @@ export class Emitter {
     this.close()
     this.limit(count, 1, s.pos)
     w.u8(0x20).uleb(i).u8(0x20).uleb(step).u8(0x7c).u8(0x21).uleb(i)
+    w.u8(0x0c).uleb(0)
+    this.close()
+    this.close()
+  }
+
+  /**
+   * A FOR over a 64-bit counter (interpreter.ts forWide): it counts in the counter's own type, the bounds read as
+   * that type and the step as a LINT, and it ends, too, where the next value would leave the type's range.
+   */
+  forLong(s: Extract<Stmt, { node: 'for' }>, vt: ScalarType): void {
+    const w = this.w
+    const unsigned = vt !== 'LINT'
+    const n = this.#loop++
+    const end = this.local(I64)
+    const step = this.local(I64)
+    const i = this.local(I64)
+    const next = this.local(I64)
+    const count = this.local(I32)
+    // `to`, then `by`, then `from`: the order the walker evaluates them in
+    this.toL(this.num(s.to))
+    w.u8(0x21).uleb(end)
+    if (s.by) this.toL(this.num(s.by))
+    else w.u8(0x42).sleb(1)
+    w.u8(0x22).uleb(step).u8(0x50).u8(0x04).u8(VOID)
+    this.open()
+    this.fault(0, s.pos)
+    this.close()
+    w.u8(0x41).sleb(0).u8(0x21).uleb(count)
+    this.toL(this.num(s.from))
+    w.u8(0x21).uleb(i)
+    const counter = { node: 'var', name: s.varName, pos: s.pos } as Expr
+    w.u8(0x02).u8(VOID)
+    this.open({ exit: n })
+    w.u8(0x03).u8(VOID)
+    this.open()
+    // step > 0 ? i <= end : i >= end, in the counter's own order
+    w.u8(0x20).uleb(i).u8(0x20).uleb(end).u8(unsigned ? 0x58 : 0x57).u8(0x20).uleb(i).u8(0x20).uleb(end).u8(unsigned ? 0x5a : 0x59).u8(0x20).uleb(step).u8(0x42).sleb(0).u8(0x55).u8(0x1b)
+    w.u8(0x45).u8(0x0d).uleb(1)
+    this.place(counter, i, kindOf(vt))
+    w.u8(0x02).u8(VOID)
+    this.open({ cont: n })
+    this.list(s.body)
+    this.close()
+    this.limit(count, 1, s.pos)
+    w.u8(0x20).uleb(i).u8(0x20).uleb(step).u8(0x7c).u8(0x21).uleb(next)
+    // out of the loop where the sum left the type's range: for a LINT, both operands differ in sign from the sum;
+    // for a ULINT, the sum went down on a step up, or up on a step down
+    if (unsigned) w.u8(0x20).uleb(next).u8(0x20).uleb(i).u8(0x54).u8(0x20).uleb(next).u8(0x20).uleb(i).u8(0x56).u8(0x20).uleb(step).u8(0x42).sleb(0).u8(0x55).u8(0x1b)
+    else w.u8(0x20).uleb(i).u8(0x20).uleb(next).u8(0x85).u8(0x20).uleb(step).u8(0x20).uleb(next).u8(0x85).u8(0x83).u8(0x42).sleb(0).u8(0x53)
+    w.u8(0x0d).uleb(1)
+    w.u8(0x20).uleb(next).u8(0x21).uleb(i)
     w.u8(0x0c).uleb(0)
     this.close()
     this.close()
@@ -1104,7 +1325,10 @@ export class Emitter {
     }
     const k = this.expr(e)
     if (k === 'b') w.u8(0x10).uleb(this.import('valueB', [I32], [], (h) => (v: number) => void (h.text = v !== 0)))
-    else {
+    else if (isLong(k)) {
+      w.u8(0x41).sleb(k === 'L' ? 1 : 0)
+      w.u8(0x10).uleb(this.import('valueL', [I64, I32], [], (h) => (v: bigint, u: number) => void (h.text = u ? BigInt.asUintN(64, v) : v)))
+    } else {
       this.toF(k)
       w.u8(0x10).uleb(this.import('valueN', [F64], [], (h) => (v: number) => void (h.text = v)))
     }

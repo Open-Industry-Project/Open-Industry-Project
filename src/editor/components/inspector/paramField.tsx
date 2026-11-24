@@ -70,6 +70,7 @@ const M = defineMessages('inspector.paramField', {
   editInViewport: 'Edit in viewport',
   closest: '{error}. Closest: {names}',
   notInProgram: 'The program does not declare {tag}, so it neither reads nor drives it. Usually a typo, or a variable not written yet.',
+  wideInProgram: 'The program declares {tag} as a {type}, and a 64-bit integer is not wired to a part: a tag carries a number, which is exact only up to 2^53. Convert it into a DINT or an LREAL variable and wire that.',
   wrongType: 'The program declares {tag} as {programType}, and this field carries {fieldType}.',
   notDriven: 'The program does not drive {tag}, so this part reads it as {zero}.',
   notDrivenSetpoint: 'The program does not drive {tag}, so while the scene runs this part uses 0 in place of its {param}.',
@@ -892,7 +893,7 @@ function useProgramTagWord(tag: string, spec: TagMarkSpec, replaces: string | un
   if (tag === '' || !check || controllerOf(tag) !== null) return null
   // with an external PLC on, the part is wired to the PLC's tags, so an empty program says nothing about it
   if (!verdict) return check.source.trim() === '' && !sources.external ? { status: { kind: 'no-program', why: t(M.noProgram, { tag }) } } : null
-  if (!verdict.declared) return { warn: { kind: 'undeclared', why: t(M.notInProgram, { tag }) } }
+  if (!verdict.declared) return { warn: { kind: 'undeclared', why: verdict.wide ? t(M.wideInProgram, { tag, type: verdict.wide }) : t(M.notInProgram, { tag }) } }
   const { stType } = spec
   if (stType && verdict.type && (verdict.type === 'BOOL') !== (stType === 'BOOL')) {
     return { warn: { kind: 'type', why: t(M.wrongType, { tag, programType: verdict.type, fieldType: stType }) } }

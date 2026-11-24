@@ -86,6 +86,12 @@ function readback(key: string, lvalue: string, type: string): string {
       return num(`iec_unwrap(${lvalue})`)
     case 'IEC_STRING':
       return `  std::printf("%s${field}:", sep); emit_string(${lvalue}.get().c_str()); sep = ",";`
+    // a 64-bit integer as the corpus writes one (types.ts TagValue): a number while a number holds it exactly, its
+    // decimal digits in a string past that
+    case 'IEC_LINT':
+      return `  { long long x = (long long)(iec_unwrap(${lvalue})); std::printf(x >= -9007199254740991LL && x <= 9007199254740991LL ? "%s${field}:%lld" : "%s${field}:\\"%lld\\"", sep, x); } sep = ",";`
+    case 'IEC_ULINT': case 'IEC_LWORD':
+      return `  { unsigned long long x = (unsigned long long)(iec_unwrap(${lvalue})); std::printf(x <= 9007199254740991ULL ? "%s${field}:%llu" : "%s${field}:\\"%llu\\"", sep, x); } sep = ",";`
   }
   if (!/^IEC_\w+$/.test(type)) throw new Error(`cannot read back ${key}: its type is ${type}, not an elementary IEC type`)
   return `  std::printf("%s${field}:%lld", sep, (long long)(iec_unwrap(${lvalue}))); sep = ",";`

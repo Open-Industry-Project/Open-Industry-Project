@@ -55,7 +55,12 @@ export function desktopOpcUaServerHost(): OpcUaServerHost | null {
   return typeof window !== 'undefined' && window.oipOpcUaServer ? window.oipOpcUaServer : null
 }
 
-const BUILTIN_OF: Record<VarInfo['type'], number> = {
+/** A 64-bit integer is not published: a node's value crosses to the shell as a number, which holds one exactly only
+ *  up to 2^53. */
+type WideType = 'LINT' | 'ULINT' | 'LWORD'
+const isWide = (t: VarInfo['type']): t is WideType => t === 'LINT' || t === 'ULINT' || t === 'LWORD'
+
+const BUILTIN_OF: Record<Exclude<VarInfo['type'], WideType>, number> = {
   BOOL: 1,
   SINT: 2,
   USINT: 3,
@@ -85,7 +90,7 @@ const FB_MEMBER: Record<string, number> = { CV: 4, PV: 4, ET: 11, PT: 11 }
 
 /** The OPC UA type a variable is published as: from its declaration, else (a function block's member) from its value. */
 export function builtinFor(name: string, info: VarInfo | undefined, value: TagValue): number {
-  if (info) return BUILTIN_OF[info.type]
+  if (info && !isWide(info.type)) return BUILTIN_OF[info.type]
   if (typeof value === 'boolean') return 1
   if (typeof value === 'string') return 12
   return FB_MEMBER[name.slice(name.lastIndexOf('.') + 1).toUpperCase()] ?? 11
@@ -124,6 +129,7 @@ export function publishedVariables(program: PublishedProgram, sceneFeeds: Readon
   const out: ServerNode[] = []
   for (const [name, value] of Object.entries(program.watch)) {
     const info = program.varInfo(name)
+    if (info && isWide(info.type)) continue
     const builtin = builtinFor(name, info, value)
     const fromScene = fed.has(name.toLowerCase()) || (info?.location !== undefined && fed.has(info.location.toLowerCase()))
     out.push({ name, builtin, writable: info !== undefined && !info.constant && !fromScene, value: toServerValue(builtin, value) })

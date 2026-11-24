@@ -4,7 +4,6 @@
 
 import { describe, expect, it } from 'vitest'
 import { diagnostics } from './checker'
-import { toTypeScript } from './emit'
 import { exportProgram, toPlcopenXml } from './exchange/export'
 import { renderIecText } from './exchange/exportText'
 import { importIecText } from './exchange/importText'
@@ -123,12 +122,6 @@ END_CONFIGURATION`)
     p.scanTask(0, 0.01)
     expect(p.get('%QX0.0')).toBe(true)
   })
-
-  it('the emitted TypeScript runs a located program the same way', () => {
-    const ts = toTypeScript(CONVEYOR)
-    expect(ts).toMatch(/Eye/)
-    expect(ts).not.toMatch(/%IX/) // an address is binding, not code
-  })
 })
 
 describe('located variables: what the checker refuses', () => {
@@ -138,7 +131,7 @@ describe('located variables: what the checker refuses', () => {
     refuses('VAR a AT %IX0.0 : INT; END_VAR', /'a' is INT, which does not fit the bit address %IX0.0; a bit holds BOOL/)
     refuses('VAR a AT %IW0 : BOOL; END_VAR', /'a' is BOOL, which does not fit the word address %IW0; a word holds INT, UINT, WORD/)
     refuses('VAR a AT %QD1 : INT; END_VAR', /double-word holds DINT, UDINT, DWORD, REAL/)
-    refuses('VAR a AT %IL0 : LREAL; END_VAR', /long-word \(64-bit\) address, and 64-bit types are not supported/)
+    refuses('VAR a AT %IL0 : LREAL; END_VAR', /long-word \(64-bit\) address, which is not supported/)
     refuses('VAR a AT %IW0 : TIME; END_VAR', /'a' is TIME, which does not fit/)
   })
 

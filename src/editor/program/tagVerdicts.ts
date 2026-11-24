@@ -9,7 +9,7 @@ import { isKnownDialect } from '../../core/dialect'
 import type { PartInstance } from '../../core/types'
 import { commsTags, controllerFor, controllerSource, unhandledProgramTags, type CompiledProgram } from '../../plc'
 import { boundNames } from '../../plc/link/plcLink'
-import { surfaceOf, type ProgramSurface } from '../../plc/programSurface'
+import { surfaceOf, wideTypeOf, type ProgramSurface } from '../../plc/programSurface'
 import { surfaceFor } from './programWorkerClient'
 import { compiledOnce } from './compiledProgram'
 import { wiredBindings } from '../../plc/wiring'
@@ -28,7 +28,7 @@ export interface ProgramCheck {
  * reads what it declares as an input. A part reads only what the program drives, and what a part writes reaches only
  * the program's inputs (sim/behaviorBus.ts), so these answer whether a part's binding does anything.
  */
-export type TagVerdict = { declared: false } | { declared: true; type?: string; drives: boolean; reads: boolean }
+export type TagVerdict = { declared: false; wide?: string } | { declared: true; type?: string; drives: boolean; reads: boolean }
 
 /** The program compiled, in the copy Problems reads too (compiledProgram.ts). Problems reports why one does not
  *  compile; here it says nothing about a tag. */
@@ -126,7 +126,9 @@ function tagVerdictsOf(parts: readonly PartInstance[], program: ProgramSurface):
   const inputs = new Set(link.inputs)
   for (const tag of commsTags(parts)) {
     if (unwired.has(tag)) {
-      out.set(tag, { declared: false })
+      // (a 64-bit integer the program does declare, which no tag is wired to: said as that, not as a typo)
+      const wide = wideTypeOf(program.wide, tag)
+      out.set(tag, wide ? { declared: false, wide } : { declared: false })
       continue
     }
     const type = program.vars[aliases.get(tag) ?? tag]?.type

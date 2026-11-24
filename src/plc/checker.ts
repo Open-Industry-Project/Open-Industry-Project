@@ -1,6 +1,6 @@
 // The IEC 61131-3 type checker. It resolves every name and type in a parsed program and annotates
 // every expression with its IEC type, or reports why the program is not one this subset (and a
-// real IEC compiler) would build. The interpreter, the emitter and both exporters consume the
+// real IEC compiler) would build. Both scan engines and both exporters consume the
 // annotated AST it hands back; none of them re-derives a type.
 //
 // It is the strict IEC rule set, and it is separate from the runtime for that reason:
@@ -16,7 +16,7 @@ import { buildEnv, buildExternals, definedType, duplicateName, foldCapacities, r
 import { lex } from './lexer'
 import { parse } from './parser'
 import { type CheckedProgram, containsFb, controllerTags, type EnumDefMap, type Env, type FbDefMap, funcDecls, type FuncDefMap, identKey, type InterfaceDefMap, type StructDefMap, type SubrangeDefMap } from './program'
-import { isBitString, isInt, wrap } from './runtime'
+import { is64, isBitString, isInt, wrap } from './runtime'
 import type { AliasDef, Ast, Decl, Diagnostic, FbDef, FuncDef, ProgramDef } from './types'
 import { isArray, StError } from './types'
 
@@ -71,7 +71,11 @@ function checkAst(ast: Ast, sink: Diagnostic[] | null): CheckedProgram {
     const prev = definedType(structDefs, subrangeDefs, def.name)
     if (prev) throw duplicateName('type', def.name, prev, def.pos)
     if (!isInt(def.base)) throw new StError(`a subrange base must be an integer type, not ${def.base}`, def.pos, def.name.length)
-    if (wrap(def.base, def.lo) !== def.lo || wrap(def.base, def.hi) !== def.hi) {
+    if (is64(def.base)) {
+      // bounds are kept as numbers, which hold a whole number exactly up to 2^53
+      if (!Number.isSafeInteger(def.lo) || !Number.isSafeInteger(def.hi)) throw new StError(`a subrange bound past 2^53 is not supported (${def.lo}..${def.hi})`, def.pos, def.name.length)
+      if (def.base !== 'LINT' && def.lo < 0) throw new StError(`${def.lo}..${def.hi} does not fit in ${def.base}`, def.pos, def.name.length)
+    } else if (wrap(def.base, def.lo) !== def.lo || wrap(def.base, def.hi) !== def.hi) {
       throw new StError(`${def.lo}..${def.hi} does not fit in ${def.base}`, def.pos, def.name.length)
     }
     subrangeDefs.set(identKey(def.name), def)

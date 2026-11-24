@@ -125,6 +125,8 @@ const PROBES = [
   // ---- types and literals ----
   { id: 'integer-families', category: 'Types', intent: 'supported', title: 'Signed, unsigned and bit-string families, kept apart',
     st: 'VAR\n  si : SINT; i : INT; di : DINT;\n  usi : USINT; ui : UINT; udi : UDINT;\n  b : BYTE; w : WORD; dw : DWORD;\nEND_VAR\ni := i + 1;\nui := ui + 1;\nw := w AND 16#00FF;' },
+  { id: 'wide-integers', category: 'Types', intent: 'supported', title: 'LINT, ULINT and LWORD: 64-bit integers, exact past 2^53',
+    st: 'VAR\n  total : LINT := 9007199254740993;\n  count : ULINT;\n  mask : LWORD := 16#8000_0000_0000_0000;\nEND_VAR\ntotal := total + 1;\ncount := count + 1;\nmask := SHR(mask, 1);' },
   { id: 'real-lreal', category: 'Types', intent: 'supported', title: 'REAL (single precision) and LREAL',
     st: 'VAR r : REAL := 0.4; l : LREAL; END_VAR\nl := r;' },
   { id: 'time', category: 'Types', intent: 'supported', title: 'TIME is a duration, not a number',
@@ -159,9 +161,6 @@ const PROBES = [
     st: "VAR s : STRING := 'hello world'; part : STRING; at : INT; END_VAR\npart := MID(s, 5, 1);\nat := FIND(s, 'world');\npart := REPLACE(s, 'X', 1, 1);" },
 
   // ---- the subset boundary: types the standard has and this engine does not ----
-  { id: 'lint', category: 'Types the subset lacks', intent: 'unsupported', title: 'LINT (64-bit signed)', st: 'VAR n : LINT; END_VAR' },
-  { id: 'ulint', category: 'Types the subset lacks', intent: 'unsupported', title: 'ULINT (64-bit unsigned)', st: 'VAR n : ULINT; END_VAR' },
-  { id: 'lword', category: 'Types the subset lacks', intent: 'unsupported', title: 'LWORD (64-bit bit string)', st: 'VAR n : LWORD; END_VAR' },
   { id: 'wstring', category: 'Types the subset lacks', intent: 'unsupported', title: 'WSTRING', st: 'VAR s : WSTRING; END_VAR' },
   { id: 'wstring-literal', category: 'Types the subset lacks', intent: 'unsupported', title: 'A double-quoted (WSTRING) literal',
     st: 'VAR s : STRING; END_VAR\ns := "wide";' },

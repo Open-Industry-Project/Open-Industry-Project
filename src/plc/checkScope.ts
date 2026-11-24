@@ -36,7 +36,7 @@ export interface Scope {
 }
 
 /**
- * Declarations whose TYPE was refused (`x : LINT`, `x : Nope`). They stay in scope, so a later use
+ * Declarations whose TYPE was refused (`x : WSTRING`, `x : Nope`). They stay in scope, so a later use
  * is not reported as "undeclared", but a use has nothing true to say about them either: it would be
  * checked against a type that never resolved, which reads as a function block, so one refused type
  * would add "cannot assign to function block 'x'" at every statement that named it.

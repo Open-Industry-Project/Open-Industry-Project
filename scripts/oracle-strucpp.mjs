@@ -226,6 +226,12 @@ const RUN_GAPS = [
     why: "DATE_TO_STRING, TOD_TO_STRING and DT_TO_STRING print the raw count (19782 days, nanoseconds) instead of the literal (D#2024-02-29).",
   },
   {
+    id: 'for-bound-literal-past-2-53',
+    kind: 'semantics',
+    cases: ['FOR bounds written as literals past 2^53 are exact'],
+    why: 'A FOR over a LINT whose bound is written as a literal past 2^53 runs one pass too many: FOR i := 9007199254740992 TO 9007199254740995 sums five terms, which is what the bound rounded to a double (2^53 + 4) gives. With the same bounds in LINT variables it sums the four it should (the case "FOR counts in a LINT past 2^53" agrees), and this engine and MATIEC give four either way.',
+  },
+  {
     id: 'taskless-program-on-first-task',
     kind: 'semantics',
     cases: ['a PROGRAM instance with no task runs on every tick, after the periodic tasks'],

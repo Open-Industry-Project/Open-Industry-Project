@@ -915,6 +915,20 @@ const INTEGER_TYPES = new Set(['SINT', 'INT', 'DINT', 'LINT', 'USINT', 'UINT', '
 /** the calendar functions STruC++ 0.6.2's runtime declares none of (the operators they name build there) */
 const STRUCPP_MISSING_CALENDAR = new Set(['ADD_TOD_TIME', 'ADD_DT_TIME', 'SUB_TOD_TIME', 'SUB_DT_TIME', 'SUB_DATE_DATE', 'SUB_TOD_TOD', 'SUB_DT_DT'])
 
+/** Does any FOR in these statements write a bound (from, to or by) as a whole-number literal a double does not hold? */
+function wideLiteralBound(body: Stmt[]): boolean {
+  const wide = (e: Expr | null): boolean => e !== null && (e.node === 'unary' ? wide(e.expr) : e.node === 'num' && e.big !== undefined && !Number.isSafeInteger(e.value))
+  return body.some((s) => {
+    switch (s.node) {
+      case 'for': return wide(s.from) || wide(s.to) || wide(s.by) || wideLiteralBound(s.body)
+      case 'if': return s.branches.some((b) => wideLiteralBound(b.body)) || (s.elseBody !== null && wideLiteralBound(s.elseBody))
+      case 'case': return s.cases.some((c) => wideLiteralBound(c.body)) || (s.elseBody !== null && wideLiteralBound(s.elseBody))
+      case 'while': case 'repeat': return wideLiteralBound(s.body)
+      default: return false
+    }
+  })
+}
+
 /**
  * What OpenPLC v4 builds or runs differently, one warning per thing, each naming what to write instead.
  *
@@ -982,6 +996,9 @@ function strucppWarnings(ast: Ast, programBodies: Stmt[][]): string[] {
   const calendarText = named((n) => /^(DATE|TOD|DT|TIME_OF_DAY|DATE_AND_TIME)_TO_STRING$/.test(n))
   if (calendarText.length > 0) {
     out.push(`${calendarText.join(', ')}: here a calendar value prints as its literal (D#2024-02-29); ${OPENPLC_V4} prints the count it keeps (19782 days, or nanoseconds). Build the text from the parts you need, or keep the value in its own type.`)
+  }
+  if (bodies.some(wideLiteralBound)) {
+    out.push(`A FOR loop's bound is written as a whole number past 2^53. Here it is exact; ${OPENPLC_V4} reads it as the nearest number a double holds, so FOR i := 9007199254740992 TO 9007199254740995 runs one pass more there. Put the bound in a LINT variable first, which it reads exactly.`)
   }
   const taskless = ast.configuration?.programs.filter((p) => p.task === null && p.type !== null).map((p) => p.name) ?? []
   if (taskless.length > 0 && (ast.configuration?.tasks.length ?? 0) > 0) {

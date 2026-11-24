@@ -4,7 +4,7 @@
 // and the link-side hooks come in as narrow dependencies (ProgramDeps).
 
 import { controllerOf, controllerTag, partsForController } from '../../core/io/controllerTag'
-import { lazyTable } from '../../core/watchTable'
+import { isWideDigits, lazyTable, watchBit } from '../../core/watchTable'
 import type { SceneJSON } from '../../core/types'
 import type { PlcFault, SimClient } from '../../sim/client'
 import { commsTags, ControllerError, controllerRuns, LocalPlcLink, runnableSource, StError, unhandledProgramTags } from '../../plc'
@@ -408,12 +408,30 @@ function writeOrHold({ ec, p }: PlcWriteDeps, key: string, value: number | boole
   const bit = /^(.+)\.([0-9]+)$/.exec(key)
   const word = bit ? forces[bit[1]!] : undefined
   if (bit && typeof word === 'number' && typeof value === 'boolean') {
-    const mask = 2 ** Number(bit[2])
-    setForces(p, ec.sim, { ...forces, [bit[1]!]: value ? (word | mask) | 0 : (word & ~mask) | 0 })
+    const next = withBit(word, Number(bit[2]), value)
+    // (a held word a number cannot hold with this bit changed keeps its force: a force carries a number)
+    if (next !== null) setForces(p, ec.sim, { ...forces, [bit[1]!]: next })
     return
   }
   ec.sim.forceTag(key, value)
 }
+
+/**
+ * `word` with bit `n` set or cleared. A value and a bit inside 32 bits are worked as a 32-bit word, whose top bit
+ * makes it negative. Anything wider is a 64-bit word, worked in whole numbers. Null when the result is past what a
+ * number holds exactly (2^53), which neither a write nor a force can carry.
+ */
+function withBit(word: number, n: number, on: boolean): number | null {
+  if (n < 31 && word >= -2147483648 && word <= 4294967295) {
+    const mask = 2 ** n
+    return on ? (word | mask) | 0 : (word & ~mask) | 0
+  }
+  if (!Number.isInteger(word)) return null
+  const bit = 1n << BigInt(n)
+  const next = Number(on ? BigInt(word) | bit : BigInt(word) & ~bit)
+  return Number.isSafeInteger(next) ? next : null
+}
+
 
 /** Variable names for a notice: the first few, then how many more. */
 function nameList(names: readonly string[]): string {
@@ -431,7 +449,11 @@ export function announceDroppedForces(store: Pick<ProgramDeps['store'], 'showSav
  *  when none goes. */
 export function keptForces(forces: Readonly<Record<string, number | boolean>>, watch: Readonly<Record<string, TagValue>>): Readonly<Record<string, number | boolean>> {
   const keys = Object.keys(forces)
-  const kept = keys.filter((k) => typeof currentValue(watch, k) === typeof forces[k])
+  // (a 64-bit variable past 2^53 reads as digits, and is still the number its force holds it at)
+  const kept = keys.filter((k) => {
+    const cur = currentValue(watch, k)
+    return (isWideDigits(cur) ? 'number' : typeof cur) === typeof forces[k]
+  })
   return kept.length === keys.length ? forces : Object.fromEntries(kept.map((k) => [k, forces[k]!]))
 }
 
@@ -439,7 +461,7 @@ export function keptForces(forces: Readonly<Record<string, number | boolean>>, w
 function currentValue(watch: Readonly<Record<string, TagValue>> | null, key: string): TagValue | undefined {
   const bit = /^(.+)\.([0-9]+)$/.exec(key)
   const word = bit ? watch?.[bit[1]!] : undefined
-  return watch?.[key] ?? (bit && typeof word === 'number' ? ((word >>> Number(bit[2])) & 1) === 1 : undefined)
+  return watch?.[key] ?? (bit ? watchBit(word, Number(bit[2])) : undefined)
 }
 
 export function togglePlcBit(deps: PlcWriteDeps, key: string): boolean {
@@ -450,11 +472,12 @@ export function togglePlcBit(deps: PlcWriteDeps, key: string): boolean {
   // the write goes by the bit's own name, which the program's setInput understands (interpreter.ts)
   const bit = /^(.+)\.([0-9]+)$/.exec(key)
   const word = bit ? watch?.[bit[1]!] : undefined
-  if (cur === undefined && bit && typeof word === 'number') {
-    const mask = 2 ** Number(bit[2])
-    const on = ((word >>> Number(bit[2])) & 1) === 1
+  const on = cur === undefined && bit ? watchBit(word, Number(bit[2])) : undefined
+  if (bit && on !== undefined) {
     writeOrHold(deps, key, !on)
-    if (ec.sim.plcState) ec.sim.plcState = { ...ec.sim.plcState, watch: withWatchValue(ec.sim.plcState.watch, bit[1]!, on ? (word & ~mask) | 0 : (word | mask) | 0) }
+    // (shown now when a number holds the word before and after; otherwise the next frame shows it)
+    const next = typeof word === 'number' ? withBit(word, Number(bit[2]), !on) : null
+    if (ec.sim.plcState && next !== null) ec.sim.plcState = { ...ec.sim.plcState, watch: withWatchValue(ec.sim.plcState.watch, bit[1]!, next) }
     return true
   }
   if (typeof cur !== 'boolean') return false
@@ -475,10 +498,15 @@ function parsePlcValue(watch: Readonly<Record<string, TagValue>> | null, key: st
     if (/^(0|false|off)$/i.test(t)) return { value: false }
     return { error: `'${t}' is not 0 or 1` }
   }
-  if (typeof cur === 'number') {
+  if (typeof cur === 'number' || isWideDigits(cur)) {
     const based = /^(2|8|16)#([0-9A-F_]+)$/i.exec(t)
     const value = based ? parseInt(based[2]!.replace(/_/g, ''), Number(based[1])) : Number(t.replace(/_/g, ''))
     if (t === '' || !Number.isFinite(value)) return { error: `'${t}' is not a number` }
+    // A write carries a number, which holds a whole number exactly only up to 2^53. One written out in digits past
+    // that would arrive as a neighbour of itself (a 64-bit integer can hold it; a write cannot bring it).
+    const digits = based ? null : /^[+-]?[0-9_]+$/.test(t) ? t.replace(/_/g, '') : null
+    const exact = based ? BigInt(`${based[1] === '2' ? '0b' : based[1] === '8' ? '0o' : '0x'}${based[2]!.replace(/_/g, '')}`) : digits !== null ? BigInt(digits) : null
+    if (exact !== null && BigInt(value) !== exact) return { error: `'${t}' is past 2^53, and a value written while running is exact only up to there` }
     return { value }
   }
   return { error: 'Text is set in the declaration, not while running' }
@@ -509,6 +537,7 @@ export function forcePlcValue(deps: PlcWriteDeps, key: string, text?: string): s
     if (!watch) return 'The program is not running'
     const cur = currentValue(watch, key)
     if (cur === undefined) return `'${key}' is not a value of the running program`
+    if (isWideDigits(cur)) return `'${key}' is past 2^53, and a force holds a value that is exact only up to there`
     if (typeof cur === 'string') return 'Text is set in the declaration, not while running'
     value = cur
   } else {

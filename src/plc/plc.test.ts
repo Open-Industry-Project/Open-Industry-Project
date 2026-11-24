@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compile, diagnostics, SAMPLE_PROGRAM } from './index'
 import { LocalPlcLink } from './link/plcLink'
-import { toTypeScript } from './emit'
 import { StError } from './types'
 import { lex } from './lexer'
 import { parse } from './parser'
@@ -391,18 +390,6 @@ VAR x : INT; END_VAR`
     expect(() => compile(src)).toThrow(/duplicate definition 'A'/)
   })
 
-  it('emits a class per function block', () => {
-    const src = `FUNCTION_BLOCK SR
-VAR_INPUT S : BOOL; R : BOOL; END_VAR VAR_OUTPUT Q : BOOL; END_VAR
-IF S THEN Q := TRUE; ELSIF R THEN Q := FALSE; END_IF;
-END_FUNCTION_BLOCK
-VAR latch : SR; END_VAR
-latch(S := FALSE, R := FALSE);`
-    const ts = toTypeScript(src)
-    expect(ts).toContain('class SR')
-    expect(ts).toContain('S.latch = new SR()')
-    expect(ts).toContain('S.latch.call(')
-  })
 })
 
 describe('user-defined functions', () => {
@@ -485,14 +472,6 @@ y := F(1);`
     expect(() => compile(src)).toThrow(/recursive function 'F'/)
   })
 
-  it('emits a function definition and a call', () => {
-    const src = `FUNCTION Dbl : INT VAR_INPUT v : INT; END_VAR Dbl := v * 2; END_FUNCTION
-VAR_OUTPUT y : INT; END_VAR
-y := Dbl(3);`
-    const ts = toTypeScript(src)
-    expect(ts).toContain('function Dbl(v)')
-    expect(ts).toContain('Dbl(3)')
-  })
 })
 
 describe('arrays', () => {
@@ -535,16 +514,6 @@ q := b[0] AND NOT b[1];`
     expect(() => compile('VAR a : ARRAY[0..2] OF INT; END_VAR\na := 1;')).toThrow(/cannot assign INT to 'a' of type ARRAY\[0\.\.2\] OF INT/)
   })
 
-  it('emits array init and indexing', () => {
-    const src = `VAR_OUTPUT s : INT; END_VAR VAR a : ARRAY[0..2] OF INT; END_VAR
-a[0] := 5;
-s := a[0];`
-    const ts = toTypeScript(src)
-    expect(ts).toContain('Array.from({ length: 3 }')
-    // both ends of an indexed place are bounds-checked, so neither is a raw JS subscript
-    expect(ts).toContain('elemSet(S.a, 0, 0, 2, 5)')
-    expect(ts).toContain('elemAt(S.a, 0, 0, 2)')
-  })
 })
 
 describe('nested structures and N-D arrays', () => {
@@ -658,15 +627,6 @@ o := p;`
     expect(() => compile('VAR p : Nope; END_VAR\np.x := 1;')).toThrow(/unknown type 'Nope'/)
   })
 
-  it('emits struct init and field access', () => {
-    const src = `TYPE P : STRUCT x : INT; y : INT; END_STRUCT; END_TYPE
-VAR_OUTPUT s : INT; END_VAR VAR p : P; END_VAR
-p.x := 5;
-s := p.x;`
-    const ts = toTypeScript(src)
-    expect(ts).toContain('S.p = { x: 0, y: 0 }')
-    expect(ts).toContain('S.p.x = 5')
-  })
 })
 
 describe('seal-in latch + on-delay lamp (SAMPLE_PROGRAM)', () => {
@@ -763,68 +723,6 @@ describe('lexer/parser positions', () => {
   })
 })
 
-describe('ST -> TypeScript emitter', () => {
-  it('checks a subrange store, after the coercion and before the store', () => {
-    const ts = toTypeScript(`TYPE Percent : INT (0..100); END_TYPE
-VAR n : INT := 250; level : Percent; END_VAR
-level := n;`)
-    expect(ts).toContain("inRange(S.n, 'Percent', 0, 100)")
-  })
-
-  it('guards every emitted loop, so it faults where the interpreter faults instead of hanging', () => {
-    const ts = toTypeScript(`VAR i : INT; n : INT; END_VAR
-FOR i := 1 TO 3 BY 1 DO n := n + 1; END_FOR;
-WHILE n < 10 DO n := n + 1; END_WHILE;
-REPEAT n := n - 1; UNTIL n <= 0 END_REPEAT;`)
-    expect(ts).toContain('__by = forStep(1)')       // a zero BY is refused at entry
-    expect(ts).toContain("loopGuard(++__n, 'FOR')")
-    expect(ts).toContain("loopGuard(++__n, 'WHILE')")
-    expect(ts).toContain("loopGuard(++__n, 'REPEAT')")
-  })
-
-  it('combines BOOL AND / OR through helpers, never JS operators that would short-circuit', () => {
-    const ts = toTypeScript(`VAR a : BOOL; b : BOOL; c : BOOL; END_VAR
-c := a AND b;
-c := a OR b;
-c := a XOR b;`)
-    expect(ts).toContain('andB(S.a, S.b)')
-    expect(ts).toContain('orB(S.a, S.b)')
-    expect(ts).toContain('(S.a !== S.b)') // XOR needs both sides, so it stays an operator
-    expect(ts).toContain("import { wrap, idiv, imod, makeFb, andB, orB } from './runtime'")
-  })
-
-  it('emits width-wrapped integer arithmetic (semantics shown == executed)', () => {
-    const ts = toTypeScript('VAR a : INT := 32767; b : INT; END_VAR\nb := a + 1;')
-    expect(ts).toContain("wrap('INT'")
-    expect(ts).toContain('S.b =')
-  })
-
-  it('emits CASE as an if/else chain with range checks', () => {
-    const ts = toTypeScript('VAR n : INT; o : INT; END_VAR\nCASE n OF 1: o := 1; 2..4: o := 2; ELSE o := 0; END_CASE;')
-    expect(ts).toContain('if (S.n === 1)')
-    expect(ts).toContain('S.n >= 2 && S.n <= 4')
-  })
-
-  it('emits FOR / WHILE / REPEAT loops', () => {
-    // `n := n` inside the FOR body, not `i := i`: assigning to the control variable is
-    // rejected now (IEC forbids it), so the loop body writes an ordinary variable instead
-    const ts = toTypeScript('VAR i : INT; n : INT; END_VAR\nFOR i := 1 TO 3 DO n := n; END_FOR;\nWHILE i < 1 DO i := i; END_WHILE;\nREPEAT i := i; UNTIL i > 0 END_REPEAT;')
-    // FOR mirrors the interpreter: bounds hoisted (evaluated once), internal counter,
-    // and the visible loop variable width-coerced each iteration
-    expect(ts).toContain('const __to = 3')
-    expect(ts).toContain('for (let __i = 1;')
-    expect(ts).toContain("S.i = wrap('INT', __i);")
-    expect(ts).toContain('while (')
-    expect(ts).toContain('do {')
-  })
-
-  it('emits conversions and value-preserving widenings faithfully (shown == executed)', () => {
-    const ts = toTypeScript('VAR r : REAL := 2.5; i : INT; END_VAR\ni := REAL_TO_INT(r);\nr := i;')
-    expect(ts).toContain("S.i = conv('REAL', 'INT', S.r);")
-    expect(ts).toContain('S.r = S.i;') // INT fits f32 exactly, so the widening stays bare
-  })
-})
-
 // TIME is the type real conveyor logic is written in: `IF Gap.ET >= T#2s THEN`. It is a
 // distinct type carrying milliseconds, so it never silently swaps with a number.
 describe('TIME', () => {
@@ -911,7 +809,7 @@ describe('literals', () => {
 // convenience: when `Motor` and `motor` are two variables here and one variable on the
 // target PLC, a program can pass in the simulator and misbehave on the hardware it was
 // demoed for. Every reference resolves to its declaration, and the declared spelling is
-// what the watch table, the emitter and the scene tag bindings see.
+// what the watch table and the scene tag bindings see.
 describe('case-insensitive identifiers', () => {
   it('resolves a variable written in any case, and keeps the declared spelling', () => {
     const p = once('VAR Motor : BOOL; Count : INT; END_VAR\nmotor := TRUE;\nCOUNT := count + 2;')
@@ -984,12 +882,6 @@ describe('case-insensitive identifiers', () => {
   it('resolves a FOR loop variable in any case', () => {
     const p = once('VAR Idx : INT; sum : INT; END_VAR\nFOR idx := 1 TO 4 DO sum := sum + IDX; END_FOR;')
     expect(p.get('sum')).toBe(10)
-  })
-
-  it('emits the declared spelling, so mixed-case source still emits valid TypeScript', () => {
-    const ts = toTypeScript('VAR Motor : BOOL; END_VAR\nmotor := TRUE;')
-    expect(ts).toContain('S.Motor = true;')
-    expect(ts).not.toContain('S.motor')
   })
 
   it('rejects declarations that collide only in case, and says why', () => {
@@ -1155,11 +1047,6 @@ describe('enumerated types', () => {
     expect(p.get('a')).toBe(2)
   })
 
-  it('emits members as their values, so the emitted TypeScript still runs', () => {
-    const ts = toTypeScript(`${MODES}VAR m : Mode; END_VAR\nm := Running;`)
-    expect(ts).toContain('S.m = 10')
-    expect(ts).toContain('Running')  // kept as a comment for readability
-  })
 })
 
 describe('SR / RS latches, and builtin FB names being unreserved', () => {
@@ -1528,17 +1415,11 @@ describe('STRING', () => {
     expect(p.watch['msg']).toBe('')
   })
 
-  it('emits TypeScript that mirrors the interpreter, truncation included', () => {
-    const ts = toTypeScript("VAR s : STRING[3]; n : INT; END_VAR\ns := CONCAT('ab', 'cd');\nn := LEN(s);")
-    expect(ts).toContain('strLimit(')
-    expect(ts).toContain("from './runtime'")
-  })
 })
 
 describe('standard types this subset does not implement', () => {
   it('says why rather than "unknown type"', () => {
-    expect(() => compile('VAR n : LINT; END_VAR\n')).toThrow(/LINT is not supported: 64-bit integers/)
-    expect(() => compile('VAR n : LWORD; END_VAR\n')).toThrow(/LWORD is not supported/)
+    expect(() => compile('VAR n : LDATE; END_VAR\n')).toThrow(/LDATE is not supported: the 64-bit calendar types/)
     expect(() => compile('VAR s : WSTRING; END_VAR\n')).toThrow(/WSTRING is not supported: wide \(UTF-16\) strings/)
     expect(() => compile('VAR d : LDT; END_VAR\n')).toThrow(/LDT is not supported: the 64-bit calendar types/)
   })
@@ -1676,13 +1557,6 @@ describe('non-formal (positional) function-block calls', () => {
     expect(p.get('o')).toBe(1)
   })
 
-  it('emits the same TypeScript a named call would', () => {
-    // the checker names the arguments before anything downstream runs, so the emitter,
-    // the interpreter and both exporters need no case of their own
-    const named = toTypeScript('VAR_INPUT clk : BOOL; END_VAR VAR e : R_TRIG; END_VAR\ne(CLK := clk);')
-    const positional = toTypeScript('VAR_INPUT clk : BOOL; END_VAR VAR e : R_TRIG; END_VAR\ne(clk);')
-    expect(positional).toBe(named)
-  })
 })
 
 describe('BCD conversions', () => {
@@ -1754,10 +1628,6 @@ describe('RETURN and CONTINUE', () => {
     expect(() => compile('VAR a : INT; END_VAR\nCONTINUE;')).toThrow(/CONTINUE is only valid inside a loop/)
   })
 
-  it('emits RETURN so the emitted function still hands back its result', () => {
-    const ts = toTypeScript('FUNCTION F : INT VAR_INPUT v : INT; END_VAR F := v; RETURN; END_FUNCTION\nVAR_OUTPUT o : INT; END_VAR\no := F(3);')
-    expect(ts).toContain('return F.F;') // not a bare `return;`, which would discard it
-  })
 })
 
 describe('output bindings, CONSTANT, array initializers and VAR_GLOBAL', () => {
@@ -2003,19 +1873,6 @@ describe('function-block instances as data', () => {
     expect(bad.map((x) => x.message)).toEqual(["TON has no output 'QQ'"])
   })
 
-  it('emits an indexed call against a single evaluation of the element', () => {
-    const ts = toTypeScript('VAR d : ARRAY [1..2] OF TON; i : INT := 1; q : BOOL; END_VAR\nd[i](IN := TRUE, PT := T#1s, Q => q);')
-    expect(ts).toContain("S.d = Array.from({ length: 2 }, () => (makeFb('TON')));")
-    expect(ts).toContain('const __fb = elemAt(S.d, S.i, 1, 2);')
-    expect(ts).toContain('__fb.call({ IN: true, PT: 1000 }, now);')
-    expect(ts).toContain('S.q = __fb.Q;')
-  })
-
-  it('fills an emitted global instance below the class it is an instance of', () => {
-    const ts = toTypeScript('FUNCTION_BLOCK Cnt VAR_OUTPUT n : INT; END_VAR n := n + 1; END_FUNCTION_BLOCK\nVAR_GLOBAL c : Cnt; END_VAR\nVAR total : INT; END_VAR\nc();\ntotal := c.n;')
-    expect(ts.indexOf('G.c = new Cnt();')).toBeGreaterThan(ts.indexOf('class Cnt'))
-    expect(ts).toContain('G.c.call({  }, now);')
-  })
 })
 
 // A whole array or struct is a value (see copyData in runtime.ts): it assigns, passes by value,
@@ -2138,24 +1995,6 @@ describe('arrays and structs as whole values', () => {
     expect(() => compile(src)).toThrow(/'Make' returns a struct; store it in a variable of that type first/)
   })
 
-  it('emits every copy through copyData, so the code shown copies exactly as the engine does', () => {
-    const ts = toTypeScript(
-      [
-        'TYPE Pkg : STRUCT id : DINT; END_STRUCT; END_TYPE',
-        'FUNCTION_BLOCK Latch VAR_INPUT p : Pkg; END_VAR VAR_OUTPUT held : Pkg; END_VAR held := p; END_FUNCTION_BLOCK',
-        'FUNCTION IdOf : DINT VAR_INPUT p : Pkg; END_VAR IdOf := p.id; END_FUNCTION',
-        'VAR l : Latch; a : Pkg; b : Pkg; n : DINT; END_VAR',
-        'b := a;',
-        'l(p := a, held => b);',
-        'n := IdOf(a);',
-      ].join('\n'),
-    )
-    expect(ts).toContain('copyData(S.b, S.a);')
-    expect(ts).toContain('if (I.p !== undefined) copyData(this.p, I.p);')
-    expect(ts).toContain('copyData(S.b, S.l.held);')
-    expect(ts).toContain('copyData(F.p, p);')
-    expect(ts).toMatch(/^import \{[^}]*\bcopyData\b[^}]*\} from '\.\/runtime'/)
-  })
 })
 
 // Three standard spellings: `**`, an enumeration value written with its type, and a formal
@@ -2219,7 +2058,6 @@ describe('exponentiation, qualified enumeration values and formal function calls
     const p = once(src)
     expect(p.get('a')).toBe(7)
     expect(p.get('b')).toBe(7)
-    expect(toTypeScript(src)).toContain('S.a = Span(3, 10);')
   })
 
   it('refuses a formal call that repeats, invents or mixes an argument', () => {
@@ -2237,7 +2075,7 @@ describe('exponentiation, qualified enumeration values and formal function calls
     expect(once('VAR n : INT; END_VAR\nn := LIMIT(MX := 9, IN := 50, MN := 0);', {}).get('n')).toBe(9)
   })
 
-  it('emits an input a call leaves out as undefined, filled with its start value in the function', () => {
+  it('an input a call leaves out takes its start value, beside a function every call gives all of', () => {
     const src = `FUNCTION Scale : INT
 VAR_INPUT v : INT; gain : INT := 2; offset : INT := 10; END_VAR
 Scale := v * gain + offset;
@@ -2249,14 +2087,9 @@ END_FUNCTION
 VAR n : INT; m : INT; END_VAR
 n := Scale(offset := 0, v := 5);
 m := Twice(v := 1);`
-    const ts = toTypeScript(src)
-    expect(ts).toContain('Scale(5, undefined, 0)')
-    expect(ts).toMatch(/if \(F\.gain === undefined\) F\.gain = 2;/)
-    // a function no call leaves an input out of carries no such line
-    const twice = ts.slice(ts.indexOf('function Twice'), ts.indexOf('\n}', ts.indexOf('function Twice')))
-    expect(twice).toContain('return F.Twice')
-    expect(twice).not.toContain('=== undefined')
-    expect(once(src, {}).get('n')).toBe(10)
+    const p = once(src, {})
+    expect(p.get('n')).toBe(10)
+    expect(p.get('m')).toBe(2)
   })
 })
 
@@ -2361,7 +2194,6 @@ describe('constant array bounds', () => {
     const p = once(src)
     expect(p.get('got')).toBe(5)
     expect(p.get('lit')).toBe(true)
-    expect(toTypeScript(src)).toContain('Array.from({ length: 6 }') // folded to a number for every backend
   })
 
   it('faults past a folded bound exactly as past a literal one', () => {
@@ -2420,9 +2252,6 @@ describe('structured initial values', () => {
     expect(() => compile(`${pt}VAR ps : ARRAY [1..2] OF Pt := [1, 2]; END_VAR\n`)).toThrow(/'ps' element is a struct, so its initial value is a \(field := \.\.\.\) list/)
   })
 
-  it('emits a starting struct as one literal with every field, the unnamed ones at zero', () => {
-    expect(toTypeScript('TYPE Pt : STRUCT x : INT; y : INT; END_STRUCT; END_TYPE\nVAR p : Pt := (y := 4); END_VAR\np.x := 1;')).toContain('S.p = { x: 0, y: 4 };')
-  })
 })
 
 describe('duration literals', () => {

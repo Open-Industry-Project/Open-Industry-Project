@@ -6,14 +6,15 @@
 // line a second language layer on this engine (the ladder) has to meet: it produces a checked
 // program in these terms, and the runtime keeps consuming it unchanged.
 
-import type { Ast, ConfigurationDef, DataType, Decl, DeclType, EnumDef, FbDef, FbType, FuncDef, InterfaceDef, MethodDef, ScalarType, StructDef, SubrangeDef, TaskInfo } from './types'
+import { bigOf, wrap64 } from './runtime'
+import type { Ast, ConfigurationDef, DataType, Decl, DeclType, EnumDef, Expr, FbDef, FbType, FuncDef, InterfaceDef, MethodDef, ScalarType, StructDef, SubrangeDef, TaskInfo } from './types'
 import { FB_TYPES, isArray, isStruct, isUserFb } from './types'
 
 /**
  * IEC 61131-3 identifiers are case-insensitive, so every name-keyed map here is keyed by
  * this fold. The checker then rewrites each reference in the AST to its *declaration's*
- * spelling, which is what makes the fold invisible downstream: the interpreter, the
- * emitter, the watch table and the scene tag bindings all keep seeing the one spelling the
+ * spelling, which is what makes the fold invisible downstream: the engines, the
+ * watch table and the scene tag bindings all keep seeing the one spelling the
  * author actually declared, never an upper-cased one.
  */
 export function identKey(s: string): string {
@@ -25,6 +26,18 @@ export function isFb(t: DeclType): t is FbType {
   return typeof t === 'string' && (FB_TYPES as readonly string[]).includes(t)
 }
 /** A plain scalar type (anything that is neither a builtin FB nor a user FB instance). */
+const wideLiterals = new WeakMap<object, bigint>()
+/** A literal whose type is a 64-bit integer, as its exact value held to that type (`-9223372036854775808` is a NEG
+ *  over a leaf past LINT, which wraps). Worked out once per node: its digits are text (types.ts). */
+export function literal64(e: Extract<Expr, { node: 'num' }>): bigint {
+  let v = wideLiterals.get(e)
+  if (v === undefined) {
+    v = wrap64(e.t!, e.big !== undefined ? BigInt(e.big) : bigOf(e.value))
+    wideLiterals.set(e, v)
+  }
+  return v
+}
+
 export function isScalarType(t: DeclType): t is ScalarType {
   return typeof t === 'string' && !(FB_TYPES as readonly string[]).includes(t)
 }
@@ -85,7 +98,7 @@ export function controllerTags(ast: Ast): Decl[] {
  * A checked CONFIGURATION's tasks, as every backend schedules them: the periodic tasks in
  * declaration order, each listing the program instances assigned to it in the order their PROGRAM
  * lines were written, and then, when any instance names no task, the continuous task holding
- * those. The interpreter and the emitter both build their task list here, so they cannot disagree
+ * those. Both engines build their task list here, so they cannot disagree
  * about which program runs when.
  */
 export function taskTable(config: ConfigurationDef): TaskInfo[] {

@@ -15,7 +15,7 @@ import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { canEditDisplay, displayedValues, displayListFull, setDisplayed } from '../../program/displayValues'
 import { MAX_DISPLAY_VALUES } from '../../../core/scene/sceneDisplay'
 import { defineMessages, t } from '../../../core/i18n'
-import { watchKeysOf } from '../../../core/watchTable'
+import { isWideDigits, watchKeysOf } from '../../../core/watchTable'
 
 const M = defineMessages('plcWatch', {
   scanProgram: 'Scan: last {last}, average {avg}, max {max}, every {interval}',
@@ -150,7 +150,9 @@ function ValueCell({ name, rowKey, value, type, live, flash, forced, controller,
   ) : null
   if (value === undefined) return <td className={cls} data-testid="plc-watch-value" />
   const text = formatPlcValue(value, type, 80)
-  const writable = live && rowKey !== null && controller !== null && typeof value !== 'string'
+  // (a 64-bit integer past 2^53 arrives as its digits, and is still a number to write: plc/types.ts TagValue)
+  const wide = isWideDigits(value) && (type === 'LINT' || type === 'ULINT' || type === 'LWORD')
+  const writable = live && rowKey !== null && controller !== null && (typeof value !== 'string' || wide)
   if (!writable) return <td className={cls} data-testid="plc-watch-value">{text}</td>
   if (typeof value === 'boolean')
     return (

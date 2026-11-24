@@ -39,6 +39,16 @@ describe('programTagVerdicts', () => {
     expect(v.get('Motr')).toEqual({ declared: false })
   })
 
+  it('says a tag names a 64-bit integer, which no part is wired to, and not that it is a typo', () => {
+    const src = 'VAR\n  Motor : BOOL;\n  Total : LINT;\nEND_VAR\nTotal := Total + 1;'
+    const v = programTagVerdicts([part('c1', { enableComms: true, runTag: 'Motor', speedTag: 'total' })], check(src))
+    expect(v.get('total')).toEqual({ declared: false, wide: 'LINT' })
+    expect(programTagNames(check(src))!.map((t) => t.name)).toEqual(['Motor'])
+    // under a sole program instance, by its bare name
+    const inst = 'PROGRAM Main\nVAR\n  Mask : LWORD;\nEND_VAR\nMask := NOT Mask;\nEND_PROGRAM'
+    expect(programTagVerdicts([part('c1', { enableComms: true, speedTag: 'Mask' })], check(inst)).get('Mask')).toEqual({ declared: false, wide: 'LWORD' })
+  })
+
   it('says which way a declared tag is bound', () => {
     const io = `PROGRAM Main
 VAR_INPUT

@@ -12,7 +12,7 @@
 import { compile, setScanEngine, type ScanEngine } from './interpreter'
 import { TaskScheduler } from './scanEngine'
 import { TypedUnsupported } from './typed/layout'
-import { isInt, wrap } from './runtime'
+import { is64, isInt, tagOfBig, wrap, wrap64 } from './runtime'
 import type { CompiledProgram, ScalarType, TagValue } from './types'
 
 export interface OracleStep {
@@ -138,6 +138,13 @@ export function compareEngines(src: string, steps: readonly OracleStep[], opts: 
 export function inForm(type: string, v: TagValue): boolean {
   if (type === 'BOOL') return typeof v === 'boolean'
   if (type === 'STRING') return typeof v === 'string'
+  // a 64-bit integer: a whole number in its type's range, as a surface carries one (types.ts TagValue) - a number
+  // while a number holds it exactly, its decimal digits past that, never the other way round
+  if (is64(type as ScalarType)) {
+    if (typeof v === 'number' ? !Number.isSafeInteger(v) : typeof v !== 'string' || !/^-?[0-9]+$/.test(v)) return false
+    const exact = BigInt(v)
+    return wrap64(type as ScalarType, exact) === exact && Object.is(tagOfBig(exact), v)
+  }
   if (typeof v !== 'number') return false
   const t = (type === 'ENUM' ? 'INT' : type) as ScalarType
   if (isInt(t)) return Object.is(wrap(t, v), v)

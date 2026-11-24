@@ -1,41 +1,49 @@
 // The calls a body written as WebAssembly makes (scanWasm.ts): builtin and user functions, methods, standard and user
 // function blocks, and what each is handed. Functions of the emitter, in the walker's order of evaluation.
 
-import { builtinFor, evalBuiltin, isBuiltinFunc } from './builtins'
+import { builtinFor, comparisonMode, evalBuiltin, isBuiltinFunc } from './builtins'
 import { identKey } from './program'
-import { FB_INPUTS } from './runtime'
+import { big, FB_INPUTS, is64 } from './runtime'
 import type { MethodRunner } from './scanCodegen'
 import type { Emitter } from './scanWasm'
-import { no, type Kind, type Held, I32, F64, VOID, isWidth, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
+import { no, type Kind, type Held, I32, I64, F64, VOID, isWidth, isLong, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
 import type { TypeLayout } from './typed/layout'
-import type { Expr, FbType, ScalarType, Stmt, TagValue } from './types'
+import type { Expr, FbType, ScalarType, Stmt, TagValue, Value } from './types'
 import { StError } from './types'
 
 /** A builtin function's call: its arguments in order, then the function (scanCodegen.ts `call`). A number goes as an
- *  f64 and comes back as one, a truth as an i32; a text is read by the helper from where it is. */
+ *  f64 and comes back as one, a truth as an i32; a text is read by the helper from where it is. A 64-bit integer
+ *  goes and comes back as an i64, which the helper sees as the bigint the walker hands the same function ('l'; 'L'
+ *  one read unsigned). */
 export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut: boolean | 'T' = false): Kind {
   const w = em.w
   let sig = ''
+  // a comparison function with a 64-bit integer among its arguments takes them in one form (builtins.ts)
+  const mode = comparisonMode(e.name, e.args)
   for (const a of e.args) {
     if (a.t === 'STRING' || a.node === 'str') sig += em.text(a)
     else {
       const k = em.expr(a)
       if (k === 'b') sig += 'b'
+      else if (mode === 'big' && k !== 'L') {
+        em.toL(k)
+        sig += 'l'
+      } else if (isLong(k) && mode !== 'num') sig += k
       else {
         em.toF(k)
         sig += 'n'
       }
     }
   }
-  const res = textOut === 'T' ? 'T' : textOut ? 't' : e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a call answering a text here') : 'n'
+  const res = textOut === 'T' ? 'T' : textOut ? 't' : e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a call answering a text here') : is64(e.t) ? kindOf(e.t) : 'n'
   const direct = e.t ? builtinFor(e.name, e.t, e.args.length) : null
   const name = e.name
   const rt = e.t as ScalarType
   const pos = e.pos
   // (scanCodegen.ts callB: a builtin's own error takes the call's position)
-  const fn: (...a: TagValue[]) => TagValue =
-    (direct as ((...a: TagValue[]) => TagValue) | null) ??
-    ((...vals: TagValue[]): TagValue => {
+  const fn: (...a: Value[]) => Value =
+    (direct as ((...a: Value[]) => Value) | null) ??
+    ((...vals: Value[]): Value => {
       try {
         return evalBuiltin(name, rt, vals)
       } catch (err) {
@@ -44,40 +52,42 @@ export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut
       }
     })
   w.u8(0x41).sleb(em.wk(fn))
-  const params = [...sig].map((c) => (c === 'n' ? F64 : I32))
+  const params = [...sig].map((c) => (c === 'n' ? F64 : c === 'l' || c === 'L' ? I64 : I32))
   w.u8(0x10).uleb(
-    em.import(`call_${sig}_${res}`, [...params, I32], res === 't' ? [] : [res === 'n' ? F64 : I32], (h) => {
-      const { bool, num } = h.H as { bool(v: TagValue): boolean; num(v: TagValue): number }
-      const given = (kind: string, v: number): TagValue => (kind === 'n' ? v : kind === 'b' ? v !== 0 : textOf(h, kind, v))
-      const out = (r: TagValue): number | undefined => {
+    em.import(`call_${sig}_${res}`, [...params, I32], res === 't' ? [] : [res === 'n' ? F64 : res === 'l' || res === 'L' ? I64 : I32], (h) => {
+      const { bool, num } = h.H as { bool(v: Value): boolean; num(v: Value): number }
+      // (an i64 arrives as a signed bigint: an unsigned type's is read unsigned)
+      const given = (kind: string, v: number | bigint): Value => (kind === 'n' || kind === 'l' ? v : kind === 'L' ? BigInt.asUintN(64, v as bigint) : kind === 'b' ? v !== 0 : textOf(h, kind, v as number))
+      const out = (r: Value): number | bigint | undefined => {
         if (res === 't') {
           h.text = r
           return undefined
         }
-        if (res === 'T') return h.texts.push(r) - 1
+        if (res === 'T') return h.texts.push(r as TagValue) - 1
+        if (res === 'l' || res === 'L') return big(r)
         return res === 'b' ? (bool(r) ? 1 : 0) : num(r)
       }
-      const f = (k: number): ((...a: TagValue[]) => TagValue) => h.W[k] as (...a: TagValue[]) => TagValue
+      const f = (k: number): ((...a: Value[]) => Value) => h.W[k] as (...a: Value[]) => Value
       const first = sig.indexOf('T')
       if (first >= 0)
         return (...all: number[]) => {
-          const args: TagValue[] = []
+          const args: Value[] = []
           for (let i = 0; i < sig.length; i++) args.push(given(sig[i]!, all[i]!))
           h.texts.length = all[first]!
           return out(f(all[sig.length]!)(...args))
         }
       if (sig.length === 0) return (k: number) => out(f(k)())
-      if (sig.length === 1) return (a: number, k: number) => out(f(k)(given(sig[0]!, a)))
-      if (sig.length === 2) return (a: number, b: number, k: number) => out(f(k)(given(sig[0]!, a), given(sig[1]!, b)))
-      if (sig.length === 3) return (a: number, b: number, c: number, k: number) => out(f(k)(given(sig[0]!, a), given(sig[1]!, b), given(sig[2]!, c)))
-      return (...all: number[]) => {
-        const args: TagValue[] = []
+      if (sig.length === 1) return (a: number | bigint, k: number) => out(f(k)(given(sig[0]!, a)))
+      if (sig.length === 2) return (a: number | bigint, b: number | bigint, k: number) => out(f(k)(given(sig[0]!, a), given(sig[1]!, b)))
+      if (sig.length === 3) return (a: number | bigint, b: number | bigint, c: number | bigint, k: number) => out(f(k)(given(sig[0]!, a), given(sig[1]!, b), given(sig[2]!, c)))
+      return (...all: (number | bigint)[]) => {
+        const args: Value[] = []
         for (let i = 0; i < sig.length; i++) args.push(given(sig[i]!, all[i]!))
-        return out(f(all[sig.length]!)(...args))
+        return out(f(all[sig.length] as number)(...args))
       }
     }),
   )
-  return res === 'b' ? 'b' : res === 'T' ? 'i' : 'f'
+  return res === 'b' ? 'b' : res === 'T' ? 'i' : res === 'l' || res === 'L' ? res : 'f'
 }
 
 /** A user function's call with every input given in order (scanCodegen.ts typedFnCall's direct form): the
@@ -87,19 +97,19 @@ export function fnCall(em: Emitter, e: Extract<Expr, { node: 'call' }>): Kind {
   const fn = em.scope.typed.fn(e.name)
   if (!(fn.direct && !e.slots && e.args.length === fn.inputSlots.length)) {
     if (fn.result) return no('a whole value from a call used as a number')
-    const out = e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a function answering a text here') : 'n'
+    const out = e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a function answering a text here') : is64(e.t) ? kindOf(e.t) : 'n'
     em.fnGiven(e, fn)
     w.u8(0x41).sleb(em.wk(fn)).u8(0x41).sleb(e.slots ? em.wk(e.slots) : -1)
     w.u8(0x10).uleb(
-      em.import(`fnCall_${out}`, [I32, I32], [out === 'b' ? I32 : F64], (h) => {
-        const { bool, num } = h.H as { bool(v: TagValue): boolean; num(v: TagValue): number }
-        return (k: number, si: number): number => {
-          const r = (h.W[k] as { call(given: unknown[], slots: readonly number[] | undefined): TagValue }).call(h.args.pop()!, si < 0 ? undefined : (h.W[si] as readonly number[]))
-          return out === 'b' ? (bool(r) ? 1 : 0) : num(r)
+      em.import(`fnCall_${out}`, [I32, I32], [out === 'b' ? I32 : out === 'n' ? F64 : I64], (h) => {
+        const { bool, num } = h.H as { bool(v: Value): boolean; num(v: Value): number }
+        return (k: number, si: number): number | bigint => {
+          const r = (h.W[k] as { call(given: unknown[], slots: readonly number[] | undefined): Value }).call(h.args.pop()!, si < 0 ? undefined : (h.W[si] as readonly number[]))
+          return out === 'b' ? (bool(r) ? 1 : 0) : out === 'n' ? num(r) : big(r)
         }
       }),
     )
-    return out === 'b' ? 'b' : 'f'
+    return out === 'b' ? 'b' : out === 'n' ? 'f' : out
   }
   if (fn.resultSlot.layout.kind !== 'scalar' || fn.resultSlot.layout.scalar === 'STRING') return no('a function answering a text or a whole value')
   const given: { v: number; k: Held; e: Expr }[] = []
@@ -136,7 +146,10 @@ export function fnGiven(em: Emitter, e: Extract<Expr, { node: 'call' }>, fn: { r
     } else {
       const k2 = em.expr(a)
       if (k2 === 'b') w.u8(0x10).uleb(em.import('argBool', [I32], [], (h) => (v: number) => void h.args[h.args.length - 1]!.push(v !== 0)))
-      else {
+      else if (isLong(k2)) {
+        w.u8(0x41).sleb(k2 === 'L' ? 1 : 0)
+        w.u8(0x10).uleb(em.import('argBig', [I64, I32], [], (h) => (v: bigint, u: number) => void h.args[h.args.length - 1]!.push(u ? BigInt.asUintN(64, v) : v)))
+      } else {
         em.toF(k2)
         w.u8(0x10).uleb(em.import('argNum', [F64], [], (h) => (v: number) => void h.args[h.args.length - 1]!.push(v)))
       }
@@ -408,11 +421,13 @@ export function storeGiven(em: Emitter, m: Address, v: number, k: Held, e: Expr)
   let kept: Kind
   if (m.layout.enumerated) {
     if (k === 'f') em.w.op(0xfc, 0x02)
+    else if (isLong(k)) em.w.u8(0xa7)
     em.wrapI('INT')
     kept = 'i'
   } else if (em.canonical(e, t) || (isWidth(t) && e.node !== 'call' && isWidth(e.t) && em.canonical(e, e.t) && em.within(e, t))) {
-    // already in the place's form: only its kind may differ (a whole literal into a REAL)
+    // already in the place's form: only its kind may differ (a whole literal into a REAL, or into a 64-bit integer)
     if (kindOf(t) === 'f') em.toF(k)
+    else if (isLong(kindOf(t))) em.toL(k === 'b' ? 'u' : k)
     kept = kindOf(t)
   } else kept = em.coerceStack(t, k, undefined)
   const held = em.local(em.typeOfKind(kept))

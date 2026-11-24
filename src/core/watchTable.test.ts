@@ -132,3 +132,39 @@ describe('a table built when it is read', () => {
     expect(builds).toBe(1)
   })
 })
+
+describe('64-bit integers in a copy of the memory', () => {
+  function wide(): { layout: WatchLayout; bytes: ArrayBuffer } {
+    const bytes = new ArrayBuffer(48)
+    const i64 = new BigInt64Array(bytes)
+    const u64 = new BigUint64Array(bytes)
+    i64[1] = -7n // Small, at 8
+    i64[2] = -(2n ** 63n) // Least, at 16
+    u64[3] = 2n ** 64n - 1n // Most, at 24
+    u64[4] = 2n ** 53n - 1n // Edge, at 32: the largest whole number a number holds exactly
+    const keys = ['Small', 'Least', 'Most', 'Edge']
+    return { layout: { keys, addrs: new Uint32Array([8, 16, 24, 32]), kinds: new Uint8Array([WATCH_KIND.I64, WATCH_KIND.I64, WATCH_KIND.U64, WATCH_KIND.U64]) }, bytes }
+  }
+
+  it('reads a number while a number holds the value, and its digits past that', () => {
+    const { layout, bytes } = wide()
+    const table = memoryTable(layout, bytes)
+    expect(table.Small).toBe(-7)
+    expect(table.Least).toBe('-9223372036854775808')
+    expect(table.Most).toBe('18446744073709551615')
+    expect(table.Edge).toBe(9007199254740991)
+    // never a bigint, so the table still goes through JSON
+    expect(JSON.parse(JSON.stringify({ ...table }))).toEqual({ Small: -7, Least: '-9223372036854775808', Most: '18446744073709551615', Edge: 9007199254740991 })
+  })
+
+  it('takes a written value as a number or as digits', () => {
+    const { layout, bytes } = wide()
+    let table = memoryTable(layout, bytes)
+    table = putWatchValue(table, 'Small', '9223372036854775807')!
+    table = putWatchValue(table, 'Most', 12)!
+    expect(table.Small).toBe('9223372036854775807')
+    expect(table.Most).toBe(12)
+    // text that is no whole number is not a value for one
+    expect(putWatchValue(table, 'Least', 'idle')).toBeNull()
+  })
+})

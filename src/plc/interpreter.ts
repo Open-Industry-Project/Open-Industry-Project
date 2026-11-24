@@ -12,16 +12,16 @@
 // values; access expressions (`p.inner.arr[i]`) chain through `member` (struct field / FB output) and `index` (array
 // element, 1+ dimensions).
 
-import { evalBuiltin, isBuiltinFunc } from './builtins'
+import { comparisonArgs, comparisonMode, evalBuiltin, isBuiltinFunc } from './builtins'
 import { parseAndCheck } from './checker'
 import { FAULT, StFault } from './faults'
-import { containsFb, controllerTags, type EnumDefMap, type Env, fbDecls, type FbDefMap, funcDecls, type FuncDefMap, identKey, implementationOf, isFb, isScalarType, methodDecls, type StructDefMap } from './program'
-import { checkRange, coerceScalar, coercerFor, configuredProgram, fits, implicitProgram, isTagValue, placeMaxLen, type Pou, type PouBuilder, tagOf, WATCH_ARRAY_MAX } from './pou'
+import { containsFb, controllerTags, type EnumDefMap, type Env, fbDecls, type FbDefMap, funcDecls, type FuncDefMap, identKey, implementationOf, isFb, isScalarType, literal64, methodDecls, type StructDefMap } from './program'
+import { checkRange, coerceScalar, coercerFor, configuredProgram, fits, implicitProgram, isValue, placeMaxLen, type Pou, type PouBuilder, tagOf, WATCH_ARRAY_MAX } from './pou'
 import type { GenInternals } from './scanCodegen'
 import { compileTyped } from './typed/compile'
 import { TypedUnsupported } from './typed/layout'
-import { bool, CALL_DEPTH_MESSAGE, calendarRangeError, copyData, type Fb, type FbArgs, fbMemberType, idiv, imod, isCalendar, isInt, isInt32, isReal, makeFb, MAX_CALL_DEPTH, MAX_LOOP_ITERATIONS, num, str, unboundMessage, wrap } from './runtime'
-import type { ArrayDim, ArrayType, CompiledProgram, DataType, Decl, Expr, FbArg, FbDef, FbType, FuncDef, Initializer, MethodDef, ScalarType, SourcePos, Stmt, StructInit, StructRef, TagPort, TagValue, UserFbRef, VarInfo } from './types'
+import { big, bool, CALL_DEPTH_MESSAGE, calendarRangeError, copyData, type Fb, type FbArgs, fbMemberType, idiv, imod, is64, isCalendar, isInt, isInt32, isReal, makeFb, MAX_CALL_DEPTH, MAX_LOOP_ITERATIONS, num, str, unboundMessage, wrap, wrap64 } from './runtime'
+import type { ArrayDim, ArrayType, CompiledProgram, DataType, Decl, Expr, FbArg, FbDef, FbType, FuncDef, Initializer, MethodDef, ScalarType, SourcePos, Stmt, StructInit, StructRef, TagPort, TagValue, UserFbRef, Value, VarInfo } from './types'
 import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
 
 /** An ordinary store into a place (assignment, a tag write, an argument): every such store of the walker comes through here. */
@@ -33,9 +33,9 @@ function start(owner: Record<string | number, unknown>, key: string | number, v:
   owner[key] = v
 }
 
-/** A runtime value: a scalar, an array (possibly nested for N-D), a struct record, or a
- *  function-block instance - which is data like the rest, so it can sit inside the first two. */
-type DataValue = TagValue | DataValue[] | { [field: string]: DataValue } | Fb
+/** A runtime value: a scalar (a 64-bit integer is a bigint), an array (possibly nested for N-D), a struct record, or
+ *  a function-block instance - which is data like the rest, so it can sit inside the first two. */
+type DataValue = Value | DataValue[] | { [field: string]: DataValue } | Fb
 
 /** Is this runtime value a function-block instance, user-defined or standard? A struct record
  *  cannot pass for one: its fields hold data, never a `call` function. */
@@ -136,7 +136,7 @@ class UserFb implements Fb {
   }
   /** One input of a call, written ahead of {@link run}: call() taken apart, so generated code passes its arguments
    *  without building an object of them each call (scanCodegen.ts) */
-  enter(name: string, v: TagValue): void {
+  enter(name: string, v: Value): void {
     if (v !== undefined) this.pou.setArg(name, v)
   }
   /** the body, once its inputs are entered */
@@ -240,12 +240,12 @@ function runFunction(def: FuncDef, args: DataValue[], fbDefs: FbDefMap, funcs: F
   inputsOf(def).forEach((d, i) => {
     if (i >= args.length || args[i] === OMITTED) return
     if (isArray(d.type) || isStruct(d.type)) copyData(pou.image.home(d.name)![d.name]!, args[i])
-    else pou.setArg(d.name, args[i] as TagValue)
+    else pou.setArg(d.name, args[i] as Value)
   })
   pou.scan(0) // functions are stateless and FB-free, so no timer reads the clock
   const v = pou.image.home(def.name)?.[def.name]
   if (v !== undefined) return v
-  return def.ret === 'BOOL' ? false : def.ret === 'STRING' ? '' : 0
+  return def.ret === 'BOOL' ? false : def.ret === 'STRING' ? '' : isScalarType(def.ret) && is64(def.ret) ? 0n : 0
 }
 
 /** Builds a fresh function-block instance of a type, wherever inside a value one is needed. */
@@ -268,7 +268,7 @@ function shapedRecord(key: object, fields: readonly { name: string; type: DataTy
   let shape = recordShapes.get(key)
   if (!shape) {
     shape = {}
-    for (const f of fields) shape[f.name] = f.type === 'BOOL' ? false : f.type === 'STRING' ? '' : isScalarType(f.type) || isEnum(f.type) ? 0 : (null as unknown as DataValue)
+    for (const f of fields) shape[f.name] = f.type === 'BOOL' ? false : f.type === 'STRING' ? '' : isScalarType(f.type) && is64(f.type) ? 0n : isScalarType(f.type) || isEnum(f.type) ? 0 : (null as unknown as DataValue)
     recordShapes.set(key, shape)
   }
   return { ...shape }
@@ -352,6 +352,7 @@ function zeroData(t: DataType, structDefs: StructDefMap, enumDefs: EnumDefMap, m
     return rec
   }
   if (t === 'BOOL') return false
+  if (isScalarType(t) && is64(t)) return 0n
   return t === 'STRING' ? '' : 0
 }
 
@@ -466,15 +467,15 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
   }
 
   /** Evaluate where a scalar is required (operands, conditions, indices) - checker-guaranteed. */
-  function evalScalar(e: Expr): TagValue {
-    return evalExpr(e) as TagValue
+  function evalScalar(e: Expr): Value {
+    return evalExpr(e) as Value
   }
 
   /** Evaluate an expression; aggregate values are returned as live references (for mutation). */
   function evalExpr(e: Expr): DataValue {
     switch (e.node) {
       case 'num':
-        return e.value
+        return is64(e.t) ? literal64(e) : e.value
       case 'bool':
         return e.value
       case 'str':
@@ -507,8 +508,11 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         if (obj && typeof obj === 'object' && !Array.isArray(obj)) return (obj as Record<string, DataValue>)[e.field] ?? 0
         return 0
       }
-      case 'bit':
-        return ((num(evalScalar(e.obj)) >>> e.bit) & 1) === 1
+      case 'bit': {
+        const word = evalScalar(e.obj)
+        if (typeof word === 'bigint') return ((BigInt.asUintN(64, word) >> BigInt(e.bit)) & 1n) === 1n
+        return ((num(word) >>> e.bit) & 1) === 1
+      }
       case 'index': {
         let cur = evalExpr(e.obj)
         const dims = e.dims ?? []
@@ -523,7 +527,10 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       }
       case 'call': {
         if (isBuiltinFunc(e.name)) {
-          const args = e.args.map((a) => evalScalar(a))
+          const given = e.args.map((a) => evalScalar(a))
+          // a comparison function with a 64-bit integer among its arguments compares them as the operators do
+          const mode = comparisonMode(e.name, e.args)
+          const args = mode ? comparisonArgs(mode, given) : given
           try {
             return evalBuiltin(e.name, e.t!, args)
           } catch (err) {
@@ -538,7 +545,12 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       }
       case 'unary': {
         const v = evalScalar(e.expr)
-        if (e.op === 'NOT') return typeof v === 'boolean' ? !v : wrap(e.t!, ~num(v))
+        if (e.op === 'NOT' && typeof v === 'boolean') return !v
+        if (is64(e.t)) {
+          const b = big(v)
+          return wrap64(e.t!, e.op === 'NOT' ? ~b : e.op === 'NEG' ? -b : b)
+        }
+        if (e.op === 'NOT') return wrap(e.t!, ~num(v))
         if (e.op === 'NEG') return wrap(e.t!, -num(v))
         return num(v)
       }
@@ -547,12 +559,40 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
     }
   }
 
-  function evalBinary(e: Extract<Expr, { node: 'binary' }>): TagValue {
+  function evalBinary(e: Extract<Expr, { node: 'binary' }>): Value {
     const op = e.op
     const t = e.t!
     if (op === '=' || op === '<>' || op === '<' || op === '>' || op === '<=' || op === '>=') {
       const l = evalScalar(e.left)
       const r = evalScalar(e.right)
+      // A 64-bit integer (runtime.ts): two whole numbers compare by their exact values; beside a real or a duration
+      // it compares as a number. Decided by the operands' types, since a value alone does not say which it was.
+      const lt = e.left.t
+      const rt = e.right.t
+      if ((is64(lt) || is64(rt)) && lt !== undefined && rt !== undefined && lt !== 'BOOL' && rt !== 'BOOL') {
+        if (isInt(lt) && isInt(rt)) {
+          const a = big(l)
+          const b = big(r)
+          switch (op) {
+            case '=': return a === b
+            case '<>': return a !== b
+            case '<': return a < b
+            case '>': return a > b
+            case '<=': return a <= b
+            case '>=': return a >= b
+          }
+        }
+        const a = num(l)
+        const b = num(r)
+        switch (op) {
+          case '=': return a === b
+          case '<>': return a !== b
+          case '<': return a < b
+          case '>': return a > b
+          case '<=': return a <= b
+          case '>=': return a >= b
+        }
+      }
       // STRING compares lexicographically (by character code), which is what JS `<` on
       // strings already does and what the standard's comparison functions specify
       if (typeof l === 'string' || typeof r === 'string') {
@@ -580,8 +620,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       // rather than being protected by its guard. IEC leaves operand evaluation open, so implementations
       // may differ: MATIEC compiles a BOOL AND to C `&&` and skips the divide. A program that depends on
       // the difference is non-portable either way, so this engine sides with faulting: a guard that
-      // silently works here would take a line down on a target that evaluates both. The
-      // emitted TypeScript combines through andB/orB for the same reason.
+      // silently works here would take a line down on a target that evaluates both.
       const l = evalScalar(e.left)
       const r = evalScalar(e.right)
       if (t === 'BOOL') {
@@ -589,15 +628,39 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         const b = bool(r)
         return op === 'AND' ? a && b : op === 'OR' ? a || b : a !== b
       }
+      if (is64(t)) {
+        const a = wrap64(t, big(l))
+        const b = wrap64(t, big(r))
+        return wrap64(t, op === 'AND' ? a & b : op === 'OR' ? a | b : a ^ b)
+      }
       const a = num(l)
       const b = num(r)
       return wrap(t, op === 'AND' ? a & b : op === 'OR' ? a | b : a ^ b)
     }
     // arithmetic
-    const l = num(evalScalar(e.left))
-    const r = num(evalScalar(e.right))
+    const lv = evalScalar(e.left)
+    const rv = evalScalar(e.right)
+    if (is64(t)) {
+      // both operands as the result type first, then the operation, exact and held to 64 bits (runtime.ts)
+      const a = wrap64(t, big(lv))
+      const b = wrap64(t, big(rv))
+      switch (op) {
+        case '+': return wrap64(t, a + b)
+        case '-': return wrap64(t, a - b)
+        case '*': return wrap64(t, a * b)
+        case '/':
+          if (b === 0n) throw new StError('division by zero', e.pos)
+          return wrap64(t, a / b) // a bigint quotient truncates toward zero, as IEC's does
+        case 'MOD':
+          if (b === 0n) throw new StError('MOD by zero', e.pos)
+          return wrap64(t, a % b) // and its remainder takes the dividend's sign
+      }
+      throw new StError(`unsupported operator '${op}'`, e.pos)
+    }
+    const l = num(lv)
+    const r = num(rv)
     // a TOD or DT sum (the checker admits only + and - here): a result outside its type's range faults,
-    // as runtime.ts `calendarValue` does for the emitted program and the functions
+    // as runtime.ts `calendarValue` does for the functions
     if (isCalendar(t)) {
       const x = op === '+' ? l + r : l - r
       const why = calendarRangeError(t, x)
@@ -630,8 +693,8 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         const exact = l * r
         return fits(t, exact, isInt32(t) ? wrap(t, Math.imul(l | 0, r | 0)) : wrap(t, exact), e.pos)
       }
-      // by zero: the scan faults (runtime.ts `idiv` / `imod`, which the emitted program calls too - said here first
-      // only because here there is a position to say it with)
+      // by zero: the scan faults (as runtime.ts `idiv` / `imod` do for the functions - said here first only because
+      // here there is a position to say it with)
       case '/':
         if (r === 0) throw new StError('division by zero', e.pos) // fault the scan, like a real PLC
         return wrap(t, idiv(l, r))
@@ -737,7 +800,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       return 0
     }
     const impl = e.dispatch === 'static' ? implementationOf(fbDefs, e.cls!, e.key!)! : target.def.table!.get(e.key!)!
-    const scalars: [string, TagValue][] = []
+    const scalars: [string, Value][] = []
     for (const arg of e.args) if (!arg.out && !arg.inout && !arg.copy && !arg.bind) scalars.push([arg.name, evalScalar(arg.value)])
     const bound: [FbArg, DataValue | RefCell | UserFb | 0][] = []
     for (const arg of e.args) {
@@ -758,13 +821,13 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
     for (const arg of e.args) {
       if (!arg.inout) continue
       const v = pou.image.home(arg.name)?.[arg.name]
-      if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string') assignPlace(arg.value, v)
+      if (isValue(v)) assignPlace(arg.value, v)
     }
     for (const arg of e.args) {
       if (!arg.out) continue
       const v = pou.image.home(arg.name)?.[arg.name] ?? 0
       if (arg.copy) copyData(evalExpr(arg.value), v)
-      else assignPlace(arg.value, coerceScalar(arg.value.t!, v as TagValue, placeMaxLen(arg.value)))
+      else assignPlace(arg.value, coerceScalar(arg.value.t!, v as Value, placeMaxLen(arg.value)))
     }
     if (impl.ret === null) return 0
     const r = pou.image.home(impl.name)?.[impl.name]
@@ -772,11 +835,17 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
   }
 
   /** Write a coerced scalar into a place (var, struct field, or array element). */
-  function assignPlace(target: Expr, c: TagValue): void {
+  function assignPlace(target: Expr, c: Value): void {
     if (target.node === 'bit') {
       // one bit of a word: the rest of the word is kept, and the result wraps to the word's own
       // type, so setting bit 31 of a DINT gives the negative number it is
-      const word = num(evalScalar(target.obj))
+      const held = evalScalar(target.obj)
+      if (typeof held === 'bigint') {
+        const bit = 1n << BigInt(target.bit)
+        assignPlace(target.obj, wrap64(target.obj.t!, bool(c) ? held | bit : held & ~bit))
+        return
+      }
+      const word = num(held)
       const mask = 2 ** target.bit
       assignPlace(target.obj, wrap(target.obj.t!, bool(c) ? (word | mask) >>> 0 : (word & ~mask) >>> 0))
       return
@@ -831,7 +900,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         // out of range faults here exactly as it would on a read
         const fb = evalExpr(s.target)
         if (!isFbInstance(fb)) break
-        const a: Record<string, TagValue> = {}
+        const a: Record<string, Value> = {}
         for (const arg of s.args) if (!arg.out && !arg.inout && !arg.copy && !arg.bind) a[arg.name] = evalScalar(arg.value)
         for (const arg of s.args) {
           if (!(fb instanceof UserFb)) break
@@ -846,15 +915,15 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         for (const arg of s.args) {
           if (!arg.inout || !(fb instanceof UserFb)) continue
           const v = fb.readInOut(arg.name)
-          if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string') assignPlace(arg.value, v)
+          if (isValue(v)) assignPlace(arg.value, v)
         }
         // output bindings (`Q => done`) read the member back after the call - they are
         // assignments, so they go through the same place-writing path
         for (const arg of s.args) {
           if (!arg.out) continue
-          const v = fb instanceof UserFb ? fb.read(arg.name) : ((fb as unknown as Record<string, TagValue>)[arg.name] ?? 0)
+          const v = fb instanceof UserFb ? fb.read(arg.name) : ((fb as unknown as Record<string, Value>)[arg.name] ?? 0)
           if (arg.copy) copyData(evalExpr(arg.value), v) // a whole array or struct output, copied out
-          else assignPlace(arg.value, coerceScalar(arg.value.t!, v as TagValue, placeMaxLen(arg.value)))
+          else assignPlace(arg.value, coerceScalar(arg.value.t!, v as Value, placeMaxLen(arg.value)))
         }
         break
       }
@@ -869,10 +938,15 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         break
       }
       case 'case': {
-        const sel = num(evalScalar(s.selector))
+        // (a 64-bit selector meets its labels exactly: a bigint compares with a number by value)
+        const chosen = evalScalar(s.selector)
+        const wide = typeof chosen === 'bigint' ? chosen : null
+        const sel = num(chosen)
         for (const clause of s.cases) {
           const hit = clause.labels.some((l) =>
-            l.kind === 'range' ? sel >= l.lo && sel <= l.hi : sel === l.value,
+            wide !== null
+              ? l.kind === 'range' ? wide >= l.lo && wide <= l.hi : l.value !== undefined && wide === BigInt(l.value)
+              : l.kind === 'range' ? sel >= l.lo && sel <= l.hi : sel === l.value,
           )
           if (hit) {
             for (const st of clause.body) execStmt(st, now)
@@ -885,6 +959,10 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       case 'for': {
         // bounds are evaluated once at entry (IEC semantics); the body may read the loop var
         const vt = (env.get(identKey(s.varName)) ?? globals!.env.get(identKey(s.varName)))!.type as ScalarType
+        if (is64(vt)) {
+          forWide(s, vt, now)
+          break
+        }
         const to = num(evalScalar(s.to))
         const step = s.by ? num(evalScalar(s.by)) : 1
         if (step === 0) throw new StFault(FAULT.WATCHDOG, 'FOR loop step is zero: it would never end', s.pos)
@@ -948,6 +1026,34 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
     }
   }
 
+  /**
+   * A FOR over a 64-bit counter. It counts in the counter's own type: `to` and `from` are converted to it and the
+   * step to a LINT, and the loop also ends where the next value would leave the type's range (a narrower counter
+   * counts on past its range, wrapping what it stores; here there is nothing wider to count in). This engine's rule.
+   */
+  function forWide(s: Extract<Stmt, { node: 'for' }>, vt: ScalarType, now: number): void {
+    const to = wrap64(vt, big(evalScalar(s.to)))
+    const step = s.by ? wrap64('LINT', big(evalScalar(s.by))) : 1n
+    if (step === 0n) throw new StFault(FAULT.WATCHDOG, 'FOR loop step is zero: it would never end', s.pos)
+    const min = vt === 'LINT' ? -(2n ** 63n) : 0n
+    const max = vt === 'LINT' ? 2n ** 63n - 1n : 2n ** 64n - 1n
+    let count = 0
+    let i = wrap64(vt, big(evalScalar(s.from)))
+    while (step > 0n ? i <= to : i >= to) {
+      store(s.varName)[s.varName] = i
+      try {
+        for (const st of s.body) execStmt(st, now)
+      } catch (e) {
+        if (e === EXIT_SIGNAL) break
+        if (e !== CONTINUE_SIGNAL) throw e // CONTINUE resumes at the next iteration
+      }
+      if (++count > MAX_LOOP_ITERATIONS) throw new StFault(FAULT.WATCHDOG, 'FOR loop exceeded its iteration limit', s.pos)
+      const next = i + step
+      if (next < min || next > max) break
+      i = next
+    }
+  }
+
   // A declaration holding a function-block instance anywhere inside it (the instance itself, an
   // array of them, a struct with one in a field) carries state: it is built once, below, and
   // never touched by resetVars(), which only re-zeroes plain data.
@@ -960,11 +1066,11 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
   // and kept: a FUNCTION resets on every call, and re-evaluating its initialisers was much of what a call cost. One
   // that reads a variable (the checker allows it, and a global can change between resets) is evaluated every time.
   // A scalar with no initialiser starts at its type's zero, decided once too.
-  const scalarInits = new Map<Decl, TagValue>()
-  const scalarInit = (d: Decl): TagValue => {
+  const scalarInits = new Map<Decl, Value>()
+  const scalarInit = (d: Decl): Value => {
     const cached = scalarInits.get(d)
     if (cached !== undefined) return cached
-    const v = d.init ? coerceScalar(d.type as ScalarType, evalScalar(d.init), d.maxLen) : (zeroData(d.type, structDefs, enumDefs, NO_FB) as TagValue)
+    const v = d.init ? coerceScalar(d.type as ScalarType, evalScalar(d.init), d.maxLen) : (zeroData(d.type, structDefs, enumDefs, NO_FB) as Value)
     if (!d.init || isLiteralInit(d.init)) scalarInits.set(d, v)
     return v
   }
@@ -1046,15 +1152,15 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
   const ownTypes: WatchTypes = { typeOf: (n) => env.get(identKey(n))?.type, structs: structDefs }
   // setArg's setters, by argument spelling: resolved on a block's first call, kept for its life (the records they write
   // into, this POU's own and the globals', are never replaced)
-  const argSetters = new Map<string, (v: TagValue) => void>()
+  const argSetters = new Map<string, (v: Value) => void>()
   /** `name`'s setter for setArg and port: setInput's plain-name path, decided once - which declaration, which record,
    *  which coercion. A name that is not a plain identifier (a struct field, an element, a bit) keeps setInput's path. */
-  const setterFor = (name: string, pou: Pou): ((v: TagValue) => void) => {
+  const setterFor = (name: string, pou: Pou): ((v: Value) => void) => {
     let set = argSetters.get(name)
     if (set) return set
     const plain = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)
     const d = plain ? (env.get(identKey(name)) ?? globals?.env.get(identKey(name))) : undefined
-    if (!d) set = plain ? () => {} : (v: TagValue) => pou.setInput(name, v)
+    if (!d) set = plain ? () => {} : (v: Value) => pou.setInput(name, tagOf(v)!)
     else if (d.constant) set = () => {}
     else {
       const rec = store(d.name)
@@ -1063,9 +1169,9 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       if (isScalarType(t)) {
         // coercerFor is coerceScalar with the type's branch taken now (the same rounding, overflow fault, width)
         const coerce = coercerFor(t, d.maxLen, undefined)
-        set = (v: TagValue) => put(rec, key, coerce(v))
+        set = (v: Value) => put(rec, key, coerce(v))
       } else if (isEnum(t)) {
-        set = (v: TagValue) => {
+        set = (v: Value) => {
           rec[key] = wrap('INT', num(v))
         }
       } else set = () => {}
@@ -1105,7 +1211,13 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
           const cur: unknown = (holder as Record<string | number, unknown>)[key]
           if (/^\.[0-9]/.test(step)) {
             // a bit: only ever the last step, and only of an integer
-            if (s !== steps.length - 1 || typeof cur !== 'number' || !type || !isScalarType(type) || !isInt(type)) return
+            if (s !== steps.length - 1 || !type || !isScalarType(type) || !isInt(type)) return
+            if (typeof cur === 'bigint') {
+              const bit = 1n << BigInt(Number(step.slice(1)))
+              ;(holder as Record<string | number, unknown>)[key] = wrap64(type, bool(value) ? cur | bit : cur & ~bit)
+              return
+            }
+            if (typeof cur !== 'number') return
             const mask = 2 ** Number(step.slice(1))
             ;(holder as Record<string | number, unknown>)[key] = wrap(type, bool(value) ? (cur | mask) >>> 0 : (cur & ~mask) >>> 0)
             return
@@ -1135,7 +1247,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
         }
         const cur = (holder as Record<string | number, unknown>)[key]
         // typed by what is there: a BOOL takes a truth, a number a number (at its own width), a STRING text
-        put(holder as Record<string | number, unknown>, key, typeof cur === 'boolean' ? Boolean(value) : typeof cur === 'number' ? (type && isScalarType(type) ? coerceScalar(type, value) : num(value)) : typeof cur === 'string' ? String(value) : cur)
+        put(holder as Record<string | number, unknown>, key, typeof cur === 'boolean' ? Boolean(value) : typeof cur === 'number' ? (type && isScalarType(type) ? coerceScalar(type, value) : num(value)) : typeof cur === 'bigint' ? (type && isScalarType(type) ? coerceScalar(type, value) : big(value)) : typeof cur === 'string' ? String(value) : cur)
         return
       }
       const d = env.get(identKey(name)) ?? globals?.env.get(identKey(name))
@@ -1144,7 +1256,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       // an enum variable is an integer at runtime, so a scene tag can drive it
       else if (isEnum(d.type)) store(d.name)[d.name] = wrap('INT', num(value))
     },
-    setArg(name: string, value: TagValue): void {
+    setArg(name: string, value: Value): void {
       setterFor(name, this)(value)
     },
     port(name: string): TagPort {
@@ -1162,7 +1274,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       const d = env.get(identKey(name)) ?? globals?.env.get(identKey(name))
       if (d && designates(d.type)) return undefined
       const v = d ? store(d.name)[d.name] : img.home(name)?.[name]
-      return isTagValue(v) ? v : undefined
+      return tagOf(v)
     },
     varInfo(name: string): VarInfo | undefined {
       const d = env.get(identKey(name)) ?? globals?.env.get(identKey(name))
@@ -1179,7 +1291,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       for (const d of decls) {
         if (d.section === 'VAR_OUTPUT' && isScalarType(d.type)) {
           const v = own(d.name)[d.name]
-          out.push([d.name, isTagValue(v) ? v : d.type === 'STRING' ? '' : 0])
+          out.push([d.name, tagOf(v) ?? (d.type === 'STRING' ? '' : 0)])
         }
       }
       return out
@@ -1251,7 +1363,8 @@ function watchScalars(out: Record<string, TagValue>, image: Record<string, DataV
   for (const leaf of watchPlan(image, prefix, types, max)) {
     let v: unknown = image
     for (const step of leaf.path) v = (v as Record<string | number, unknown> | undefined)?.[step]
-    if (isTagValue(v as DataValue)) out[leaf.key] = v as TagValue
+    const shown = tagOf(v)
+    if (shown !== undefined) out[leaf.key] = shown
   }
 }
 
@@ -1322,7 +1435,7 @@ const watchPlans = new WeakMap<object, Map<number, { prefix: string; names: numb
  *  later - and lists nothing until it does.) */
 function planValue(leaves: WatchLeaf[], key: string, path: (string | number)[], v: DataValue, t: DataType | undefined, structs: StructDefMap | undefined, max: number): void {
   if (designates(t)) return // a REF_TO or an interface holds no value of its own
-  if (isTagValue(v) || v === undefined || v === null) leaves.push({ key, path, type: t })
+  if (isValue(v) || v === undefined || v === null) leaves.push({ key, path, type: t })
   else if (Array.isArray(v)) {
     if (!t || !isArray(t) || t.dims.reduce((n, d) => n * (d.hi - d.lo + 1), 1) > max) return
     const walk = (cur: DataValue, k: number, at: number[], steps: (string | number)[]): void => {
@@ -1339,11 +1452,11 @@ function planValue(leaves: WatchLeaf[], key: string, path: (string | number)[], 
 /** Every scalar under `key` (deepMemory): planValue's keys, and through function block instances too. */
 function deepValue(out: Record<string, TagValue>, key: string, v: DataValue | undefined, t: DataType | undefined, structs: StructDefMap): void {
   if (designates(t)) return // a REF_TO or an interface (an element of an array of them too) designates; it holds nothing
-  if (isTagValue(v)) out[key] = v
+  if (isValue(v)) out[key] = tagOf(v)!
   else if (v instanceof UserFb) v.deepInto(out, `${key}.`)
   else if (isFbInstance(v)) {
     const rec = v as unknown as Record<string, unknown>
-    for (const m of Object.keys(rec)) if (isTagValue(rec[m])) out[`${key}.${m}`] = rec[m] as TagValue
+    for (const m of Object.keys(rec)) if (isValue(rec[m])) out[`${key}.${m}`] = tagOf(rec[m])!
   } else if (Array.isArray(v)) {
     if (!t || !isArray(t)) return
     const walk = (cur: DataValue, k: number, at: number[]): void => {
@@ -1367,8 +1480,8 @@ function watchBlocks(out: Record<string, TagValue>, image: Record<string, DataVa
     } else if (isFbInstance(fb)) {
       const rec = fb as unknown as Record<string, unknown>
       for (const member of Object.keys(rec)) {
-        const v = rec[member]
-        if (isTagValue(v)) out[`${prefix}${inst}.${member}`] = v
+        const v = tagOf(rec[member])
+        if (v !== undefined) out[`${prefix}${inst}.${member}`] = v
       }
     }
   }
@@ -1379,6 +1492,6 @@ function designates(t: DataType | undefined): boolean {
   return t !== undefined && (isRef(t) || isInterface(t))
 }
 
-function eq(l: TagValue, r: TagValue): boolean {
+function eq(l: Value, r: Value): boolean {
   return typeof l === 'boolean' || typeof r === 'boolean' ? bool(l) === bool(r) : l === r
 }

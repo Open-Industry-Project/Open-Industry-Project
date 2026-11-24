@@ -15,8 +15,7 @@
 // whose fields may be scalars, arrays, or nested structs - so arbitrary access
 // paths like `p.inner.data[i]` and `items[k].qty` resolve.
 //
-// Not yet: 64-bit integers (LINT would need a BigInt path). RS/SR
-// latches are left as the user-FB pattern (so those names stay free for user POUs).
+// RS/SR latches are left as the user-FB pattern (so those names stay free for user POUs).
 
 export { BUILTIN_FUNCTIONS, isBuiltinFunc } from './builtins'
 export { diagnostics, parseAndCheck, syntaxDiagnostics } from './checker'
@@ -73,7 +72,6 @@ export { KEYWORDS, valueRefs } from './lexer'
 // which watch-table entry a name in the text stands for, read in the POU it is written in
 export { watchInstances, watchScopes } from './watchScope'
 export type { MonitoredProgram, WatchInstance, WatchScopes } from './watchScope'
-export { toTypeScript } from './emit'
 // Not re-exported here: the portability doors, a program leaving as a spec-legal IEC file or PLCopen XML (./export)
 // and coming back in (./importText, ./importXml). Import them from their modules. The app loads this barrel before its
 // first frame, and a module the barrel re-exports goes into that eager chunk even when only a lazily loaded one calls it

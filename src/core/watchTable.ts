@@ -17,7 +17,41 @@
 export type WatchValue = number | boolean | string
 
 /** How a value is stored at its address: the view it is read through (plc/typed/arena.ts `load`). */
-export const WATCH_KIND = { BOOL: 0, I8: 1, U8: 2, I16: 3, U16: 4, I32: 5, U32: 6, F32: 7, F64: 8, STRING: 9 } as const
+export const WATCH_KIND = { BOOL: 0, I8: 1, U8: 2, I16: 3, U16: 4, I32: 5, U32: 6, F32: 7, F64: 8, STRING: 9, I64: 10, U64: 11 } as const
+
+const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER)
+
+/** A 64-bit integer as a table holds it: the number when a number holds it exactly (up to 2^53 either way), else its
+ *  decimal digits. So a table never holds a bigint, which JSON and arithmetic with numbers both refuse.
+ *  `BigInt(value)` gives the exact value from either form. */
+export function wideValue(v: bigint): number | string {
+  return v >= -MAX_SAFE && v <= MAX_SAFE ? Number(v) : v.toString()
+}
+
+/** A 64-bit integer past 2^53 as a table holds it: its decimal digits ({@link wideValue}), which are at least 16. */
+export function isWideDigits(v: WatchValue | undefined): v is string {
+  return typeof v === 'string' && /^-?[0-9]{16,}$/.test(v)
+}
+
+/** Whether a table's value is a word whose bits a name can reach (`Status.3`): a number, or a 64-bit integer's digits. */
+export function isWatchWord(v: WatchValue | undefined): v is number | string {
+  return typeof v === 'number' || isWideDigits(v)
+}
+
+/**
+ * Bit `n` of a word a table holds, or undefined when the value is no word. Past bit 31 it is read in whole numbers:
+ * the bit operators see 32 bits of a number, and a 64-bit word reaches bit 63.
+ */
+export function watchBit(v: WatchValue | undefined, n: number): boolean | undefined {
+  if (typeof v === 'number') return n < 32 ? ((v >>> n) & 1) === 1 : Number.isInteger(v) && ((BigInt(v) >> BigInt(n)) & 1n) === 1n
+  return isWideDigits(v) ? ((BigInt(v) >> BigInt(n)) & 1n) === 1n : undefined
+}
+
+/** The whole number a written value stands for, for a 64-bit integer: a number, or the digits {@link wideValue} gives. */
+function wideOf(value: number | string): bigint | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? BigInt(Math.trunc(value)) : null
+  return /^[+-]?[0-9]+$/.test(value.trim()) ? BigInt(value.trim()) : null
+}
 
 /** Where each watch value of one compiled program is: `keys[i]` is at byte `addrs[i]`, stored as `kinds[i]`. */
 export interface WatchLayout {
@@ -183,6 +217,8 @@ class MemorySource implements WatchSource {
   readonly #u32: Uint32Array
   readonly #f32: Float32Array
   readonly #f64: Float64Array
+  readonly #i64: BigInt64Array
+  readonly #u64: BigUint64Array
 
   constructor(layout: WatchLayout, bytes: ArrayBuffer) {
     this.#layout = layout
@@ -194,6 +230,8 @@ class MemorySource implements WatchSource {
     this.#u32 = new Uint32Array(bytes)
     this.#f32 = new Float32Array(bytes)
     this.#f64 = new Float64Array(bytes)
+    this.#i64 = new BigInt64Array(bytes)
+    this.#u64 = new BigUint64Array(bytes)
   }
 
   get keys(): readonly string[] {
@@ -235,6 +273,13 @@ class MemorySource implements WatchSource {
     if (i === undefined && !at) return false
     const addr = at ? at.addr : this.#layout.addrs[i!]!
     const kind = at ? at.kind : this.#layout.kinds[i!]!
+    if (kind === WATCH_KIND.I64 || kind === WATCH_KIND.U64) {
+      const wide = typeof value === 'boolean' ? (value ? 1n : 0n) : wideOf(value)
+      if (wide === null) return false
+      if (kind === WATCH_KIND.I64) this.#i64[addr >> 3] = BigInt.asIntN(64, wide)
+      else this.#u64[addr >> 3] = BigInt.asUintN(64, wide)
+      return true
+    }
     if (kind === WATCH_KIND.STRING || typeof value === 'string') return false
     const n = typeof value === 'boolean' ? (value ? 1 : 0) : value
     switch (kind) {
@@ -262,6 +307,8 @@ class MemorySource implements WatchSource {
       case WATCH_KIND.U32: return this.#u32[addr >> 2]!
       case WATCH_KIND.F32: return this.#f32[addr >> 2]!
       case WATCH_KIND.F64: return this.#f64[addr >> 3]!
+      case WATCH_KIND.I64: return wideValue(this.#i64[addr >> 3]!)
+      case WATCH_KIND.U64: return wideValue(this.#u64[addr >> 3]!)
       default: {
         // a STRING: its length, then that many UTF-16 code units
         const at = addr >> 1

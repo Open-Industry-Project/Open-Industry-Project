@@ -12,6 +12,8 @@ export function formatPlcValue(v: TagValue, type?: string, maxChars = Infinity):
   if (typeof v === 'number' && type === 'TIME') return timeToString(v)
   if (typeof v === 'number' && (type === 'DATE' || type === 'TOD' || type === 'DT')) return calendarToString(type, v)
   if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE'
+  // a 64-bit integer past 2^53 arrives as its digits (plc/types.ts TagValue), and shows as the number it is
+  if (typeof v === 'string' && (type === 'LINT' || type === 'ULINT' || type === 'LWORD')) return v
   // a STRING shows quoted, in the ST spelling, so an empty one still reads as a value
   if (typeof v === 'string') {
     const shown = v.length > maxChars ? `${v.slice(0, maxChars)}...` : v

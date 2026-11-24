@@ -4,7 +4,7 @@
 // Pure: the sheet (LadderView.tsx) keeps the index and polls the image; nothing here touches the DOM.
 
 import type { TagValue } from '../../../plc/types'
-import { watchElementKey, watchHas, watchKeysOf } from '../../../core/watchTable'
+import { isWatchWord, watchBit, watchElementKey, watchHas, watchKeysOf } from '../../../core/watchTable'
 
 /** The names of a value table, indexed for lookup. This is the expensive part: a large program publishes thousands of
  *  values, and upper-casing every key eight times a second would take a tenth of a core on its own. The key set of a
@@ -78,14 +78,14 @@ export function watchLookup(watch: Readonly<Record<string, TagValue>> | null, in
     // not needed. Names differ by more than case, so this is the key the index would give.
     if (watchHas(watch, typed)) return typed
     const typedBit = /^(.+)\.([0-9]+)$/.exec(typed)
-    if (typedBit && watchHas(watch, typedBit[1]!) && typeof watch[typedBit[1]!] === 'number') return typed
+    if (typedBit && watchHas(watch, typedBit[1]!) && isWatchWord(watch[typedBit[1]!])) return typed
     const key = spell(text)
     const found = plain(key)
     if (found !== null) return found
     // `Status.3`: one bit of a word. The image holds the word; the bit is named after it.
     const bit = /^(.+)\.([0-9]+)$/.exec(key)
     const word = bit ? plain(bit[1]!) : null
-    return bit && word !== null && typeof watch[word] === 'number' ? `${word}.${bit[2]}` : null
+    return bit && word !== null && isWatchWord(watch[word]) ? `${word}.${bit[2]}` : null
   }
   const keyOf = (text: string): string | null => {
     // an index that names a variable (`A[i]`) moves with that variable's value; every other text's key never changes
@@ -102,7 +102,7 @@ export function watchLookup(watch: Readonly<Record<string, TagValue>> | null, in
     if (k in watch) return watch[k]
     const bit = /^(.+)\.([0-9]+)$/.exec(k)
     const word = bit ? watch[bit[1]!] : undefined
-    return bit && typeof word === 'number' ? ((word >>> Number(bit[2])) & 1) === 1 : undefined
+    return bit ? watchBit(word, Number(bit[2])) : undefined
   }
   return { keyOf, valueOf }
 }

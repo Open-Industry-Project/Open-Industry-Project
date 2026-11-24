@@ -6,7 +6,7 @@ import { elementRule, infer, inferType, namePositionalArgs, qualifiedMember, thr
 import { checkDeclInit, impliedInit } from './checkInit'
 import { become, collect, designates, exprEnum, lookup, placeRoot, placeText, rejectedTypes, sameDataType, type Scope, typeName } from './checkScope'
 import { containsFb, fbDecls, identKey, isFb, isScalarType } from './program'
-import { FB_INPUT_TYPES, FB_INPUTS, fbMemberType, isReal } from './runtime'
+import { FB_INPUT_TYPES, FB_INPUTS, fbMemberType, is64, isReal } from './runtime'
 import type { ArrayType, Initializer, Decl, Diagnostic, Expr, InterfaceRef, RefType, Stmt } from './types'
 import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
 
@@ -177,10 +177,12 @@ function checkStmt(s: Stmt, scope: Scope, inLoop = false, sink: Diagnostic[] | n
       if (d.constant) throw new StError(`cannot use CONSTANT '${d.name}' as a loop variable`, s.pos, s.varName.length)
       const vt = d.type
       if (!isScalarType(vt) || vt === 'BOOL' || isReal(vt)) throw new StError('FOR loop variable must be an integer', s.pos)
-      s.vt = vt // the emitter needs the loop variable's width to mirror per-iteration coercion
-      infer(s.from, scope)
-      infer(s.to, scope)
-      if (s.by) infer(s.by, scope)
+      s.vt = vt // the loop variable's width, for whoever reads the statement without its scope
+      const bounds = [infer(s.from, scope), infer(s.to, scope), ...(s.by ? [infer(s.by, scope)] : [])]
+      // A 64-bit counter counts in its own type (interpreter.ts). A narrower one counts in numbers, which a 64-bit
+      // bound would not be held exactly by, so the two are not mixed.
+      const wide = is64(vt) ? undefined : bounds.find((t) => is64(t))
+      if (wide !== undefined) throw new StError(`FOR counter '${d.name}' is ${vt} and one of its bounds is ${wide}: declare the counter ${wide}, or convert the bound (${wide}_TO_${vt}(...))`, s.pos, s.varName.length)
       // the control variable is the loop's, not the body's, for the length of the body -
       // writing to it is rejected here rather than silently ignored at run time
       const key = identKey(s.varName)

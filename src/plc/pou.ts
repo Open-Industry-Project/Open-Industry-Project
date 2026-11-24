@@ -8,18 +8,22 @@
 import { canonicalAddress } from '../core/io/iecAddress'
 import type { WatchRange } from '../core/watchTable'
 import { controllerTags, identKey, isScalarType, passOrder, taskTable } from './program'
-import { bool, isInt, isString, nsOf, num, roundEven, str, strLimit, wrap } from './runtime'
-import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, VarInfo, WatchPlan } from './types'
+import { bigOf, bool, is64, isInt, isString, low32, nsOf, num, roundEven, str, stringToBig, strLimit, tagOfBig, wrap, wrap64 } from './runtime'
+import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, Value, VarInfo, WatchPlan } from './types'
 import { isEnum, StError } from './types'
 
-/** A scalar value in the variable image, as opposed to an aggregate (array/struct record).
- *  Every surface that flattens the image - the watch table, `get`, `outputs` - filters on
+/** A stored value as a surface answers it (get, the watch table, outputs): a scalar, a 64-bit integer in the form a
+ *  TagValue carries it, or undefined for an aggregate or nothing. Every surface that flattens the image goes through
  *  this, so STRING had to land here for string variables to be visible at all. */
-/** a stored value as get answers it: a scalar, or undefined for an aggregate or nothing */
-export const tagOf = (v: unknown): TagValue | undefined => (isTagValue(v) ? v : undefined)
+export const tagOf = (v: unknown): TagValue | undefined => (typeof v === 'bigint' ? tagOfBig(v) : isTagValue(v) ? v : undefined)
 
 export function isTagValue(v: unknown): v is TagValue {
   return typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string'
+}
+
+/** A scalar as the walker's records hold one: a TagValue, or a 64-bit integer's bigint. */
+export function isValue(v: unknown): v is Value {
+  return typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string' || typeof v === 'bigint'
 }
 
 /** Where one watch value is in a typed program's memory, and how it is stored (core/watchTable.ts WATCH_KIND). */
@@ -84,7 +88,7 @@ export interface Pou {
   scan(now: number): void
   setInput(name: string, value: TagValue): void
   /** setInput for a function-block call's argument: a plain declared name, so its setter is resolved once and kept */
-  setArg(name: string, value: TagValue): void
+  setArg(name: string, value: Value): void
   get(name: string): TagValue | undefined
   /** `name`'s setInput and get, resolved once (CompiledProgram.port) */
   port(name: string): TagPort
@@ -124,18 +128,31 @@ export function fits(_t: ScalarType, _exact: number, kept: number, _pos: SourceP
   return kept
 }
 
-export function coerceScalar(type: ScalarType, v: TagValue, maxLen?: number, pos?: SourcePos): TagValue {
+export function coerceScalar(type: ScalarType, v: Value, maxLen?: number, pos?: SourcePos): Value {
   if (type === 'BOOL') return bool(v)
   // a STRING store truncates to the place's declared capacity - silently, the way
   // MATIEC does it. Over-long text is lost, not faulted.
   if (isString(type)) return strLimit(str(v), maxLen)
+  if (is64(type)) return coerce64(type, v)
   // a fractional value narrowing into an integer rounds ties-to-even, exactly like an
   // explicit REAL_TO_INT - the two spellings of the same conversion must agree
   if (isInt(type)) {
+    // (a 64-bit integer keeps its low bits, as the typed engine's i64 does: a double would have rounded them away)
+    if (typeof v === 'bigint') return wrap(type, low32(v))
     const exact = roundEven(num(v))
     return fits(type, exact, wrap(type, exact), pos)
   }
   return wrap(type, num(v)) // REAL narrows to f32; LREAL passes through
+}
+
+/** A store into a 64-bit integer place: another whole number reinterpreted at 64 bits, a fraction rounded (ties to
+ *  even), a truth 0 or 1. Text is read as a whole number: no program stores a STRING here (the checker), but a
+ *  surface writes one for a value past what a number holds (types.ts TagValue). */
+function coerce64(type: ScalarType, v: Value): bigint {
+  if (typeof v === 'bigint') return wrap64(type, v)
+  if (typeof v === 'number') return wrap64(type, bigOf(Number.isInteger(v) ? v : roundEven(v)))
+  if (typeof v === 'string') return wrap64(type, stringToBig(v))
+  return v ? 1n : 0n
 }
 
 /** The declared STRING capacity of a place, when it has one. */
@@ -144,11 +161,12 @@ export function placeMaxLen(target: Expr): number | undefined {
 }
 
 /** Enforce a subrange place's declared bounds, or pass the value straight through. */
-export function checkRange(target: Expr, v: TagValue, pos: SourcePos): TagValue {
+export function checkRange(target: Expr, v: Value, pos: SourcePos): Value {
   const r = target.node === 'var' || target.node === 'member' || target.node === 'index' ? target.range : undefined
-  if (r && (num(v) < r.lo || num(v) > r.hi)) {
-    throw new StError(`${num(v)} is outside ${r.name} (${r.lo}..${r.hi})`, pos)
-  }
+  if (!r) return v
+  // (a bigint compares with the bounds exactly)
+  const n = typeof v === 'bigint' ? v : num(v)
+  if (n < r.lo || n > r.hi) throw new StError(`${String(n)} is outside ${r.name} (${r.lo}..${r.hi})`, pos)
   return v
 }
 
@@ -166,13 +184,14 @@ export function widthOf(t: ScalarType): (x: number) => number {
 }
 
 /** coerceScalar for one place, with the type's branch taken at compile time: a store is the hottest thing a scan does. */
-export function coercerFor(type: ScalarType, maxLen: number | undefined, _pos: SourcePos | undefined): (v: TagValue) => TagValue {
+export function coercerFor(type: ScalarType, maxLen: number | undefined, _pos: SourcePos | undefined): (v: Value) => Value {
   if (type === 'BOOL') return bool
   if (isString(type)) return (v) => strLimit(str(v), maxLen)
+  if (is64(type)) return (v) => coerce64(type, v)
   if (isInt(type)) {
     const w = widthOf(type)
     return (v) => {
-      const n = typeof v === 'number' ? v : num(v)
+      const n = typeof v === 'number' ? v : typeof v === 'bigint' ? low32(v) : num(v)
       return w(Number.isInteger(n) ? n : roundEven(n))
     }
   }
@@ -230,10 +249,11 @@ const locatedKeys = (bindings: Map<string, LocatedBinding>, dir: LocatedBinding[
  * an integer at runtime, so a scene tag drives it); a STRING does not - nothing in the scene
  * produces or consumes text, so listing one here would only make the device-IO check report it as
  * an unbound tag no part could ever wire. A STRING VAR_INPUT/VAR_OUTPUT is still an ordinary
- * variable, visible in the watch table.
+ * variable, visible in the watch table. Nor does a 64-bit integer: a scene tag and every protocol client carry a
+ * number, which holds one exactly only up to 2^53, so wiring one would be right until it was silently wrong.
  */
 function tagged(d: Decl): boolean {
-  return (isScalarType(d.type) && d.type !== 'STRING') || isEnum(d.type)
+  return (isScalarType(d.type) && d.type !== 'STRING' && !is64(d.type)) || isEnum(d.type)
 }
 
 /**
@@ -243,6 +263,16 @@ function tagged(d: Decl): boolean {
  */
 function wireable(d: Decl): boolean {
   return (d.section === 'VAR' || d.section === 'VAR_GLOBAL') && !d.constant && !d.location && !d.hidden && tagged(d)
+}
+
+/** A 64-bit integer a scene part would otherwise be wired to (CompiledProgram.unwirable): not a constant, not hidden. */
+function unwirable(d: Decl): boolean {
+  return d.section !== 'VAR_TEMP' && d.section !== 'VAR_IN_OUT' && d.section !== 'VAR_EXTERNAL' && !d.constant && !d.hidden && isScalarType(d.type) && is64(d.type)
+}
+/** `unwirable` of these named declarations, as the property a program carries it in (none when there are none). */
+function unwirableOf(named: readonly (readonly [string, Decl])[]): { unwirable?: Record<string, string> } {
+  const wide = named.filter(([, d]) => unwirable(d))
+  return wide.length > 0 ? { unwirable: Object.fromEntries(wide.map(([name, d]) => [name, d.type as string])) } : {}
 }
 
 /** A program with no CONFIGURATION: one program, no tasks, its variables under their bare names, and its
@@ -262,6 +292,7 @@ export function implicitProgram(main: { decls: Decl[]; body: Stmt[] }, build: Po
     outputs: [...main.decls.filter((d) => d.section === 'VAR_OUTPUT' && tagged(d)).map((d) => d.name), ...locatedKeys(located, 'output')],
     // the POU's own first: setInput and get find a local before a global of the same name
     bindable: [...new Set([...main.decls, ...globalDecls].filter(wireable).map((d) => d.name))],
+    ...unwirableOf([...globalDecls, ...main.decls].map((d) => [d.name, d] as const)),
     get watch() {
       const out: Record<string, TagValue> = {}
       // globals first, so a POU-local of the same name shadows it in the table too
@@ -389,6 +420,7 @@ export function configuredProgram(ast: Ast, build: PouBuilder, globalPou: Pou | 
     outputs: [...qualified('VAR_OUTPUT'), ...locatedKeys(located, 'output')],
     // the controller's tags and the globals by their bare names, an instance's own variables qualified
     bindable: [...[...tags, ...ast.globals].filter(wireable).map((d) => d.name), ...instances.flatMap((i) => i.decls.filter(wireable).map((d) => `${i.name}.${d.name}`))],
+    ...unwirableOf([...[...tags, ...ast.globals].map((d) => [d.name, d] as const), ...instances.flatMap((i) => i.decls.map((d) => [`${i.name}.${d.name}`, d] as const))]),
     get watch() {
       const out: Record<string, TagValue> = {}
       globalPou?.watchInto(out, '', WATCH_ARRAY_MAX)

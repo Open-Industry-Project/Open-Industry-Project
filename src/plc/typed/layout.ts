@@ -100,7 +100,7 @@ export function scalarLayout(t: ScalarType, cap?: number): ScalarLayout {
       return { kind: 'scalar', scalar: t, size: 2, align: 2 }
     case 'DINT': case 'UDINT': case 'DWORD': case 'REAL':
       return { kind: 'scalar', scalar: t, size: 4, align: 4 }
-    case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT':
+    case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': case 'LINT': case 'ULINT': case 'LWORD':
       return { kind: 'scalar', scalar: t, size: 8, align: 8 }
     case 'STRING': {
       const n = cap ?? DEFAULT_STRING_LEN

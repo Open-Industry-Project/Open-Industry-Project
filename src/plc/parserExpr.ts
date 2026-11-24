@@ -217,7 +217,7 @@ export class ExprParser extends ParserBase {
     }
     if (t.kind === 'num') {
       this.next()
-      return { node: 'num', value: t.num, real: t.real, declared: t.type, pos: t.pos }
+      return { node: 'num', value: t.num, real: t.real, declared: t.type, pos: t.pos, ...(t.big !== undefined ? { big: t.big } : {}) }
     }
     if (t.kind === 'str') {
       this.next()

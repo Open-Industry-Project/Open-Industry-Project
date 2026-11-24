@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { compile } from './index'
-import { toTypeScript } from './emit'
-import { elemAt, elemSet, forStep, inRange, loopGuard, MAX_LOOP_ITERATIONS } from './runtime'
+import { is64 } from './runtime'
 import { builtinFor, evalBuiltin } from './builtins'
-import { SCALAR_TYPES, type TagValue } from './types'
+import { compareEngines } from './scanEngineOracle'
+import { SCALAR_TYPES, type TagValue, type Value } from './types'
 
 /** Compile + run one scan; return the variable image. Functions are stateless, so dt=0. */
 function run(src: string, inputs: Record<string, boolean | number> = {}) {
@@ -184,94 +184,37 @@ describe('builtin type checking', () => {
   })
 })
 
-describe('builtins in the ST -> TS emitter (shown == executed)', () => {
-  it('emits REAL math as Math.* and wraps integer ABS', () => {
-    expect(toTypeScript('VAR_OUTPUT y : REAL; END_VAR\ny := SQRT(16.0);')).toContain('Math.sqrt(16)')
-    expect(toTypeScript('VAR_OUTPUT y : INT; END_VAR\ny := ABS(-5);')).toContain("wrap('INT', Math.abs")
+// What stops a scan, on both engines alike: these have no corpus case an external compiler could replay (a runaway
+// loop would hang its replay binary, and a store outside an array is undefined behaviour in C).
+describe('faults that stop a scan, the same on both engines', () => {
+  const fault = (src: string): string | null => {
+    const r = compareEngines(src, [{ dt: 0.01 }])
+    expect(r.diffs).toEqual([])
+    return r.fault
+  }
+
+  it('a loop that does not end within the scan', () => {
+    expect(fault('VAR n : DINT; END_VAR\nWHILE TRUE DO n := n + 1; END_WHILE;')).toBe('WHILE loop exceeded its iteration limit')
+    expect(fault('VAR n : DINT; END_VAR\nREPEAT n := n + 1; UNTIL FALSE END_REPEAT;')).toBe('REPEAT loop exceeded its iteration limit')
+    expect(fault('VAR i : DINT; n : DINT; END_VAR\nFOR i := 0 TO 2000000 DO n := n + 1; END_FOR;')).toBe('FOR loop exceeded its iteration limit')
   })
 
-  it('emits conversions + shifts as runtime helpers and imports only those used', () => {
-    const conv = toTypeScript('VAR_OUTPUT y : INT; END_VAR\ny := REAL_TO_INT(2.5);')
-    expect(conv).toContain("conv('REAL', 'INT', 2.5)")
-    expect(conv).toContain("import { wrap, idiv, imod, makeFb, conv } from './runtime'")
-
-    const shift = toTypeScript('VAR a : BYTE; y : BYTE; END_VAR\ny := SHL(a, 2);')
-    expect(shift).toContain("shl('BYTE', S.a, 2)")
-    expect(shift).toContain("import { wrap, idiv, imod, makeFb, shl } from './runtime'")
+  it('a FOR whose step is zero, which would never advance', () => {
+    expect(fault('VAR i : INT; z : INT; END_VAR\nFOR i := 0 TO 3 BY z DO ; END_FOR;')).toBe('FOR loop step is zero: it would never end')
   })
 
-  it('emits REAL and integer ADD / MUL rounded or wrapped after each step', () => {
-    expect(toTypeScript('VAR a : REAL; y : REAL; END_VAR\ny := ADD(a, a, a);')).toContain("wrap('REAL', wrap('REAL', S.a + S.a) + S.a)")
-    expect(toTypeScript('VAR a : INT; y : INT; END_VAR\ny := MUL(a, a, a);')).toContain("wrap('INT', wrap('INT', S.a * S.a) * S.a)")
+  it('a store outside a subrange, naming the type and the range', () => {
+    const src = (n: number): string => `TYPE Percent : INT (0..100); END_TYPE
+VAR n : INT := ${n}; level : Percent; END_VAR
+level := n;`
+    expect(fault(src(100))).toBeNull()
+    expect(fault(src(250))).toBe('250 is outside Percent (0..100)')
+    expect(fault(src(-1))).toBe('-1 is outside Percent (0..100)')
   })
 
-  it('leaves the helper import untouched for a program that uses no helpers', () => {
-    expect(toTypeScript('VAR_OUTPUT y : INT; END_VAR\ny := MAX(1, 2);')).toContain("import { wrap, idiv, imod, makeFb } from './runtime'")
-  })
-})
-
-describe('subrange stores (the emitted module enforces the declared bounds)', () => {
-  it('passes a value inside the range straight through', () => {
-    expect(inRange(50, 'Percent', 0, 100)).toBe(50)
-    expect(inRange(0, 'Percent', 0, 100)).toBe(0)
-    expect(inRange(100, 'Percent', 0, 100)).toBe(100)
-  })
-
-  it('faults outside it, naming the type and the range', () => {
-    expect(() => inRange(250, 'Percent', 0, 100)).toThrow('250 is outside Percent (0..100)')
-    expect(() => inRange(-1, 'Percent', 0, 100)).toThrow('-1 is outside Percent (0..100)')
-  })
-})
-
-describe('loop guards (the emitted module counts to the same cap as the interpreter)', () => {
-  // No corpus case for these: a runaway loop handed to an external compiler would hang its own
-  // replay binary, which is a worse thing to own than an uncovered case. The semantics live in the
-  // helpers, so the helpers are what is pinned - plus the emitter test that they are actually
-  // emitted. Without them a JS `while` does not fault where the interpreter does, it hangs.
-  it('passes every iteration up to the cap', () => {
-    expect(() => loopGuard(MAX_LOOP_ITERATIONS, 'WHILE')).not.toThrow()
-  })
-
-  it('faults past the cap, with the wording the interpreter uses', () => {
-    expect(() => loopGuard(MAX_LOOP_ITERATIONS + 1, 'WHILE')).toThrow('WHILE loop exceeded its iteration limit')
-    expect(() => loopGuard(MAX_LOOP_ITERATIONS + 1, 'REPEAT')).toThrow('REPEAT loop exceeded its iteration limit')
-    expect(() => loopGuard(MAX_LOOP_ITERATIONS + 1, 'FOR')).toThrow('FOR loop exceeded its iteration limit')
-  })
-
-  it('passes a FOR step through, either direction', () => {
-    expect(forStep(2)).toBe(2)
-    expect(forStep(-1)).toBe(-1)
-  })
-
-  it('refuses a zero FOR step, which would never advance', () => {
-    expect(() => forStep(0)).toThrow('FOR loop step is zero')
-  })
-})
-
-describe("bounds-checked array access (the emitted module's index helpers)", () => {
-  // The interpreter faults on an index outside its declared range; raw JS does not - a read gives
-  // undefined and a write grows the array. elemAt/elemSet are what make the emitted module fault where the interpreter does.
-  // The read has a corpus case; the write is pinned here, because an out-of-range store in C is
-  // undefined behaviour and not something to hand an external compiler on purpose.
-  it('reads inside the bounds, offset by the lower bound', () => {
-    expect(elemAt([10, 11, 12], 2, 1, 3)).toBe(11)
-  })
-
-  it('faults on a read outside the bounds, naming the index and the range', () => {
-    expect(() => elemAt([10, 11, 12], 9, 1, 3)).toThrow('array index 9 out of bounds [1..3]')
-    expect(() => elemAt([10, 11, 12], 0, 1, 3)).toThrow('array index 0 out of bounds [1..3]')
-  })
-
-  it('writes inside the bounds', () => {
-    const a = [0, 0, 0]
-    elemSet(a, 2, 0, 2, 7)
-    expect(a).toEqual([0, 0, 7])
-  })
-
-  it('faults on a write outside the bounds instead of growing the array', () => {
-    const a = [0, 0, 0]
-    expect(() => elemSet(a, 3, 0, 2, 7)).toThrow('array index 3 out of bounds [0..2]')
-    expect(a).toEqual([0, 0, 0]) // untouched, and still three long
+  it('a read or a write outside an array, which leaves the array as it was', () => {
+    expect(fault('VAR a : ARRAY [1..3] OF INT; i : INT := 9; x : INT; END_VAR\nx := a[i];')).toBe('array index 9 out of bounds [1..3]')
+    expect(fault('VAR a : ARRAY [0..2] OF INT; i : INT := 3; END_VAR\na[i] := 7;')).toBe('array index 3 out of bounds [0..2]')
   })
 })
 
@@ -280,7 +223,7 @@ describe('builtinFor: a call site with its dispatch decided once computes what e
   // the general path on values chosen to reach the edges: negatives, fractions, ties, overflow, NaN, booleans
   const values: TagValue[] = [0, 1, -1, 2.5, -2.5, 3.5, 127, 128, -129, 32767, 40000, -2147483649, 4294967296, 1e10, Number.NaN, true, false]
   const numeric = SCALAR_TYPES.filter((t) => t !== 'STRING' && t !== 'BOOL' && t !== 'TIME' && !['DATE', 'TOD', 'DT'].includes(t))
-  const same = (a: TagValue, b: TagValue): boolean => Object.is(a, b)
+  const same = (a: Value, b: Value): boolean => Object.is(a, b)
 
   it('numeric conversions, every pair', () => {
     let checked = 0
@@ -300,7 +243,9 @@ describe('builtinFor: a call site with its dispatch decided once computes what e
   })
 
   it('ABS, MIN, MAX, LIMIT at every numeric result type', () => {
-    for (const rt of numeric) {
+    // (a 64-bit result is computed in bigints, by evalBuiltin alone)
+    for (const rt of numeric.filter((t) => is64(t))) expect(builtinFor('ABS', rt, 1), rt).toBeNull()
+    for (const rt of numeric.filter((t) => !is64(t))) {
       for (const a of values) {
         expect(same(builtinFor('ABS', rt, 1)!(a, 0, 0), evalBuiltin('ABS', rt, [a])), `ABS ${rt}`).toBe(true)
         for (const b of values) {

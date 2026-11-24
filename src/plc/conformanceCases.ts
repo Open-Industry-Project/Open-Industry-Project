@@ -1,8 +1,7 @@
 // The ST conformance corpus: the single source of truth for "what the standard says
 // this program does", read by two independent checkers:
 //
-//   - src/plc/conformance.test.ts runs every case through the interpreter and the
-//     emitted TypeScript, asserting the goldens below and inter-backend agreement.
+//   - src/plc/conformance.test.ts runs every case on both scan engines, asserting the goldens below.
 //   - scripts/oracle-matiec.mjs replays every case, rendered as a spec-legal IEC
 //     program, through MATIEC (`iec2c`), an external compiler.
 //
@@ -22,7 +21,7 @@ export interface Step {
   expect?: Record<string, TagValue>
   /** float expectations checked with toBeCloseTo (accumulated timer clocks etc.) */
   close?: Record<string, number>
-  /** the scan must fault in both backends; ends the case */
+  /** the scan must fault on both engines; ends the case */
   throws?: RegExp
 }
 
@@ -73,16 +72,16 @@ const OUTSIDE_EVERY_POU =
  * in one place because several cases share it word for word, and copies would drift apart.
  */
 const FB_ARRAY_UNCHECKABLE =
-  'no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration ("invalid item data type in array specification"), and STruC++ 0.6.2 cannot parse a call on an array element ("Expected `Assign`, found `(`"), so it never reaches the check. The goldens are checked in-process, through both backends'
+  'no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration ("invalid item data type in array specification"), and STruC++ 0.6.2 cannot parse a call on an array element ("Expected `Assign`, found `(`"), so it never reaches the check. The goldens are checked in-process, through both engines'
 
 /** The same limit, for a `rejects` case: both compilers answer, but not about the rule the case is for. */
 const FB_ARRAY_REJECT_UNCHECKABLE =
-  'MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both backends'
+  'MATIEC refuses this program before reaching the rule it is about, because it has no arrays of function-block instances at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines'
 
 /** Why a starting value that mixes the two kinds of list cannot reach an external compiler, as
  *  measured; shared by every case that nests one kind of list inside the other. */
 const STRUCTURED_LIST_UNCHECKABLE =
-  'no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct\'s initializer, or field lists inside an array\'s [...] list, whether the array type is named or spelled out ("Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both backends'
+  'no external compiler here can check it. MATIEC takes a (field := ...) list, nested ones included, but refuses the two kinds of list mixed: a [...] list inside a struct\'s initializer, or field lists inside an array\'s [...] list, whether the array type is named or spelled out ("Initialization element identifier (...) is not declared in referenced structure/FB scope, or is set to value of incompatible datatype"). STruC++ 0.6.2 has no structured initial values at all. The goldens are checked in-process, through both engines'
 
 /** Why an object-oriented case is an edition difference: measured against STruC++ 0.6.2. */
 const OOP_EDITION =
@@ -90,11 +89,15 @@ const OOP_EDITION =
 
 /** The same limit, for a `rejects` case. */
 const OOP_REJECT_UNCHECKABLE =
-  'MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines and the emitted TypeScript'
+  'MATIEC refuses this program before reaching the rule it is about, because it has no object orientation at all, so its rejection says nothing about the rule; STruC++ is not the strictness oracle (see scripts/oracle-strucpp.mjs). The rule is checked in-process, through both engines'
 
 /** Why the interface-variable cases reach no external compiler, as measured. */
 const OOP_IFACE_UNCHECKABLE =
-  'no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one ("Cannot assign BELT to IDRIVE") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines and the emitted TypeScript'
+  'no external compiler here has interface VARIABLES. STruC++ 0.6.2 has interfaces as signatures a block IMPLEMENTS, but refuses an instance assigned to a variable of one ("Cannot assign BELT to IDRIVE") and crashes when one is the input of a block; MATIEC has no object orientation. The goldens are checked in-process, through both engines'
+
+/** Why a case mixing integer families, or an integer with a real, reaches no external compiler. */
+const WIDE_MIX_UNCHECKED =
+  "the operands are of different families (signed with unsigned, or an integer with a real), which IEC requires a conversion between. What the mix means here is this engine's rule, so no IEC compiler is asked about it"
 
 /** Why a ladder case reaches no ST oracle: MATIEC and STruC++ read text, and LADDER is only this engine's text. */
 const LADDER_TEXT =
@@ -405,9 +408,8 @@ a := d AND m; o := d OR m; x := d XOR m; n := NOT d; s := SHL(one, 31); rl := RO
       },
       {
         // One bit of a word written in place: the word is rewritten with that bit set or cleared and
-        // the others kept. The word may be an array element, which the emitter must not write
-        // as `elemAt(..) = v`, a store JavaScript refuses at run time; bit 31 is the DWORD sign bit,
-        // which a signed JS `|` would turn negative.
+        // the others kept. The word may be an array element; bit 31 is the DWORD sign bit, which a
+        // signed JS `|` would turn negative.
         name: 'a bit write rewrites only that bit, of a variable or an array element',
         src: `VAR set : BOOL := TRUE; i : INT := 2; w : WORD; arr : ARRAY[1..3] OF DWORD; e1 : DWORD; e2 : DWORD; top : BOOL; END_VAR
 w.%X3 := set;
@@ -419,7 +421,7 @@ e1 := arr[1]; e2 := arr[2]; top := arr[i].%X31;`,
           { expect: { w: 8, e1: 16, e2: 2147483649, top: true } },
           { in: { set: false }, expect: { w: 0, e1: 0, e2: 2147483648, top: true } },
         ],
-        oracle: { skip: 'partial access (`.%Xn`) is an IEC 3rd-edition feature, which MATIEC, a 2nd-edition compiler, does not read; not yet replayed on STruC++, so the goldens are checked in-process, through both backends' },
+        oracle: { skip: 'partial access (`.%Xn`) is an IEC 3rd-edition feature, which MATIEC, a 2nd-edition compiler, does not read; not yet replayed on STruC++, so the goldens are checked in-process, through both engines' },
       },
     ],
   },
@@ -1222,9 +1224,8 @@ q := F(TRUE);`,
     title: 'arrays and structs are values, copied whole',
     cases: [
       {
-        // An index outside its declared range faults here, naming the index and the range, in both
-        // backends: the interpreter in evalExpr/assignPlace, the emitted module through
-        // elemAt/elemSet. MATIEC does not check: it emits C, which reads past the array. A simulator
+        // An index outside its declared range faults here, naming the index and the range, on both
+        // engines. MATIEC does not check: it emits C, which reads past the array. A simulator
         // that returned the neighbouring bytes would hide the bug where it is cheapest to find, and
         // it would show up on the real line instead.
         //
@@ -1450,7 +1451,7 @@ chained := 2.0 ** 3.0 ** 2.0;`,
       {
         // the qualified spelling in every place a member can appear: an initial value, a store, a
         // CASE label and a comparison. The initial value is the one place in this corpus where an
-        // enumeration starts somewhere other than its first member, so it checks that both backends
+        // enumeration starts somewhere other than its first member, so it checks that both engines
         // keep a declared starting value.
         name: 'Mode#Member names an enumeration value wherever a member can go',
         src: `TYPE Mode : (Idle, Running, Faulted); END_TYPE
@@ -1577,10 +1578,8 @@ m := Idle;`,
     title: 'named types: TYPE Name : ARRAY and plain aliases',
     cases: [
       {
-        // A subrange place holds its declared bounds at run time, in both backends: the interpreter
-        // in checkRange, the emitted module through inRange, both applied after the width coercion
-        // and before the store, which is the one call site there is. Without this case the two
-        // backends could disagree about subranges unnoticed.
+        // A subrange place holds its declared bounds at run time, on both engines (checkRange),
+        // applied after the width coercion and before the store.
         name: 'a store outside a subrange faults',
         src: `TYPE Percent : INT (0..100); END_TYPE
 VAR n : INT := 250; level : Percent; END_VAR
@@ -1621,7 +1620,7 @@ b2 := b[2]; a2 := a[2];`,
           { expect: { b2: 4, a2: 20 } },
           { expect: { b2: 40, a2: 20 } }, // doubled from a as last scan's write left it
         ],
-        oracle: { skip: 'MATIEC compiles this program, which is its verdict that the ST is valid, but the C it generates cannot pass an array into a function or take one back as the result ("aggregate value used where an integer was expected"), so the replay has nothing to run. STruC++ (3rd edition) builds it. The goldens are checked in-process, through both backends' },
+        oracle: { skip: 'MATIEC compiles this program, which is its verdict that the ST is valid, but the C it generates cannot pass an array into a function or take one back as the result ("aggregate value used where an integer was expected"), so the replay has nothing to run. STruC++ (3rd edition) builds it. The goldens are checked in-process, through both engines' },
       },
       {
         // the addend is `inc`, not `step`: MATIEC reserves STEP, a Sequential Function Chart keyword,
@@ -2911,7 +2910,7 @@ g := drive^.Gain();`,
           { in: { useChild: false }, expect: { g: 1 } },
         ],
         oracle: {
-          skip: 'no external compiler here runs it. MATIEC has no references; STruC++ 0.6.2 refuses a METHOD called through a dereferenced reference ("Expected `Semicolon`, found `(`" at drive^.Gain()) and does not build REF() of a function block either. The goldens are checked in-process, through both engines and the emitted TypeScript',
+          skip: 'no external compiler here runs it. MATIEC has no references; STruC++ 0.6.2 refuses a METHOD called through a dereferenced reference ("Expected `Semicolon`, found `(`" at drive^.Gain()) and does not build REF() of a function block either. The goldens are checked in-process, through both engines',
         },
       },
       {
@@ -2944,7 +2943,7 @@ bump(target := r2, seen => hit);`,
         src: 'VAR r : REF_TO INT; x : INT; END_VAR\nx := r^;',
         steps: [{ throws: /a REF_TO that is NULL was dereferenced/ }],
         divergence: 'IEC 61131-3 makes dereferencing a NULL reference an error and leaves what a controller then does to the implementation. This engine faults the scan, naming it, as it faults a subscript out of range; STruC++\'s runtime stops the POU the same way (its NullReference fault). MATIEC has no references',
-        oracle: { skip: 'the fault is a null dereference in every compiled target: a scan fault has no comparable image, and asking an external run for one asks its harness to stop. The rule is pinned in-process, through both engines and the emitted TypeScript' },
+        oracle: { skip: 'the fault is a null dereference in every compiled target: a scan fault has no comparable image, and asking an external run for one asks its harness to stop. The rule is pinned in-process, through both engines' },
       },
       {
         name: 'rejects REF() of a CONSTANT, which the reference would write through to',
@@ -3765,6 +3764,174 @@ VAR c : Counter; got : INT; END_VAR
 got := c.Bump(step := 2);`,
         steps: [{ expect: { got: 2 } }, { expect: { got: 4 } }],
         oracle: { editionReject: OOP_EDITION },
+      },
+    ],
+  },
+  {
+    // LINT, ULINT and LWORD. A value past 2^53 is written here as its decimal digits, which is how a surface outside
+    // the engine reads one (types.ts TagValue): a number holds a whole number exactly only that far. Every golden is
+    // two's-complement arithmetic worked out by hand.
+    title: '64-bit integers: LINT, ULINT and LWORD are exact past what a number holds',
+    cases: [
+      {
+        // 2^53 + 1 is the first whole number a double cannot hold: as doubles, b would be 2^53 + 2 and d would be 0
+        name: 'LINT arithmetic is exact past 2^53',
+        src: `VAR a : LINT := 9007199254740993; b : LINT; c : LINT; d : LINT; END_VAR
+b := a + 2; c := a * 3; d := a - 9007199254740992;`,
+        steps: [{ expect: { a: '9007199254740993', b: '9007199254740995', c: '27021597764222979', d: 1 } }],
+      },
+      {
+        // the 64-bit case of 'overflow wraps two's-complement at each width'. (2^64 - 1)^2 = 2^128 - 2^65 + 1,
+        // which is 1 modulo 2^64.
+        name: 'overflow wraps two\'s-complement at 64 bits',
+        src: `VAR hi : LINT := 9223372036854775807; lo : LINT := -9223372036854775808; u : ULINT := 18446744073709551615;
+up : LINT; down : LINT; over : ULINT; sq : ULINT; END_VAR
+up := hi + 1; down := lo - 1; over := u + 1; sq := u * u;`,
+        steps: [{ expect: { up: '-9223372036854775808', down: '9223372036854775807', over: 0, sq: 1 } }],
+      },
+      {
+        // -(2^53 + 1) / 2 is -2^52 with -1 left over; (2^64 - 1) / 10 is 1844674407370955161 with 5 left over
+        name: '64-bit division truncates toward zero; MOD follows the dividend sign',
+        src: `VAR a : LINT := -9007199254740993; u : ULINT := 18446744073709551615; q : LINT; m : LINT; uq : ULINT; um : ULINT; END_VAR
+q := a / 2; m := a MOD 2; uq := u / 10; um := u MOD 10;`,
+        steps: [{ expect: { q: -4503599627370496, m: -1, uq: '1844674407370955161', um: 5 } }],
+      },
+      {
+        name: 'the least LINT divided by -1 wraps to itself',
+        src: `VAR lo : LINT := -9223372036854775808; minus : LINT := -1; q : LINT := 5; m : LINT := 5; END_VAR
+q := lo / minus; m := lo MOD minus;`,
+        steps: [{ expect: { q: '-9223372036854775808', m: 0 } }],
+        divergence:
+          'the quotient is 2^63, one more than a LINT holds. IEC leaves an overflow open; here it wraps, as every other overflow does, so the quotient is the least LINT again and the remainder 0',
+        oracle: { skip: 'the generated C divides the least 64-bit integer by -1, which is undefined behaviour in C and traps on x86: there is no image to compare' },
+      },
+      {
+        name: '64-bit division by zero faults the scan',
+        src: 'VAR n : LINT; q : LINT; END_VAR\nq := 100 / n;',
+        steps: [{ throws: /division by zero/ }],
+        oracle: { skip: 'same as integer division by zero - the fault is not observable in the generated C' },
+      },
+      {
+        // as doubles a and b are the same number
+        name: 'LINT comparisons are exact past 2^53',
+        src: `VAR a : LINT := 9007199254740993; b : LINT := 9007199254740992; more : BOOL; same : BOOL; notMore : BOOL; END_VAR
+more := a > b; same := a = b; notMore := a <= b;`,
+        steps: [{ expect: { more: true, same: false, notMore: false } }],
+      },
+      {
+        // -1 and 2^64 - 1 are the same 64 bits, and compare as the numbers they are
+        name: 'a LINT and a ULINT compare by their values, not their bits',
+        src: `VAR neg : LINT := -1; u : ULINT := 18446744073709551615; lt : BOOL; eq : BOOL; END_VAR
+lt := neg < u; eq := neg = u;`,
+        steps: [{ expect: { lt: true, eq: false } }],
+        divergence:
+          'IEC does not define a comparison across the signed and unsigned families. Here two whole numbers compare by their exact values, as the narrower ones do (docs/st-conformance.md, "64-bit integers")',
+        oracle: { skip: WIDE_MIX_UNCHECKED },
+      },
+      {
+        // the ULINT quotient of 100 by a DINT -1: the divisor becomes 2^64 - 1, so the quotient is 0
+        name: 'a 64-bit operation converts both operands to its result type first',
+        src: `VAR u : ULINT := 100; n : DINT := -1; q : ULINT; s : ULINT; END_VAR
+q := u / n; s := u + n;`,
+        steps: [{ expect: { q: 0, s: 99 } }],
+        divergence:
+          'IEC does not define an operation across the signed and unsigned families. Here the wider type is the result type, and both operands are converted to it before the operation, as C converts them (docs/st-conformance.md, "64-bit integers")',
+        oracle: { skip: WIDE_MIX_UNCHECKED },
+      },
+      {
+        // a rounds to 2^53 as a double, which is what r is
+        name: 'a LINT beside an LREAL compares as a number',
+        src: `VAR a : LINT := 9007199254740993; r : LREAL := 9007199254740992.0; same : BOOL; END_VAR
+same := a = r;`,
+        steps: [{ expect: { same: true } }],
+        divergence:
+          'IEC does not define a comparison of an integer with a real. Here the integer is converted to a number first, as a narrower one is, and a 64-bit one rounds to the nearest a double holds',
+        oracle: { skip: WIDE_MIX_UNCHECKED },
+      },
+      {
+        // w = 16#F0F0_F0F0_F0F0_F0F0, m = 16#0000_FFFF_0000_FFFF:
+        //   AND 16#0000_F0F0_0000_F0F0, OR 16#F0F0_FFFF_F0F0_FFFF, XOR 16#F0F0_0F0F_F0F0_0F0F, NOT 16#0F0F_0F0F_0F0F_0F0F
+        name: 'LWORD bit operations work over all 64 bits',
+        src: `VAR w : LWORD := 16#F0F0_F0F0_F0F0_F0F0; m : LWORD := 16#0000_FFFF_0000_FFFF; a : LWORD; o : LWORD; x : LWORD; n : LWORD; END_VAR
+a := w AND m; o := w OR m; x := w XOR m; n := NOT w;`,
+        steps: [{ expect: { a: 264913582878960, o: '17361658038237331455', x: '17361393124654452495', n: '1085102592571150095' } }],
+      },
+      {
+        // SHL by 4 drops the top digit: 16#0F0F_0F0F_0F0F_0F00. SHR by 60 leaves the top digit: 16#F. ROL by 4 brings
+        // it round: 16#0F0F_0F0F_0F0F_0F0F. ROR of 1 by 1 is the top bit, 2^63.
+        name: 'LWORD shifts and rotates work over all 64 bits',
+        src: `VAR w : LWORD := 16#F0F0_F0F0_F0F0_F0F0; one : LWORD := 1; l : LWORD; r : LWORD; rl : LWORD; rr : LWORD; END_VAR
+l := SHL(w, 4); r := SHR(w, 60); rl := ROL(w, 4); rr := ROR(one, 1);`,
+        steps: [{ expect: { l: '1085102592571150080', r: 15, rl: '1085102592571150095', rr: '9223372036854775808' } }],
+      },
+      {
+        // the 64-bit case of 'SHL/SHR are logical and width-bounded': shifting the whole width out leaves 0
+        name: 'an LWORD shifted by its whole width is 0',
+        src: 'VAR w : LWORD := 16#F0F0_F0F0_F0F0_F0F0; l : LWORD := 1; r : LWORD := 1; END_VAR\nl := SHL(w, 64); r := SHR(w, 64);',
+        steps: [{ expect: { l: 0, r: 0 } }],
+        oracle: {
+          skip: 'MATIEC writes the shift as a C shift, and a 64-bit value shifted by 64 is undefined behaviour in C: built for x86 it leaves the word unchanged (measured: SHL(w, 64) answers w). A narrower word is promoted to int first, so its whole-width shift is defined and is replayed above',
+        },
+      },
+      {
+        // the low 32 bits of 2^53 + 1 are 1; -1 as a UDINT is 2^32 - 1, and as a ULINT 2^64 - 1
+        name: 'conversions between 64-bit and narrower integers keep the low bits',
+        src: `VAR big : LINT := 9007199254740993; neg : LINT := -1; d : DINT; u : UDINT; i : INT; up : LINT; wide : ULINT; back : LINT; END_VAR
+d := LINT_TO_DINT(big); u := LINT_TO_UDINT(neg); i := LINT_TO_INT(big); up := DINT_TO_LINT(-7);
+wide := LINT_TO_ULINT(neg); back := ULINT_TO_LINT(wide);`,
+        steps: [{ expect: { d: 1, u: 4294967295, i: 1, up: -7, wide: '18446744073709551615', back: -1 } }],
+      },
+      {
+        name: 'a LINT converts to and from a STRING exactly',
+        src: `VAR big : LINT := 9007199254740993; digits : STRING := '9007199254740993'; s : STRING; back : LINT; END_VAR
+s := LINT_TO_STRING(big); back := STRING_TO_LINT(digits);`,
+        steps: [{ expect: { s: '9007199254740993', back: '9007199254740993' } }],
+      },
+      {
+        // the labels are past 32 bits, where a narrower selector's stop
+        name: 'CASE selects on a LINT',
+        src: `VAR which : LINT := 5000000000; hit : INT; END_VAR
+CASE which OF
+  1: hit := 1;
+  4999999999..5000000001: hit := 2;
+ELSE hit := 3;
+END_CASE;`,
+        steps: [{ expect: { hit: 2 } }],
+      },
+      {
+        // four terms from 2^53: 4 * 2^53 + 6. As doubles the bounds are 2^53 and 2^53 + 4.
+        name: 'FOR counts in a LINT past 2^53',
+        src: `VAR first : LINT := 9007199254740992; last : LINT := 9007199254740995; i : LINT; sum : LINT; END_VAR
+sum := 0;
+FOR i := first TO last DO sum := sum + i; END_FOR;`,
+        steps: [{ expect: { sum: '36028797018963974' } }],
+      },
+      {
+        // the same four terms, the bounds written out
+        name: 'FOR bounds written as literals past 2^53 are exact',
+        src: `VAR i : LINT; sum : LINT; END_VAR
+sum := 0;
+FOR i := 9007199254740992 TO 9007199254740995 DO sum := sum + i; END_FOR;`,
+        steps: [{ expect: { sum: '36028797018963974' } }],
+      },
+      {
+        name: 'rejects a LINT stored into a DINT without a conversion',
+        src: 'VAR d : DINT; l : LINT; END_VAR\nd := l;',
+        steps: [],
+        rejects: /cannot assign LINT to 'd' of type DINT \(write LINT_TO_DINT/,
+      },
+      {
+        name: 'rejects arithmetic on an LWORD',
+        src: 'VAR w : LWORD := 1; r : LWORD; END_VAR\nr := w + 1;',
+        steps: [],
+        rejects: /\+ is arithmetic; 'LWORD' is a bit string/,
+      },
+      {
+        // 2^64: one more than a ULINT holds
+        name: 'rejects a literal no integer type holds',
+        src: 'VAR u : ULINT := 18446744073709551616; END_VAR',
+        steps: [],
+        rejects: /does not fit in any integer type/,
       },
     ],
   },

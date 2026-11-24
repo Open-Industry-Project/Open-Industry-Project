@@ -75,3 +75,39 @@ describe('forcing, controller side', () => {
     expect(shown[1]).toEqual({ title: 'Forces released', message: 'Released A, B, C, D and 2 more: the program no longer has those variables with the same type.' })
   })
 })
+
+describe('64-bit values, controller side', () => {
+  it('writes a whole number a number holds, and refuses one past 2^53 by name', () => {
+    const d = deps({ Total: 5 })
+    expect(writePlcValue(d, 'Total', '9007199254740991')).toBeNull()
+    expect(writePlcValue(d, 'Total', '9007199254740993')).toMatch(/past 2\^53/)
+    expect(writePlcValue(d, 'Total', '16#FFFF_FFFF_FFFF_FFFF')).toMatch(/past 2\^53/)
+    // a number written with an exponent is a real's, and goes as the nearest number it is
+    expect(writePlcValue(d, 'Total', '1e20')).toBeNull()
+    expect(d.writes).toEqual(['Total=9007199254740991', 'Total=100000000000000000000'])
+  })
+
+  it('a variable past 2^53 reads as its digits: it takes a number, and is not held as it stands', () => {
+    const d = deps({ Total: '9223372036854775807' } as unknown as Record<string, number | boolean>)
+    expect(writePlcValue(d, 'Total', '12')).toBeNull()
+    expect(d.writes).toEqual(['Total=12'])
+    expect(forcePlcValue(d, 'Total')).toMatch(/past 2\^53/)
+    expect(forcePlcValue(d, 'Total', '7')).toBeNull()
+    expect(d.ec.sim.forces).toEqual({ Total: 7 })
+    // the force outlives a reload while the variable is still a number's
+    expect(keptForces({ Total: 7 }, { Total: '9223372036854775807' })).toEqual({ Total: 7 })
+  })
+
+  it('reads and changes a bit past 31 of a 64-bit word', () => {
+    const d = deps({ Mask: 2 ** 40 + 1 })
+    expect(forcePlcValue(d, 'Mask')).toBeNull()
+    // bit 40 is set, bit 8 (40 modulo 32) is not: toggling 40 clears it
+    expect(togglePlcBit(d, 'Mask.40')).toBe(true)
+    expect(d.ec.sim.forces).toEqual({ Mask: 1 })
+    expect(togglePlcBit(d, 'Mask.35')).toBe(true)
+    expect(d.ec.sim.forces).toEqual({ Mask: 2 ** 35 + 1 })
+    // bit 63 would take the held word past what a force carries: the force stays as it is
+    expect(togglePlcBit(d, 'Mask.63')).toBe(true)
+    expect(d.ec.sim.forces).toEqual({ Mask: 2 ** 35 + 1 })
+  })
+})

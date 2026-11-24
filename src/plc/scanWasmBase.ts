@@ -3,7 +3,8 @@
 
 import type { GenBody, GenInternals } from './scanCodegen'
 import { type TypeLayout, TypedUnsupported } from './typed/layout'
-import type { Expr, ScalarType, TagValue } from './types'
+import { is64 } from './runtime'
+import type { Expr, ScalarType, TagValue, Value } from './types'
 
 /** a construct the emitter cannot write: the whole program is refused, and runs on the walker */
 export const no = (what: string): never => {
@@ -13,7 +14,12 @@ export const no = (what: string): never => {
 /** what was written, for a bench to report */
 export const wasmStats = { bodies: 0, statements: 0, bytes: 0, emitMs: 0 }
 
-export type Kind = 'b' | 'i' | 'u' | 'f'
+/** What a value on the stack is: a truth ('b') or a whole number up to 32 bits ('i'; 'u' the same bits read unsigned)
+ *  as an i32, a 64-bit integer as an i64 ('l' a LINT, 'L' a ULINT or an LWORD: the same bits read unsigned), anything
+ *  else as an f64 ('f'). */
+export type Kind = 'b' | 'i' | 'u' | 'f' | 'l' | 'L'
+/** a 64-bit integer's kind */
+export const isLong = (k: Kind): k is 'l' | 'L' => k === 'l' || k === 'L'
 /** a held argument: a value of a kind, or a text the host keeps ('t') */
 export type Held = Kind | 't'
 export const I32 = 0x7f
@@ -26,7 +32,7 @@ export const MASK: Partial<Record<ScalarType, number>> = { USINT: 0xff, BYTE: 0x
 export const WIDE: Partial<Record<ScalarType, true>> = { UDINT: true, DWORD: true }
 export const isWidth = (t: string | undefined): t is ScalarType => t === 'SINT' || t === 'INT' || t === 'DINT' || t === 'USINT' || t === 'BYTE' || t === 'UINT' || t === 'WORD' || t === 'UDINT' || t === 'DWORD'
 export const RANGE: Partial<Record<ScalarType, readonly [number, number]>> = { SINT: [-128, 127], INT: [-32768, 32767], DINT: [-2147483648, 2147483647], USINT: [0, 255], BYTE: [0, 255], UINT: [0, 65535], WORD: [0, 65535], UDINT: [0, 4294967295], DWORD: [0, 4294967295] }
-export const kindOf = (t: ScalarType): Kind => (t === 'BOOL' ? 'b' : WIDE[t] ? 'u' : isWidth(t) ? 'i' : t === 'STRING' ? no('a STRING') : 'f')
+export const kindOf = (t: ScalarType): Kind => (t === 'BOOL' ? 'b' : WIDE[t] ? 'u' : isWidth(t) ? 'i' : t === 'LINT' ? 'l' : is64(t) ? 'L' : t === 'STRING' ? no('a STRING') : 'f')
 
 /**
  * The bodies of one program, where they can call each other without leaving WebAssembly: a table of functions, with a
@@ -120,6 +126,20 @@ export class Bytes {
       this.buf[this.len++] = b | 0x80
     }
   }
+  /** a signed whole number of up to 64 bits (an i64.const's) */
+  slebBig(v: bigint): this {
+    this.#room(11)
+    let n = BigInt.asIntN(64, v)
+    for (;;) {
+      const b = Number(n & 0x7fn)
+      n >>= 7n
+      if ((n === 0n && (b & 0x40) === 0) || (n === -1n && (b & 0x40) !== 0)) {
+        this.buf[this.len++] = b
+        return this
+      }
+      this.buf[this.len++] = b | 0x80
+    }
+  }
   f64(x: number): this {
     this.#room(8)
     new DataView(this.buf.buffer, this.buf.byteOffset).setFloat64(this.len, x, true)
@@ -154,8 +174,8 @@ export interface Host {
   H: Record<string, unknown>
   W: unknown[]
   x: GenInternals
-  /** a text on its way from the call that made it to the store that takes it */
-  text: TagValue
+  /** a text on its way from the call that made it to the store that takes it (and a value handed out: valueOut) */
+  text: Value
   /** the arguments of the function calls being put together, innermost last */
   args: unknown[][]
   /** the texts calls answered that a later call or a compare reads: each by its place here, given back when read */

@@ -98,19 +98,19 @@ describe('diagnostics report every error, not just the first', () => {
   // to be checked against the type that never resolved instead, which reads as a function block.
   it('reports a refused type once, not again at each use of the variable', () => {
     const uses = ['x := 1;', 'y := x;', 'x(IN := TRUE);', 'y := x.Q;', 'IF x THEN y := 1; END_IF;', 'FOR x := 1 TO 3 DO y := 1; END_FOR;']
-    for (const type of ['LINT', 'WSTRING', 'Nope']) {
+    for (const type of ['LDATE', 'WSTRING', 'Nope']) {
       for (const use of uses) {
         const ds = diagnostics(`VAR x : ${type}; y : DINT; END_VAR\n${use}`)
         expect(ds.map((d) => d.message), `x : ${type}; ${use}`).toHaveLength(1)
         expect(ds[0]!.pos.line).toBe(1)
       }
     }
-    expect(diagnostics('VAR x : LINT := 5; END_VAR\n')).toHaveLength(1)
-    expect(diagnostics('VAR a : ARRAY[1..3] OF LINT; END_VAR\na[1] := 1;')).toHaveLength(1)
+    expect(diagnostics('VAR x : LDATE := 5; END_VAR\n')).toHaveLength(1)
+    expect(diagnostics('VAR a : ARRAY[1..3] OF LDATE; END_VAR\na[1] := 1;')).toHaveLength(1)
   })
 
   it('still reports an unrelated error beside a refused type', () => {
-    const ds = diagnostics('VAR x : LINT; a : INT; END_VAR\nx := 1;\na := TRUE;')
+    const ds = diagnostics('VAR x : LDATE; a : INT; END_VAR\nx := 1;\na := TRUE;')
     expect(ds.map((d) => d.pos.line)).toEqual([1, 3])
   })
 })

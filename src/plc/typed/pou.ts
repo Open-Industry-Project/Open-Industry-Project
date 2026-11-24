@@ -4,12 +4,12 @@
 // cannot tell it from the walker's POU. A user function block's instance is a region inside its holder's, run by its
 // definition's TypedFb. docs/plc-typed-storage.md.
 
-import { classIds, type Env, fbDecls, funcDecls, identKey, isScalarType, methodDecls } from '../program'
-import { coerceScalar, coercerFor, type Pou, type WatchPlace } from '../pou'
-import { bool, CALL_DEPTH_MESSAGE, isInt, MAX_CALL_DEPTH, num, wrap } from '../runtime'
+import { classIds, type Env, fbDecls, funcDecls, identKey, isScalarType, literal64, methodDecls } from '../program'
+import { coerceScalar, coercerFor, type Pou, tagOf, type WatchPlace } from '../pou'
+import { bool, CALL_DEPTH_MESSAGE, is64, isInt, MAX_CALL_DEPTH, num, wrap, wrap64 } from '../runtime'
 import { publishWasmBody } from '../scanWasmBase'
 import { generateBody, generateValue, type GenBody, type GenInternals, type GenScope, type TypedScope } from '../scanCodegen'
-import type { DataType, Decl, Expr, FbDef, FuncDef, Initializer, MethodDef, ScalarType, Stmt, StructInit, TagPort, TagValue, VarInfo } from '../types'
+import type { DataType, Decl, Expr, FbDef, FuncDef, Initializer, MethodDef, ScalarType, Stmt, StructInit, TagPort, TagValue, Value, VarInfo } from '../types'
 import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from '../types'
 import type { WatchRange, WatchShape } from '../../core/watchTable'
 import { Arena, watchKindOf } from './arena'
@@ -342,7 +342,7 @@ export class TypedFn {
   /** set when any code calls it: only those are generated (an unused function refuses nothing) */
   called = false
   #inputs: ((v: unknown) => void)[] = []
-  #result: (() => TagValue) | null = null
+  #result: (() => Value) | null = null
   #resultAt = 0
   /** the region's starting bytes, once known to be the same on every call (every initial value a literal) */
   #start: Uint8Array | null = null
@@ -381,15 +381,15 @@ export class TypedFn {
       const addr = this.base + f.off
       const l = f.layout
       if (l.kind !== 'scalar') return (v: unknown) => a.copy(addr, v as number, l.size)
-      if (isEnum(d.type)) return (v: unknown) => a.store(l, addr, wrap('INT', num(v as TagValue)))
+      if (isEnum(d.type)) return (v: unknown) => a.store(l, addr, wrap('INT', num(v as Value)))
       const coerce = coercerFor(d.type as ScalarType, d.maxLen, undefined)
-      return (v: unknown) => a.store(l, addr, coerce(v as TagValue))
+      return (v: unknown) => a.store(l, addr, coerce(v as Value))
     })
     const ret = this.layout.byKey.get(identKey(this.def.name))!
     const at = this.base + ret.off
     if (ret.layout.kind === 'scalar') {
       const slot = ret.layout
-      this.#result = () => a.load(slot, at)
+      this.#result = () => a.raw(slot, at)
     } else this.#resultAt = at
   }
 
@@ -400,7 +400,8 @@ export class TypedFn {
     return dst
   }
 
-  call(given: unknown[], slots: readonly number[] | undefined): TagValue {
+  /** the result as the engine holds it (a 64-bit integer a bigint) */
+  call(given: unknown[], slots: readonly number[] | undefined): Value {
     this.#run(given, slots)
     return this.#result!()
   }
@@ -525,13 +526,15 @@ function initDecls(tp: TypedProgram, declared: readonly Decl[], layout: PouLayou
   const a = tp.arena!
   const decls = declared.filter((d) => d.section !== 'VAR_EXTERNAL')
   const fieldOf = (d: Decl): PouLayout['fields'][number] => layout.byKey.get(identKey(d.name))!
-  const value = (e: Initializer): TagValue => {
-    if (e.node === 'num' || e.node === 'bool' || e.node === 'str') return e.value
+  const value = (e: Initializer): Value => {
+    // (a 64-bit literal by its exact value, types.ts)
+    if (e.node === 'num') return is64(e.t) ? literal64(e) : e.value
+    if (e.node === 'bool' || e.node === 'str') return e.value
     if (e.node === 'structInit' || e.node === 'arrayInit') throw new TypedUnsupported('this initial value')
     let fn = tp.inits.get(e)
     if (!fn) tp.inits.set(e, (fn = generateValue(e, scope, tp.internals, tp.extra!)))
     // (a method's frame: its own variables at `base`, the instance's at `inst`)
-    return (inst === undefined ? fn(base) : fn(inst, base)) as TagValue
+    return (inst === undefined ? fn(base) : fn(inst, base)) as Value
   }
   const initScalar = (l: TypeLayout, addr: number, init: Initializer, type: DataType): void => {
     if (l.kind !== 'scalar') throw new TypedUnsupported('this initial value')
@@ -603,7 +606,7 @@ export class TypedPou implements Pou {
   readonly #scope: GenScope
   #body: GenBody | null = null
   readonly #plans = new Map<string, Leaf[]>()
-  readonly #setters = new Map<string, (v: TagValue) => void>()
+  readonly #setters = new Map<string, (v: Value) => void>()
 
   constructor(
     declared: Decl[],
@@ -677,6 +680,12 @@ export class TypedPou implements Pou {
         if (/^\.[0-9]/.test(step)) {
           // a bit: only ever the last step, and only of an integer
           if (s !== steps.length - 1 || layout.kind !== 'scalar' || layout.enumerated || !isInt(layout.scalar)) return
+          if (is64(layout.scalar)) {
+            const held = this.#arena.raw(layout, addr) as bigint
+            const bit = 1n << BigInt(Number(step.slice(1)))
+            this.#arena.store(layout, addr, wrap64(layout.scalar, bool(value) ? held | bit : held & ~bit))
+            return
+          }
           const cur = this.#arena.load(layout, addr) as number
           const mask = 2 ** Number(step.slice(1))
           this.#arena.store(layout, addr, wrap(layout.scalar, bool(value) ? (cur | mask) >>> 0 : (cur & ~mask) >>> 0))
@@ -716,12 +725,12 @@ export class TypedPou implements Pou {
   }
 
   /** `name`'s setter for setArg and port: the declaration, place and coercion decided once (the walker's setterFor). */
-  #setterFor(name: string): (v: TagValue) => void {
+  #setterFor(name: string): (v: Value) => void {
     let set = this.#setters.get(name)
     if (set) return set
     const plain = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)
     const at = plain ? this.#place(name) : undefined
-    if (!at) set = plain ? () => {} : (v: TagValue) => this.setInput(name, v)
+    if (!at) set = plain ? () => {} : (v: Value) => this.setInput(name, tagOf(v)!)
     else if (at.decl.constant || at.layout.kind !== 'scalar' || isRef(at.decl.type) || isInterface(at.decl.type)) set = () => {}
     else {
       const slot = at.layout
@@ -729,15 +738,15 @@ export class TypedPou implements Pou {
       const t = at.decl.type
       if (isScalarType(t)) {
         const coerce = coercerFor(t, at.decl.maxLen, undefined)
-        set = (v: TagValue) => this.#arena.store(slot, addr, coerce(v))
-      } else if (isEnum(t)) set = (v: TagValue) => this.#arena.store(slot, addr, wrap('INT', num(v)))
+        set = (v: Value) => this.#arena.store(slot, addr, coerce(v))
+      } else if (isEnum(t)) set = (v: Value) => this.#arena.store(slot, addr, wrap('INT', num(v)))
       else set = () => {}
     }
     this.#setters.set(name, set)
     return set
   }
 
-  setArg(name: string, value: TagValue): void {
+  setArg(name: string, value: Value): void {
     this.#setterFor(name)(value)
   }
 

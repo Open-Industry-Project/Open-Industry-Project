@@ -223,7 +223,7 @@ export class DeclParser extends LadderParser {
    * 8 of the 36 real files the import oracle reads use, including most of the standard's own
    * Annex F examples.
    *
-   * Returns one `Decl` per name, so the checker, interpreter, emitter and both exporters see a
+   * Returns one `Decl` per name, so the checker, the engines and both exporters see a
    * flat list. The AST shape is the same; only the number of entries one line can produce differs.
    * Each carries its own name token's position, so a diagnostic
    * points at the name it is about rather than at the head of the line. The type is shared (it is
@@ -319,7 +319,7 @@ export class DeclParser extends LadderParser {
   }
 
   /** An array initialiser list: `[1, 2, 3]`, with IEC's `n(value)` repetition (`[3(0), 1]`).
-   *  Flattened row-major, which is how the interpreter and the emitter both lay arrays out. */
+   *  Flattened row-major, which is how both engines lay arrays out. */
   private arrayInitList(): Initializer[] {
     this.eatOp('[')
     const out: Initializer[] = []

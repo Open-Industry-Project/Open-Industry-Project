@@ -56,8 +56,9 @@ export function connectableControllers(setup: PlcSetup): ConnectableController[]
   return out
 }
 
-/** The types a part's tag can carry a program variable of, and which of them is a bit. */
-const NUMBERS = new Set(['SINT', 'INT', 'DINT', 'LINT', 'USINT', 'UINT', 'UDINT', 'ULINT', 'REAL', 'LREAL', 'BYTE', 'WORD', 'DWORD', 'LWORD'])
+/** The types a part's tag can carry a program variable of, and which of them is a bit. Not a 64-bit integer, which a
+ *  tag's number does not hold exactly (plc/pou.ts tagged). */
+const NUMBERS = new Set(['SINT', 'INT', 'DINT', 'USINT', 'UINT', 'UDINT', 'REAL', 'LREAL', 'BYTE', 'WORD', 'DWORD'])
 
 /**
  * The program's variables (tagVerdicts.ts programTagNames) as the window lists them: a single bit or number each,

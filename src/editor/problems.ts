@@ -35,6 +35,7 @@ import { newerSdkLevel, PART_SDK_LEVEL } from '../core/parts/partSdk'
 import type { TestSpec } from '../core/project/projectTest'
 import { coverByTests } from '../core/project/projectTestTags'
 import { MAX_SIM_HZ, type PartInstance, type SimRate } from '../core/types'
+import { wideTypeOf } from '../plc/programSurface'
 import { timeToString } from '../plc/runtime'
 import { checkWiring, wiredBindings } from '../plc/wiring'
 import type { RuntimePartDiagnostic } from '../core/parts/partDiagnostics'
@@ -323,6 +324,11 @@ export function collectProblems(input: ProblemsInput, known?: ProgramFacts): Pro
   // A tag the program never declares is always undriven or unread too, since a part's tag connects only to the
   // program. That row names the parts and can be clicked, so it carries the likelier cause instead of a second row.
   const undeclared = new Set(unwired)
+  // (a 64-bit integer the program does declare is said as that: no tag is wired to one)
+  const undeclaredWhy = (tag: string): string => {
+    const wide = wideTypeOf(facts.main?.surface?.wide ?? {}, tag)
+    return wide ? `The program declares it as a ${wide}, and a 64-bit integer is not wired to a part: a tag carries a number, which is exact only up to 2^53` : 'The program does not declare it, which is usually a typo'
+  }
   // what the project's tests read and drive answers an `unread` / `undriven` warning, as in check-wiring
   const tests = (input.tests ?? []).map((spec, i) => ({ label: spec.name ?? `test-${i + 1}`, spec }))
   for (const p of coverByTests(wiring.problems, tests).problems) {
@@ -338,7 +344,7 @@ export function collectProblems(input: ProblemsInput, known?: ProgramFacts): Pro
       severity: p.severity,
       group: 'Wiring',
       subject: p.tag,
-      message: (p.kind === 'undriven' || p.kind === 'unread') && undeclared.has(p.tag) ? `${p.message}. The program does not declare it, which is usually a typo` : p.message,
+      message: (p.kind === 'undriven' || p.kind === 'unread') && undeclared.has(p.tag) ? `${p.message}. ${undeclaredWhy(p.tag)}` : p.message,
       parts: p.parts,
     })
   }
