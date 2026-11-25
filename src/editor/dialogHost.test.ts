@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { keyBelongsToTarget } from './dialogHost'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { appOnScreen, keyBelongsToTarget, registerPopoutWindow, setIntervalOnScreen, watchAppOnScreen } from './dialogHost'
 
 /** a stand-in element: keyBelongsToTarget reads nodeType, tagName, type, isContentEditable and closest() */
 function el(tagName: string, opts: { type?: string; editable?: boolean; inRegion?: boolean } = {}) {
@@ -68,5 +68,86 @@ describe('keyBelongsToTarget', () => {
   it('leaves everything else to the app', () => {
     expect(keyBelongsToTarget(key(el('DIV'), 'w'))).toBe(false)
     expect(keyBelongsToTarget(key(null, 'w'))).toBe(false)
+  })
+})
+
+/** a stand-in window: its visibility, the listeners on its document and the intervals set on it */
+function fakeWindow() {
+  const heard = new Set<() => void>()
+  const timers = new Map<number, () => void>()
+  let nextId = 1
+  const win = {
+    closed: false,
+    document: {
+      body: {},
+      visibilityState: 'visible',
+      addEventListener: (_type: string, cb: () => void) => void heard.add(cb),
+      removeEventListener: (_type: string, cb: () => void) => void heard.delete(cb),
+    },
+    setInterval: (cb: () => void) => {
+      timers.set(nextId, cb)
+      return nextId++
+    },
+    clearInterval: (id: number) => void timers.delete(id),
+  }
+  return {
+    win: win as unknown as Window,
+    timers,
+    show(visible: boolean) {
+      win.document.visibilityState = visible ? 'visible' : 'hidden'
+      for (const cb of [...heard]) cb()
+    },
+  }
+}
+
+describe('the app on screen', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('is on screen while a popped-out window is, though this one is covered', () => {
+    const main = fakeWindow()
+    const popup = fakeWindow()
+    vi.stubGlobal('window', main.win)
+    const seen: boolean[] = []
+    const unwatch = watchAppOnScreen((on) => seen.push(on))
+    main.show(false)
+    expect(seen).toEqual([false])
+
+    main.show(true)
+    const closed = registerPopoutWindow(popup.win)
+    main.show(false) // the popup covers this window
+    expect(appOnScreen()).toBe(true)
+    expect(seen).toEqual([false, true])
+
+    popup.show(false) // both minimized
+    expect(seen).toEqual([false, true, false])
+    popup.show(true)
+    expect(seen).toEqual([false, true, false, true])
+
+    closed() // the popup closes while this window is still hidden
+    expect(seen).toEqual([false, true, false, true, false])
+    unwatch()
+    main.show(true)
+    expect(seen).toHaveLength(5)
+  })
+
+  it('runs a poll on a window that is on screen', () => {
+    const main = fakeWindow()
+    const popup = fakeWindow()
+    vi.stubGlobal('window', main.win)
+    const stop = setIntervalOnScreen(() => {}, 120)
+    expect([main.timers.size, popup.timers.size]).toEqual([1, 0])
+
+    const closed = registerPopoutWindow(popup.win)
+    expect([main.timers.size, popup.timers.size]).toEqual([1, 0]) // this window is still on screen
+    main.show(false)
+    expect([main.timers.size, popup.timers.size]).toEqual([0, 1])
+    main.show(true)
+    expect([main.timers.size, popup.timers.size]).toEqual([1, 0])
+
+    main.show(false)
+    closed()
+    expect([main.timers.size, popup.timers.size]).toEqual([1, 0]) // nowhere better: back on this window
+    stop()
+    expect(main.timers.size).toBe(0)
   })
 })

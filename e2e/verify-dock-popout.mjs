@@ -126,6 +126,36 @@ async function main() {
       `${mainSees.length} chars`,
     )
 
+    // ── a run goes on while the popped-out window covers the main one ─────────────────────
+    // A browser reports a fully covered window as hidden. Playwright keeps its pages visible, so each document's
+    // visibility is set here by hand, as the browser would report it.
+    const setShown = (target, shown) =>
+      target.evaluate((v) => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v })
+        document.dispatchEvent(new Event('visibilitychange'))
+      }, shown ? 'visible' : 'hidden')
+    const simTime = () => page.evaluate(() => window.__oip.controller.lastFrame?.simTime ?? 0)
+    const advances = async () => {
+      const before = await simTime()
+      await page.waitForTimeout(700)
+      return (await simTime()) - before
+    }
+    await page.evaluate(() => window.__oip.controller.run())
+    await page.waitForFunction(() => (window.__oip.controller.lastFrame?.simTime ?? 0) > 0.2, undefined, { timeout: 60000, polling: 100 })
+    await setShown(page, false)
+    let moved = await advances()
+    check('the run goes on while the popped-out window covers the main one', moved > 0.3, `${moved.toFixed(2)} s of sim time`)
+    await setShown(popup, false)
+    await page.waitForTimeout(200) // a frame already on its way
+    moved = await advances()
+    check('it pauses when no window of the app is on screen', moved === 0, `${moved.toFixed(2)} s of sim time`)
+    check('and the Pause button is left as the user had it', (await page.evaluate(() => window.__oip.store.getState().paused)) === false)
+    await setShown(popup, true)
+    moved = await advances()
+    check('it resumes when the popped-out window is back', moved > 0.3, `${moved.toFixed(2)} s of sim time`)
+    await setShown(page, true)
+    await page.evaluate(() => window.__oip.controller.stop())
+
     // ── split-screen: narrowing the main window must not close the other one ──────────────
     // Snapping the editor beside the popped-out window is the main use case, and on a 1366-wide
     // laptop each half falls under MOBILE_QUERY's 820px, a media query on this document that must

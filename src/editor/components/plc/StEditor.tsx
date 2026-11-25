@@ -42,7 +42,7 @@ import { defineMessages, t } from '../../../core/i18n'
 import { ContextMenu, type MenuItem } from '../inspector/menu'
 import { IS_MAC, primaryKey } from '../../keyHint'
 import { JumpHistory } from '../../program/jumpHistory'
-import { activeClipboard } from '../../dialogHost'
+import { activeClipboard, setIntervalOnScreen } from '../../dialogHost'
 import { addToWatchList, resolveWatch, tabWatchListKey } from '../../program/plcWatchList'
 import { canEditDisplay, displayedValues, displayListFull, setDisplayed } from '../../program/displayValues'
 import { MAX_DISPLAY_VALUES } from '../../../core/scene/sceneDisplay'
@@ -992,7 +992,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
     // and pick mean nothing new to draw, and a push rebuilds every inline value of the program. Pushed again after a
     // second regardless, for an editor view made since the last push (it starts with no values).
     let pushed: { w: object; instances: WatchInstance[]; picked: object; at: number } | null = null
-    const id = setInterval(() => {
+    const stop = setIntervalOnScreen(() => {
       const w = ctrlRef.current?.plcWatch
       // only while the text is the face: under the rungs the editor is hidden. The face coming back finds another
       // image than the last one pushed, and pushes.
@@ -1012,7 +1012,7 @@ export function StEditor({ store, state, controller, docked = false, viewOnly = 
       setOverruns(ctrlRef.current?.plcScanStats?.overruns ?? 0)
     }, 120)
     return () => {
-      clearInterval(id)
+      stop()
       editorRef.current?.setWatchValues({})
       setOverruns(0)
     }

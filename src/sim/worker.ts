@@ -472,7 +472,7 @@ function startLoop(): void {
         // that whole gap here and lurch physics forward. Resync the clock so physics resumes
         // from the refocus instant with zero accrued backlog. The PLC scan interleaves on the
         // fixed step dt inside this loop (PlcHost), so it is co-timed by construction: no steps
-        // accrued means no scans accrued. See controller.onVisibilityChange / docs/sim-clock.md.
+        // accrued means no scans accrued. See controller.onAppOnScreen / docs/sim-clock.md.
         last = now
         acc = 0
         wasPaused = false

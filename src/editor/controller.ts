@@ -52,6 +52,7 @@ import * as repositionOps from './controller/reposition'
 import * as vertexSnapOps from './controller/vertexSnap'
 import * as pointerOps from './controller/pointer'
 import * as keyboardOps from './controller/keyboard'
+import { watchAppOnScreen } from './dialogHost'
 import * as catalogOps from './controller/catalogPlace'
 import { LiveView } from './controller/liveView'
 import { selectionSet } from './store/selectionSet'
@@ -207,6 +208,7 @@ export class EditorController {
   // the static idle actuation preview's memo and the devices a stopped-scene Use is operating (controller/useSessions.ts)
   private readonly uses = new useOps.UseSessions()
   private readonly live = new LiveView(this) // following another connection's shared run (controller/liveView.ts)
+  private readonly unwatchAppOnScreen: () => void // stops onAppOnScreen
 
   constructor(store: EditorStore, view: IRenderView, sim: SimClient, container: HTMLElement) {
     this.store = store
@@ -227,6 +229,7 @@ export class EditorController {
     window.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('keyup', this.onKeyUp)
     document.addEventListener('visibilitychange', this.onVisibilityChange)
+    this.unwatchAppOnScreen = watchAppOnScreen(this.onAppOnScreen)
     window.addEventListener('blur', this.onWindowBlur)
 
     sim.onFrame = (frame) => {
@@ -921,6 +924,7 @@ export class EditorController {
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
+    this.unwatchAppOnScreen()
     window.removeEventListener('blur', this.onWindowBlur)
     this.unsubscribe()
     this.unsubscribeDocument()
@@ -1125,31 +1129,33 @@ export class EditorController {
   }
 
   /**
-   * Freeze the worker while the tab is hidden (other tab / minimized / phone locked), and restore the
-   * user's pause state when it returns. The physics worker runs on its own setInterval clock that keeps
-   * ticking (throttled) in a background tab. The PLC scan interleaves with the physics steps inside
+   * This window is back on screen. Drop the stale render frame so the first rAF dt is a fresh ~16ms frame rather
+   * than the whole hidden gap clamped to 0.1s - this dt still drives the camera, DRS, and (while
+   * stopped) manual motions. Not gated on `running`: frame-clock hygiene isn't sim-specific.
+   */
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible') this.view.resetFrameClock()
+  }
+
+  /**
+   * Freeze the worker while no window of the app is on screen (other tab / minimized / phone locked), and
+   * restore the user's pause state when one returns. The physics worker runs on its own setInterval clock that
+   * keeps ticking (throttled) in a background tab. The PLC scan interleaves with the physics steps inside
    * that worker (sim/plcHost.ts), so control logic and physics share one clock and a hidden tab can't
    * desync them - but pausing the worker is still worth it to stop physics advancing a sim no one can
    * see (spawners spewing boxes offscreen) and to save CPU. Gated on `running`: a stopped sim has
    * nothing to freeze. We leave store.paused untouched so the Play/Pause button stays as
    * the user left it - this is an invisible background optimization, not a user pause. Visibility (not
    * window blur) is the signal: a side-by-side window the user can still see should keep running.
+   * It is asked of every window (dialogHost.ts appOnScreen), not this document: a popped-out PLC panel that
+   * covers this window hides this document, and the run must go on under the panel showing its values.
    */
-  private readonly onVisibilityChange = (): void => {
+  private readonly onAppOnScreen = (onScreen: boolean): void => {
     const s = this.store.getState()
-    if (document.visibilityState === 'hidden') {
-      if (s.running) this.sim.setPaused(true)
-      return
-    }
-    // Back on screen. Drop the stale render frame so the first rAF dt is a fresh ~16ms frame rather
-    // than the whole hidden gap clamped to 0.1s - this dt still drives the camera, DRS, and (while
-    // stopped) manual motions. Not gated on `running`: frame-clock hygiene isn't sim-specific.
-    this.view.resetFrameClock()
     if (!s.running) return
-    // Resume the worker. It resyncs its step clock on unpause (worker.ts) so no hidden-gap backlog
-    // bursts physics forward, and the in-worker scan runs between the steps, so nothing to resync here.
-    // See docs/sim-clock.md.
-    this.sim.setPaused(s.paused) // restore the user's intent (normally resume)
+    // On resume the worker resyncs its step clock (worker.ts) so no hidden-gap backlog bursts physics forward,
+    // and the in-worker scan runs between the steps, so nothing to resync here. See docs/sim-clock.md.
+    this.sim.setPaused(onScreen ? s.paused : true) // back on screen: the user's intent (normally resume)
   }
 
   private onStoreChange = (transient = false): void => {

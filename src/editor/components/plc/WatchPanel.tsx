@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react'
+import { setIntervalOnScreen } from '../../dialogHost'
 import type { TagValue } from '../../../plc'
 import { deviceTags } from '../../../plc/bindings'
 import { listTags } from '../../../plc/tags'
@@ -282,9 +283,9 @@ export function WatchPanel({ store, state, controller }: WatchPanelProps): React
       setTimes(ctrlRef.current?.plcScanTimes ?? [])
     }
     read()
-    const id = setInterval(read, POLL_MS)
+    const stop = setIntervalOnScreen(read, POLL_MS)
     return () => {
-      clearInterval(id)
+      stop()
       setImage(null)
       setTimes([])
       lastSeen.current.clear()

@@ -45,6 +45,94 @@ export function dialogWindows(): Window[] {
   return [window, ...open()]
 }
 
+function onScreen(w: Window): boolean {
+  try {
+    return w.document.visibilityState === 'visible'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Whether any window of the app is on screen. The browser reports a window that another fully covers as hidden,
+ * so a popped-out panel dragged over this window hides this document while the panel is in plain view.
+ */
+export function appOnScreen(): boolean {
+  return dialogWindows().some(onScreen)
+}
+
+/** Call `changed` with {@link appOnScreen} each time its answer changes. Returns the function that stops it. */
+export function watchAppOnScreen(changed: (onScreen: boolean) => void): () => void {
+  let was = appOnScreen()
+  return watchAppVisibility(() => {
+    const now = appOnScreen()
+    if (now === was) return
+    was = now
+    changed(now)
+  })
+}
+
+/**
+ * Call `changed` when a window of the app is shown or hidden, and when a popped-out one opens or closes.
+ * `document.addEventListener('visibilitychange')` hears only this window.
+ */
+function watchAppVisibility(changed: () => void): () => void {
+  let attached: Document[] = []
+  const detach = (): void => {
+    for (const d of attached) {
+      try {
+        d.removeEventListener('visibilitychange', changed)
+      } catch {
+        // a window that has already gone takes its listeners with it
+      }
+    }
+  }
+  const attach = (): void => {
+    detach()
+    attached = dialogWindows().map((w) => w.document)
+    for (const d of attached) d.addEventListener('visibilitychange', changed)
+  }
+  attach()
+  const reattach = (): void => {
+    attach()
+    changed()
+  }
+  listeners.add(reattach)
+  return () => {
+    listeners.delete(reattach)
+    detach()
+  }
+}
+
+/**
+ * `setInterval` for a poll that feeds a panel: it runs on a window that is on screen, and moves when that changes.
+ * A hidden window's timers fire once a second, so a poll on this window's timer slows to that while a popped-out
+ * panel covers it. Returns the function that stops it.
+ */
+export function setIntervalOnScreen(fn: () => void, ms: number): () => void {
+  const pick = (): Window => dialogWindows().find(onScreen) ?? window
+  let win = pick()
+  let id = win.setInterval(fn, ms)
+  const clear = (): void => {
+    try {
+      win.clearInterval(id)
+    } catch {
+      // a window that has already gone took its timers with it
+    }
+  }
+  const unwatch = watchAppVisibility(() => {
+    const next = pick()
+    if (next === win) return
+    clear()
+    win = next
+    id = win.setInterval(fn, ms)
+  })
+  return () => {
+    unwatch()
+    clear()
+  }
+}
+
 /** The window the user is working in: the popped-out one that has focus, else this one. */
 export function activeWindow(): Window {
   for (const w of open()) if (w.document.hasFocus()) return w

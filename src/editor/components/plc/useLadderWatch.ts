@@ -7,6 +7,7 @@ import { indexWatch, shownUnchanged, watchLookup, type WatchIndex, type WatchLoo
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasKeySet, keySetOf } from '../../../core/watchKeys'
 import { watchKeyCount } from '../../../core/watchTable'
+import { setIntervalOnScreen } from '../../dialogHost'
 
 /** the image while a running program has published none yet: one object, so each poll is the same state */
 const NO_VALUES: Readonly<Record<string, TagValue>> = Object.freeze({})
@@ -75,7 +76,7 @@ export function useLadderWatch(
       redraw((n) => n + 1)
       return
     }
-    const id = setInterval(() => {
+    return setIntervalOnScreen(() => {
       const next = getWatchRef.current() ?? NO_VALUES
       const was = latest.current
       if (next === was) return
@@ -84,7 +85,6 @@ export function useLadderWatch(
       const { lookup, indexed } = lookupFor(next, sourceRef.current)
       if (indexed || !shownUnchanged(shown.current, lookup)) redraw((n) => n + 1)
     }, 120)
-    return () => clearInterval(id)
   }, [live])
   const image = live ? latest.current : null
   const read = useMemo(() => {
