@@ -129,9 +129,12 @@ neighbours, so `resolveRollerGrids` produces the per-instance `anchor` and nudge
 - A rig with a `worldPhase` array-link is a straight roller node (`isWorldPhaseRollerBed` + `gridNode`), so its
   phase inherits a butted curve's anchor and propagates down a collinear chain.
 - A curved roller bed is an **anchor source** (`isCurveAnchor`: a curved bed whose snap `endExt` is below the
-  belt half-pulley is a roller curve; a curved *belt* has no rollers and is excluded). A butted straight phases
-  its rollers onto the curve seam, and `worldPhaseDeltas` drops the copy the anchoring curve owns, so the seam
-  doesn't double a roller.
+  belt half-pulley is a roller curve; a curved *belt* has no rollers and is excluded). The anchor is the curve's
+  end axle, and a butted straight's first roller is one pitch on from it. A curve that declares
+  `conveyor.endRollerInset` has that axle the inset in from its end (`oip.curved-roller-conveyor`: half a pitch), so
+  every tube is inside its own bed and the spacing across the joint is one pitch, between two such curves too.
+  A curve that declares none has the axle on its end face: the straight phases its rollers onto the seam and
+  `worldPhaseDeltas` drops the copy the curve owns, so the seam doesn't double a roller.
 - `worldPhase` is a straight bed's distribution only. The spur (`oip.spur-conveyor`) is a *belt* spur with no
   roller array, and a curve has angular rollers, not a linear pitch grid, so it only *anchors* neighbours.
 

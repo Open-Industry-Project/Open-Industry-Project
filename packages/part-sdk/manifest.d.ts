@@ -899,6 +899,10 @@ export type CargoMarkValue = number | boolean | string;
  *   figure a belt datasheet quotes (a smooth PVC belt about 0.4, a rough-top about 0.9, a low-friction modular
  *   belt about 0.2). Other cargo grips by its own friction against the same surface. Without it the surface grips
  *   as its `surface` kind does: about 0.59 against a carton for a belt, 0.42 for rollers.
+ * - `endRollerInset`: for an `arc` roller bed, how far in from each end its first and last axles stand, in metres
+ *   along the centreline. Half the roller pitch keeps every tube inside the bed and makes the spacing across a joint
+ *   one pitch: a straight roller bed butted to the curve takes its pitch grid from that axle, one pitch on from it.
+ *   Absent or 0: the end axle is on the end face itself, where the straight bed leaves the joint line to it.
  *
  * The handles are only the viewport's drag affordances; they don't decide what a part is.
  */
@@ -908,6 +912,7 @@ export interface ConveyorDecl {
     speedParam?: string;
     reverseParam?: string;
     frictionParam?: string;
+    endRollerInset?: number;
 }
 
 export interface PartPackage {

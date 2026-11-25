@@ -154,8 +154,9 @@ describe('declared conveyors (package format 4)', () => {
       // the part as a format 3 package: no declarations, so the upgrade infers them by format 3's rules
       const { conveyor, commsParam, ...rest } = pkg
       const inferred = upgradeStoredPackage({ ...rest, format: 3 }).pkg as PartPackage
-      // (format 3 had no friction param to infer: a part without one grips as its surface kind)
-      const { frictionParam: _friction, ...declared } = conveyor ?? {}
+      // (format 3 had no friction param to infer: a part without one grips as its surface kind. Nor an end roller
+      // inset: a curve without one has its end axle on its end face)
+      const { frictionParam: _friction, endRollerInset: _inset, ...declared } = conveyor ?? {}
       expect(inferred.conveyor, pkg.id).toEqual(conveyor ? declared : undefined)
       expect(inferred.commsParam, pkg.id).toEqual(commsParam)
     }

@@ -208,6 +208,28 @@ describe('resolveRollerGrids (neighbour-aware grid)', () => {
     expect(stations[0]).toBeCloseTo(lo + pitch, 9)
   })
 
+  it('a curve whose end axles stand inside it anchors the straight to that axle: one pitch across the joint', () => {
+    registerPackage(rollerPkg())
+    // the same curve, declaring its end axles half a pitch in from each end (ConveyorDecl.endRollerInset)
+    const inset = ROLLER_PITCH / 2
+    const pkg = curvePkg(CURVE_PKG, CURVED_ROLLER_END_EXT)
+    registerPackage({ ...pkg, conveyor: { ...pkg.conveyor!, endRollerInset: inset } })
+    const c = sdkCurve('c', CURVE_PKG)
+    const straight = sdkRoller('s', 0.9, CURVED_ROLLER_END_EXT - 1.5, Math.PI / 2, 3)
+    const grid = resolveRollerGrids([c, straight]).get('s')!
+    // the curve's end axle: the inset behind its arc end, which is the end's lead-in behind its snap end, on the
+    // side away from the straight (+Z here)
+    const axleBack = inset + CURVED_ROLLER_END_EXT
+    expect(grid.anchor![0]).toBeCloseTo(0.9, 6)
+    expect(grid.anchor![2]).toBeCloseTo(CURVED_ROLLER_END_EXT + axleBack, 6)
+    // the straight's first roller is one pitch on from that axle, and its whole tube is inside its own bed
+    const lo = -1.5
+    const stations = rollerStations(straight, grid)
+    expect(stations[0]).toBeCloseTo(lo + ROLLER_PITCH - axleBack, 9)
+    expect(stations[0]! - lo).toBeGreaterThan(ROLLER_RADIUS)
+    expect(stations[1]! - stations[0]!).toBeCloseTo(ROLLER_PITCH, 9)
+  })
+
   it('propagates the curve anchor down a chain of collinear straights', () => {
     registerPackage(rollerPkg())
     registerPackage(curvePkg(CURVE_PKG, CURVED_ROLLER_END_EXT))

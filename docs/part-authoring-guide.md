@@ -415,6 +415,10 @@ side-merge snapping, deck merging), declare it in the manifest:
 - `speedParam` names the number param the host reads outside your tick (belt scroll, roller spin, the flow
   arrow, the pilot riding the surface, the spawner-interlock seed before the first tick). Any name works.
 - `reverseParam` names a hidden boolean the snap flips to turn a curve's flow around.
+- `endRollerInset` is for a curved roller bed: how far in from each end its first and last axles stand, in metres
+  along the centreline. Use half your roller pitch. A straight roller bed butted to the curve then puts its first
+  roller one pitch on from that axle, so the spacing carries across the joint and no roller stands past an end.
+  Leave it out and the host takes your end axle to be on the end face.
 - `frictionParam` names the number param that is the surface's friction against a standard carton, the figure a
   belt datasheet quotes (a smooth PVC belt about 0.4, a rough-top about 0.9, a low-friction modular belt about
   0.2). Other cargo grips by its own friction against it. Without one the surface grips as its `surface` kind

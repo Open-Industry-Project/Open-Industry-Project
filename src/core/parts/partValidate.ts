@@ -738,6 +738,10 @@ function validateConveyor(p: Record<string, unknown> | undefined, problems: Pack
   named('speedParam', (c as { speedParam?: unknown }).speedParam, 'number')
   named('reverseParam', (c as { reverseParam?: unknown }).reverseParam, 'boolean')
   named('frictionParam', (c as { frictionParam?: unknown }).frictionParam, 'number')
+  const inset = (c as { endRollerInset?: unknown }).endRollerInset
+  if (inset !== undefined && !(typeof inset === 'number' && Number.isFinite(inset) && inset >= 0 && inset <= 1)) {
+    problems.push({ field: 'conveyor.endRollerInset', message: 'conveyor.endRollerInset must be a number of metres from 0 to 1 (how far in from each end an arc roller bed\'s end axles stand)' })
+  }
   if (c.bed === undefined) return
   if (!CONVEYOR_BEDS.includes(c.bed as string)) {
     problems.push({ field: 'conveyor.bed', message: `conveyor.bed must be one of ${CONVEYOR_BEDS.map((b) => `'${b}'`).join(', ')}` })

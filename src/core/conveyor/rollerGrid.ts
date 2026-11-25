@@ -14,6 +14,9 @@ import { memoizeByParticipants } from '../memoParts'
  * snap-time communication. The grid passes through `anchor` (a curved
  * conveyor's end roller, or an anchor inherited down a chain of collinear
  * straights) when one exists, else through the world origin.
+ *
+ * A curve's end roller is on its end face unless its part says how far in it stands (ConveyorDecl
+ * `endRollerInset`). The anchor is that axle either way, so the straight bed's first roller is one pitch on from it.
  */
 
 /** Resolved grid inputs for one straight roller bed (the instanced-roller grid arguments). */
@@ -138,6 +141,9 @@ interface GridNode {
   rise: number
   center: { x: number; z: number }
   ends: { end: 'front' | 'back'; x: number; y: number; z: number }[]
+  /** a curve whose end axles stand inside it: how far its end axle is from its snap end, along the bed it butts
+   *  (the declared inset plus the end's lead-in). 0 for an axle on the end face, and for a straight */
+  axleBack: number
 }
 
 /**
@@ -160,10 +166,12 @@ function gridNode(part: PartInstance): GridNode | null {
   const isCurve = isCurveAnchor(part)
   if (!isStraight && !isCurve) return null
   const f = forwardXZ(part.rotationY)
+  const inset = isCurve && part.type === 'part' ? (getPackage(part.packageId)?.conveyor?.endRollerInset ?? 0) : 0
   return {
     id: part.id,
     isStraight,
     isCurve,
+    axleBack: inset > 0 ? inset + (bedView(part, 'arc')?.endExt ?? 0) : 0,
     axis: f,
     rise: Math.sin(resolveInclineRad(part)),
     center: { x: part.position[0], z: part.position[2] },
@@ -264,8 +272,12 @@ function resolveRollerGridsUncached(parts: readonly PartInstance[]): Map<string,
             else flags.back = true
             if (o.isStraight) collinearStraightNeighbours.get(s.id)!.push(o.id)
           }
-          // a curve is flat, so it seeds only a flat bed's pitch (an inclined bed's rollers can't continue it)
-          if (o.isCurve && s.rise === 0) anchors.set(s.id, [oe.x, oe.y, oe.z])
+          // a curve is flat, so it seeds only a flat bed's pitch (an inclined bed's rollers can't continue it). The
+          // anchor is the curve's end axle: on the end face, or `axleBack` behind it, away from this bed along its axis
+          if (o.isCurve && s.rise === 0) {
+            const away = Math.sign((se.x - s.center.x) * s.axis.x + (se.z - s.center.z) * s.axis.z) || 1
+            anchors.set(s.id, [oe.x + away * o.axleBack * s.axis.x, oe.y, oe.z + away * o.axleBack * s.axis.z])
+          }
         }
       }
     }
