@@ -47,8 +47,13 @@ or tell us on [Discord](https://discord.gg/ACRPr6sBpH).
   (S7-1200/1500), SLMP (MELSEC) or ADS (TwinCAT) (desktop app; see the
   [connection guides](https://www.openindustryproject.org/guides/))
 - OPC UA server, so a SCADA or HMI can read the simulation (desktop app)
-- Custom parts via the [part SDK](packages/part-sdk/)
-- Live collaboration
+- MQTT publisher, so a dashboard or any MQTT client can follow and write the program's variables
+  (desktop app or browser)
+- Custom parts via the [part SDK](packages/part-sdk/), or from your own model (.glb, STEP or USD)
+- Project tests for a line's control logic
+- Walk the line in first person, or in VR
+- Live collaboration, and view-only links
+- Tools for an AI agent over MCP (desktop app)
 
 ## Running Locally
 

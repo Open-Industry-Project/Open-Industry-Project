@@ -500,6 +500,15 @@ Clear := Ossd <span class="kw">OR</span> Muted;</pre>
                 <h3>Test the logic, not just the layout</h3>
                 <p class="prose">Keep regression tests for a project's control logic with the project, and run them from the editor after each change.</p>
               </div>
+              <div>
+                <h3>Bring in your own machine</h3>
+                <p class="prose">Import a model from Blender or a CAD program as .glb, STEP or USD. Split it into pieces, add joints, and move a joint from the PLC without writing code.</p>
+                <a class="more" href="/guides/part-model/">Follow the guide, step by step &rarr;</a>
+              </div>
+              <div>
+                <h3>Hand the work to an AI agent</h3>
+                <p class="prose">Once you allow it, the desktop app opens the editor to the agent you already use, over MCP. It places parts, writes the program and runs the tests, and each change is one undo step.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -511,11 +520,12 @@ Clear := Ossd <span class="kw">OR</span> Muted;</pre>
           <div class="sheet"><b>03</b> CONNECT</div>
           <h2>Connect your own PLC to the simulated line.</h2>
           <p class="prose" style="margin-top: 18px">
-            The desktop app swaps the built-in PLC for yours.
+            The desktop app swaps the built-in PLC for yours. Or keep the built-in PLC and serve its variables to a
+            SCADA or HMI over OPC UA, or publish them to an MQTT broker, which a browser tab can do too.
           </p>
 
           <div class="wiring">
-            <svg viewBox="0 0 1000 200" role="img" aria-label="Wiring: your PLC connects to the simulated line over Modbus TCP, OPC UA, EtherNet/IP, S7, SLMP or ADS; the simulator serves tags over OPC UA to a SCADA or HMI.">
+            <svg viewBox="0 0 1000 200" role="img" aria-label="Wiring: your PLC connects to the simulated line over Modbus TCP, OPC UA, EtherNet/IP, S7, SLMP or ADS; the simulator serves tags to a SCADA or HMI through its OPC UA server or its MQTT publisher.">
               <rect class="box" x="1" y="50" width="190" height="100" />
               <text class="title" x="20" y="92">Your PLC</text>
               <text x="20" y="118">hardware or soft PLC</text>
@@ -533,6 +543,7 @@ Clear := Ossd <span class="kw">OR</span> Muted;</pre>
 
               <path class="wire" d="M670 100 H809" />
               <text class="proto" x="684" y="88">OPC UA server</text>
+              <text class="proto" x="684" y="124">MQTT publisher</text>
 
               <rect class="box" x="809" y="50" width="190" height="100" />
               <text class="title" x="828" y="92">SCADA or HMI</text>
@@ -569,7 +580,9 @@ Clear := Ossd <span class="kw">OR</span> Muted;</pre>
           <table class="datasheet">
             <tr><th>PLC languages</th><td>IEC 61131-3 Structured Text and Ladder Diagram, a working subset; not certified. <a href="/plc/">Full list</a></td></tr>
             <tr><th>Exchange</th><td><code>.st</code> files, PLCopen XML 2.01</td></tr>
-            <tr><th>Connections</th><td>External PLCs over Modbus TCP, OPC UA, EtherNet/IP, S7 PUT/GET, SLMP or ADS; an OPC UA server for a SCADA or HMI (desktop app)</td></tr>
+            <tr><th>Model import</th><td>.glb, STEP, USD</td></tr>
+            <tr><th>Connections</th><td>External PLCs over Modbus TCP, OPC UA, EtherNet/IP, S7 PUT/GET, SLMP or ADS, and an OPC UA server for a SCADA or HMI (desktop app); an MQTT publisher (desktop app or browser)</td></tr>
+            <tr><th>AI agents</th><td>The open editor's tools over MCP (desktop app)</td></tr>
             <tr><th>Physics</th><td>Jolt, compiled to WebAssembly, multi-threaded</td></tr>
             <tr><th>Runs on</th><td>Any modern browser; Windows (signed installer); Linux (.deb, AppImage)</td></tr>
             <tr><th>Price</th><td>Free. No account, no licence key.</td></tr>
