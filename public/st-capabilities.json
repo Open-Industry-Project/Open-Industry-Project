@@ -1346,7 +1346,7 @@
     "entries": [
       {
         "case": "same-width signed/unsigned ties resolve unsigned, both orders",
-        "note": "IEC does not define mixing signed with unsigned at all; our rule is that the UNSIGNED type wins the same-width tie, in either operand order, so the result is deterministic. (Bit strings no longer take part: arithmetic on ANY_BIT is rejected outright, which is what removed the other half of this divergence.)"
+        "note": "IEC does not define mixing signed with unsigned at all; our rule is that the UNSIGNED type wins the same-width tie, in either operand order, so the result is deterministic. (Bit strings take no part: arithmetic on ANY_BIT is rejected outright.)"
       },
       {
         "case": "both operands of a BOOL AND are evaluated, so a guard does not protect a divide",
@@ -1354,7 +1354,7 @@
       },
       {
         "case": "FOR evaluates bounds once and owns its iteration",
-        "note": "The loop bound is snapshotted at entry here, and BOTH independent IEC compilers whose behaviour could be inspected re-read it every iteration, so this program runs 3 times here and 10 times there. MATIEC: its generated C puts `if (I <= N)` inside the loop, reading the live variable. RuSTy (PLC-lang): its FOR lowering plants the user-written bound expression in the loop's exit test rather than a temporary, and says so in its own comment. Neither is provably right: IEC constrains FOR to a count \"determined in advance\", but no edition text reachable from here says WHEN the final-value expression is evaluated, so where to read it is this engine's own rule. Two compilers agreeing is weaker evidence than it looks, since both lower FOR to a C/LLVM-style loop where re-reading is the lazy path. The snapshot is kept anyway: it is what makes the iteration count knowable at entry, which is the property FOR exists for (WHILE is the construct for a condition re-tested each pass), and the only runaway guard here is a count rather than a clock (the interpreter faults a loop after 1,000,000 iterations), so a body that grows its own bound would run a million iterations in one scan before that fault stopped it. Because it cannot be settled, it is not left silent either: exporting a loop whose body writes its own bound now WARNS (export.ts), which is the honest response to a difference nobody can adjudicate."
+        "note": "The loop bound is snapshotted at entry here, and BOTH independent IEC compilers whose behaviour could be inspected re-read it every iteration, so this program runs 3 times here and 10 times there. MATIEC: its generated C puts `if (I <= N)` inside the loop, reading the live variable. RuSTy (PLC-lang): its FOR lowering plants the user-written bound expression in the loop's exit test rather than a temporary, and says so in its own comment. Neither is provably right: IEC constrains FOR to a count \"determined in advance\", but no edition text reachable from here says WHEN the final-value expression is evaluated, so where to read it is this engine's own rule. Two compilers agreeing is weaker evidence than it looks, since both lower FOR to a C/LLVM-style loop where re-reading is the lazy path. The snapshot is kept anyway: it is what makes the iteration count knowable at entry, which is the property FOR exists for (WHILE is the construct for a condition re-tested each pass), and the only runaway guard here is a count rather than a clock (a loop faults after 1,000,000 iterations), so a body that grows its own bound would run a million iterations in one scan before that fault stopped it. Because it cannot be settled, it is not left silent either: exporting a loop whose body writes its own bound now WARNS (export.ts), which is the honest response to a difference nobody can adjudicate."
       },
       {
         "case": "R_TRIG / F_TRIG single-scan pulses",
@@ -2092,7 +2092,7 @@
         "id": "matiec",
         "name": "MATIEC (iec2c)",
         "edition": "IEC 61131-3, 2nd edition",
-        "proves": "Every corpus program is written out by the app’s own exporter and compiled by a real IEC compiler. The generated C is built, run with the corpus inputs, and compared with the expected values scan for scan.",
+        "proves": "Each corpus program a 2nd-edition compiler can take is written out by the app’s own exporter and compiled by a real IEC compiler; the rest are withheld, each with its reason in the manifest. The generated C is built, run with the corpus inputs, and compared with the expected values scan for scan.",
         "script": "scripts/oracle-matiec.mjs",
         "run": "npm run st-oracle",
         "pinned": "7949c0bda1787de9c7cacaa4876ede49f85262dd"

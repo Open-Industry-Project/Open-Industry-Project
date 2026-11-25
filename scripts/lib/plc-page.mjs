@@ -351,7 +351,7 @@ export function renderPlcPage(m) {
             <h3>Not claimed</h3>
             <ul>
               <li>Compliance. There is no statement against the standard's feature tables and no PLCopen certification.</li>
-              <li>Completeness. Event tasks, 64-bit types and the other gaps in section 4 are missing.</li>
+              <li>Completeness. Event tasks, the 64-bit time and date types and the other gaps in section 4 are missing.</li>
               <li>Function Block Diagram, Sequential Function Chart and Instruction List. Only Structured Text and Ladder Diagram are read.</li>
               <li>Vendor extensions. IEC text is read as written, and vendor extensions are not translated.</li>
               <li>All of 3rd-edition object orientation: function blocks take METHOD, EXTENDS and INTERFACE, and variables take REF_TO, but there is no CLASS or NAMESPACE.</li>
@@ -365,8 +365,9 @@ export function renderPlcPage(m) {
       <div class="wrap">
         <h2>2. Structured Text</h2>
         <p class="sub">
-          The types, blocks, functions and keywords below are the engine's own tables. Each example compiled while this
-          page was built.
+          The types, blocks, functions and reserved words below are the engine's own tables. Words the parser reads only
+          where they can stand, such as PROGRAM, METHOD, REF_TO and AT, are not reserved and are shown in the examples.
+          Each example compiled while this page was built.
         </p>
         <dl class="vocab">
           <dt>Types</dt>
@@ -375,7 +376,7 @@ export function renderPlcPage(m) {
           <dd>${chips(m.functionBlocks)}</dd>
           <dt>Functions</dt>
           <dd>${chips(m.functions.named)}<p class="sub" style="margin:0">Plus the ${esc(m.functions.conversions.pattern)} conversion family over those types.</p></dd>
-          <dt>Keywords</dt>
+          <dt>Reserved words</dt>
           <dd>${chips(m.keywords)}</dd>
         </dl>
         ${cards(pick(iec, 'supported'))}
@@ -468,11 +469,12 @@ export function renderPlcPage(m) {
         <h2>8. Outside checks</h2>
         <p class="sub">
           Tests written alongside the engine can only show that it agrees with itself, so the test corpus is also run
-          through tools this project did not write. Each is pinned to an exact version, so a result can be reproduced.
+          through tools this project did not write. Each compiler and editor is pinned to an exact version, so a result
+          can be reproduced.
           These checks have found real defects in the engine, such as timers running a scan early and programs accepted
           here that no real compiler would build. Each was fixed and is kept as a test case.
         </p>
-        <h3>On every push</h3>
+        <h3>On every push that touches the engine</h3>
         ${oraclePanels(ci)}
         <p class="body">
           The corpus samples the subset rather than covering it. A real IEC compiler has built and run
@@ -514,7 +516,7 @@ export function renderPlcPage(m) {
             <ul>
               <li>A spec-legal <span class="fmt" translate="no">.st</span> file. The CONFIGURATION, RESOURCE and PROGRAM wrappers are removed, and the TASK interval becomes the scan time (this page's test file came in at ${esc(String(m.portability.import[0].scanMsFromSample))} ms).</li>
               <li>A PLCopen TC6 project, as IEC tools export it. A ladder body comes in as ladder, rung for rung.</li>
-              <li>Anything the subset cannot hold is named in a note, never dropped. An incomplete address such as AT %I*, which only a VAR_CONFIG could complete, comes back with a note asking for the full address. A memory address such as AT %MW0 crosses as written. A rung the engine cannot draw (a bridge, for example), or a body in FBD, SFC or IL, leaves that POU out with a note saying why.</li>
+              <li>Anything the subset cannot hold is named in a note, never dropped. An incomplete address such as AT %I*, which a target completes in its I/O configuration, comes in as a plain variable with a note saying so: wire a part to it by name. A memory address such as AT %MW0 crosses as written. A rung the engine cannot draw (a bridge, for example), or a body in FBD, SFC or IL, leaves that POU out with a note saying why.</li>
             </ul>
           </div>
         </div>

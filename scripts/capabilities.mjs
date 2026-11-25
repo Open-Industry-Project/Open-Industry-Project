@@ -399,7 +399,7 @@ const ORACLE_DEFS = [
     id: 'matiec',
     name: 'MATIEC (iec2c)',
     edition: 'IEC 61131-3, 2nd edition',
-    proves: 'Every corpus program is written out by the app’s own exporter and compiled by a real IEC compiler. The generated C is built, run with the corpus inputs, and compared with the expected values scan for scan.',
+    proves: 'Each corpus program a 2nd-edition compiler can take is written out by the app’s own exporter and compiled by a real IEC compiler; the rest are withheld, each with its reason in the manifest. The generated C is built, run with the corpus inputs, and compared with the expected values scan for scan.',
     script: 'scripts/oracle-matiec.mjs',
     run: 'npm run st-oracle',
     where: 'ci',
