@@ -292,6 +292,7 @@ export function setPlcLink(store: PlcStore, name: string | null, patch: Partial<
     const next = sanitizeExternalPlc({ ...prefs, ...address })
     keepLastValid(next, prefs, address)
     if (address.uaServerPort !== undefined && next.uaServerPort !== address.uaServerPort) next.uaServerPort = prefs.uaServerPort
+    for (const key of ['mqttUrl', 'mqttTopic', 'mqttUser'] as const) if (address[key] !== undefined && next[key] !== address[key]) next[key] = prefs[key]
     if (address.controllers === undefined) next.controllers = prefs.controllers
     // the project's fields stay as this computer had them, for a scene without a list of its own
     next.enabled = prefs.enabled

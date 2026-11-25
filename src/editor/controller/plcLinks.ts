@@ -1,5 +1,6 @@
 // The EditorController's (../controller.ts) links to PLCs outside the app: an external PLC
-// over Modbus / S7 / OPC UA / EtherNet/IP / ADS, its tag browse, and the simulated PLC's OPC UA server.
+// over Modbus / S7 / OPC UA / EtherNet/IP / ADS, its tag browse, and the simulated PLC's OPC UA server and MQTT
+// publisher.
 // Besides the default controller's link there is one per named controller (`Cell2::%IX0.0`, core/io/controllerTag.ts),
 // each on a link of its own in the desktop shell (links/linkHosts.ts), and each carrying only its own tags.
 // The link's module, session, status, tag list and the server are this area's own state (PlcLinkState, held by
@@ -19,7 +20,12 @@ import { adsEndpoint, eipEndpoint, eipTarget, EXTERNAL_PLC_OFF, flattenFrameTags
 import type { ExternalPlcLink, ExternalPlcStatus, PlcTagList } from '../links/externalPlcStatus'
 import { adsForLink, controllerLink, eipForLink, opcUaForLink, opcUaServerForLink, plcIoForLink } from '../links/linkHosts'
 import { OPC_UA_SERVER_OFF, OpcUaServerSession, publishedVariables } from '../links/opcUaServer'
-import type { OpcUaServerStatus, PublishedProgram } from '../links/opcUaServer'
+import type { OpcUaServerStatus, PublishedProgram, ServerNode } from '../links/opcUaServer'
+import { parseMqttUrl } from '../../core/io/mqtt'
+// the publisher's session is loaded when it is switched on (syncMqtt): only its "Off" is static
+import { MQTT_PUBLISHER_OFF } from '../links/mqttPublisherStatus'
+import type { MqttPublisherStatus } from '../links/mqttPublisherStatus'
+import type { MqttPublisherSession } from '../links/mqttPublisher'
 import type { ExternalPlcSettings, PlcLinkSettings } from '../store/storePrefs'
 import type { PlcSetup } from '../store/storePlcs'
 import type { EditorStore } from '../store/store'
@@ -52,6 +58,13 @@ export class PlcLinkState {
   uaServerSettings: ExternalPlcSettings | null = null
   // each simulated controller's own server, by controller name, with the settings it was opened on
   readonly namedUa = new Map<string, { session: OpcUaServerSession; key: string }>()
+  // the simulated PLC's MQTT publisher (editor/links/mqttPublisher.ts): connected for as long as it is switched on.
+  // `mqttKey` is what the session was opened on ('' when off), and `mqttWhyNot` why there is none though it is on
+  mqtt: MqttPublisherSession | null = null
+  mqttKey = ''
+  mqttWhyNot: string | null = null
+  /** the broker's password: typed in Controller Properties, kept until the app closes, never saved */
+  mqttPassword = ''
   /** the last value image built from the links (plcImage), and what it was built from: rebuilt only when one changes */
   image: { own: object | null; tags: object | undefined; out: object; value: Readonly<Record<string, TagValue>> } | null = null
   /** every named server stop still in flight: a server starts only once all are done, so a quick off and on again
@@ -188,6 +201,7 @@ export function syncOpcUaServer(l: PlcLinkState, p: ProgramState, ec: PlcLinkDep
   const same = prev !== null && prev.uaServer === settings.uaServer && prev.uaServerPort === settings.uaServerPort && prev.uaServerNetwork === settings.uaServerNetwork
   // each simulated controller's own server follows its own settings, whether or not the default one's changed
   syncNamedUaServers(l, p, ec)
+  syncMqtt(l, p, ec)
   if (same && (l.uaServer !== null) === want) return notifyExternal(l)
   const old = l.uaServer
   l.uaServer = null
@@ -288,9 +302,11 @@ export function publishNamedUaServers(l: PlcLinkState, p: ProgramState, ec: Pick
   }
 }
 
-/** Hand every server the program's variables as they stand, and whether a program runs here (null, false: out of service). */
+/** Hand every server, and the MQTT publisher, the program's variables as they stand, and whether a program runs here
+ *  (null, false: out of service). */
 export function updateUaServers(l: PlcLinkState, watch: Readonly<Record<string, TagValue>> | null, live: boolean): void {
   l.uaServer?.update(watch, live)
+  l.mqtt?.update(watch, live)
   for (const { session } of l.namedUa.values()) session.update(watch, live)
 }
 
@@ -299,29 +315,103 @@ export function namedUaServerStatus(l: PlcLinkState, name: string): OpcUaServerS
   return l.namedUa.get(name)?.session.status() ?? OPC_UA_SERVER_OFF
 }
 
-/** Stop every server, the window closing. */
+/** Stop every server and the MQTT publisher, the window closing. */
 export function stopUaServers(l: PlcLinkState): void {
+  l.mqtt?.stop()
+  l.mqtt = null
+  l.mqttKey = ''
   void l.uaServer?.stop()
   l.uaServer = null
   for (const { session } of l.namedUa.values()) void session.stop()
   l.namedUa.clear()
 }
 
-/** Publish a program's variables, with what the scene feeds read-only (editor/links/opcUaServer.ts publishedVariables). */
-export function publishToUaServer(l: PlcLinkState, store: EditorStore, program: PublishedProgram): void {
-  if (!l.uaServer) return
+/** A program's variables as they are published, with what the scene feeds read-only (editor/links/opcUaServer.ts publishedVariables). */
+function programNodes(store: EditorStore, program: PublishedProgram): ServerNode[] {
   const feeds = new Set(checkWiring(store.getState().scene.parts).tags.filter((t) => t.writers.length > 0).map((t) => t.name))
-  l.uaServer.publish(publishedVariables(program, feeds))
+  return publishedVariables(program, feeds)
+}
+
+/** The document's program as it compiles, or null when it does not: what is published while stopped. */
+function documentProgram(store: EditorStore): PublishedProgram | null {
+  const { stProgram, controller, stScanMs } = store.getState()
+  try {
+    return new LocalPlcLink(runnableSource(stProgram, controllerFor(stProgram, controller, stScanMs)))
+  } catch {
+    // a program that does not compile publishes nothing new; Play reports why
+    return null
+  }
+}
+
+/** Publish a program's variables on the default controller's OPC UA server and the MQTT publisher. */
+export function publishToUaServer(l: PlcLinkState, store: EditorStore, program: PublishedProgram): void {
+  if (!l.uaServer && !l.mqtt) return
+  const nodes = programNodes(store, program)
+  l.uaServer?.publish(nodes)
+  l.mqtt?.publish(nodes)
 }
 
 /** While stopped, the server publishes the document's program as it compiles, so a SCADA can browse it before Play. */
 export function publishDocumentProgram(l: PlcLinkState, store: EditorStore): void {
-  const { stProgram, controller, stScanMs } = store.getState()
-  try {
-    publishToUaServer(l, store, new LocalPlcLink(runnableSource(stProgram, controllerFor(stProgram, controller, stScanMs))))
-  } catch {
-    // a program that does not compile publishes nothing new; Play reports why
-  }
+  const program = documentProgram(store)
+  if (program) publishToUaServer(l, store, program)
+}
+
+/** Why a browser tab has no publisher for a plain `mqtt://` broker. */
+const MQTT_NEEDS_WEBSOCKET = "a browser tab cannot open a plain mqtt:// connection. Use the broker's WebSocket address (ws:// or wss://), or the desktop app"
+
+/**
+ * Connect, reconnect or disconnect the simulated PLC's MQTT publisher to match its settings and the typed password.
+ * Its own lifetime, as the OPC UA server's: a dashboard stays subscribed across Stop and Play, and reads `stopped` in
+ * between. Only while the default controller's program runs here, since an external PLC's program is not ours to publish.
+ */
+export function syncMqtt(l: PlcLinkState, p: ProgramState, ec: PlcLinkDeps): void {
+  const s = ec.store.getState().externalPlc
+  const url = s.mqtt && !s.enabled ? parseMqttUrl(s.mqttUrl) : null
+  const key = url ? JSON.stringify([url.href, s.mqttTopic, s.mqttUser, l.mqttPassword]) : ''
+  if (key === l.mqttKey) return
+  l.mqttKey = key
+  l.mqtt?.stop()
+  l.mqtt = null
+  l.mqttWhyNot = null
+  notifyExternal(l)
+  if (!url) return
+  void import('../links/mqttPublisher')
+    .then((m) => {
+      if (l.mqttKey !== key) return
+      const dial = m.mqttDialFor(url, ec.plcIoHost)
+      if (!dial) {
+        l.mqttWhyNot = MQTT_NEEDS_WEBSOCKET
+        return notifyExternal(l)
+      }
+      const session = new m.MqttPublisherSession(
+        dial,
+        { url, topic: s.mqttTopic, user: s.mqttUser, password: l.mqttPassword },
+        (values) => {
+          // as an OPC UA client's: a write reaches the program only while it runs here
+          if (p.plcAttached && ec.store.getState().running) ec.sim.writePlcVars(values)
+        },
+        () => notifyExternal(l),
+      )
+      l.mqtt = session
+      const program = p.uaProgram && p.plcAttached ? p.uaProgram : documentProgram(ec.store)
+      if (program) session.publish(programNodes(ec.store, program))
+      session.update(ec.plcWatch, p.plcAttached)
+      session.start()
+    })
+    .catch((e: unknown) => {
+      if (l.mqttKey !== key) return
+      l.mqttWhyNot = `the publisher could not load: ${e instanceof Error ? e.message : String(e)}`
+      notifyExternal(l)
+    })
+}
+
+/** The MQTT publisher's state, for Controller Properties. */
+export function mqttStatus(l: PlcLinkState): MqttPublisherStatus {
+  if (l.mqtt) return l.mqtt.status()
+  if (l.mqttKey === '') return MQTT_PUBLISHER_OFF
+  const broker = (JSON.parse(l.mqttKey) as string[])[0]!
+  return l.mqttWhyNot === null ? { ...MQTT_PUBLISHER_OFF, state: 'connecting', broker } : { ...MQTT_PUBLISHER_OFF, state: 'failed', broker, error: l.mqttWhyNot }
 }
 
 /**

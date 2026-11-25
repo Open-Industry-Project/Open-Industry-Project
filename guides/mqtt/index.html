@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#17191b" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Publish the line to an MQTT broker | Open Industry Project</title>
+    <meta name="description" content="Step by step: publish the simulated PLC program's variables to an MQTT broker, one topic each, and run the line from any MQTT client. Works from the desktop app and from a browser tab." />
+    <meta name="keywords" content="MQTT, broker, Mosquitto, unified namespace, dashboard, SCADA, simulator, virtual commissioning, IEC 61131-3" />
+    <link rel="canonical" href="https://www.openindustryproject.org/guides/mqtt/" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Open Industry Project" />
+    <meta property="og:title" content="Publish the line to an MQTT broker | Open Industry Project" />
+    <meta property="og:description" content="Step by step: publish the simulated PLC program's variables to an MQTT broker, one topic each, and run the line from any MQTT client. Works from the desktop app and from a browser tab." />
+    <meta property="og:url" content="https://www.openindustryproject.org/guides/mqtt/" />
+    <meta property="og:image" content="https://www.openindustryproject.org/og-image.jpg?v=20261013" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- A hand-written page, unlike /plc/. Every label, default, topic and status line below is read from the app
+         (editor/components/plc/MqttSection.tsx, editor/links/mqttPublisherStatus.ts, core/io/mqtt.ts), and
+         e2e/guide-mqtt.mjs follows the page with a Mosquitto broker and its command-line clients. Change those and
+         this goes stale. -->
+
+    <link rel="preload" href="/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin />
+
+    <link rel="stylesheet" href="/src/site/site.css" />
+    <script type="module" src="/src/site/copyCode.js"></script>
+  </head>
+
+  <body class="doc">
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-logo" href="/" aria-label="Open Industry Project home"><img src="/oip-logo.svg" alt="Open Industry Project" /></a>
+        <nav class="nav-links" aria-label="Site">
+          <a href="/plc/">PLC reference</a>
+          <a href="/guides/">Guides</a>
+          <a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+        <a class="btn btn-sm" href="/app/">Open the editor</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>Publishing the line to an MQTT broker</h1>
+        <p class="lede">
+          The program in the simulator's PLC panel keeps running here, and the simulator publishes its variables to an
+          MQTT broker, one topic each. A dashboard, a historian or any MQTT client subscribes to watch the line, and
+          publishes to press its buttons.
+        </p>
+        <p class="lede">
+          In this guide a client publishes one message, a belt carries a box to a sensor, and the program stops it. No
+          PLC is needed, and it takes about ten minutes.
+        </p>
+
+        <h2>You need</h2>
+        <ul class="dash">
+          <li>The desktop app, for <a href="/#desktop">Windows or Linux</a>. A browser tab works too, with one change to the broker: see <a href="#tab">From a browser tab</a>.</li>
+          <li>An MQTT broker. This guide uses <a href="https://mosquitto.org/download/" target="_blank" rel="noopener noreferrer">Mosquitto</a>, which is free, and its two command-line clients as the other side. Any broker and any client will do.</li>
+        </ul>
+
+        <ul class="toc">
+          <li><a href="#scene">1. Build the scene</a></li>
+          <li><a href="#program">2. Write the program</a></li>
+          <li><a href="#broker">3. Start the broker</a></li>
+          <li><a href="#publish">4. Switch on the publisher</a></li>
+          <li><a href="#watch">5. Watch from another client</a></li>
+          <li><a href="#run">6. Run the line</a></li>
+          <li><a href="#tab">From a browser tab</a></li>
+          <li><a href="#login">A broker with a login</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <section class="section" id="scene">
+      <div class="wrap">
+        <h2>1. Build the scene and wire it to the program</h2>
+        <p>Start a new scene and place three parts from the library:</p>
+        <ol class="steps">
+          <li>A <b>Belt Conveyor</b>.</li>
+          <li>A <b>Box</b>, sitting on the belt near the end it starts from.</li>
+          <li>A <b>Photo Eye</b> beside the belt, about two thirds of the way along, facing across it.</li>
+        </ol>
+        <p>
+          Select each device, find the <span class="ui">Comms</span> group in the Inspector, and type the program
+          variable it connects to:
+        </p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Part</th><th>Field</th><th>Type in</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>Photo Eye</td><td>Presence Tag</td><td class="m">Main.Eye</td><td>True while the sensor sees the box.</td></tr>
+              <tr><td>Belt Conveyor</td><td>Run Tag</td><td class="m">Main.Run</td><td>The belt runs while it is true.</td></tr>
+              <tr><td>Belt Conveyor</td><td>Speed Tag</td><td class="m">Main.Speed</td><td>The belt's speed, a setpoint a client can change.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure class="shot">
+          <img src="img/inspector-comms.webp" width="376" height="214" loading="lazy" decoding="async"
+            alt="The Inspector's Comms group for the Belt Conveyor, with Speed Tag set to Main.Speed and Run Tag set to Main.Run." />
+          <figcaption>The Belt Conveyor's Comms group, wired to the program.</figcaption>
+        </figure>
+        <p>
+          These are names, not I/O addresses. The parts talk to the program running in the simulator, and the broker
+          carries the program's variables. Nothing here travels over a fieldbus.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="program">
+      <div class="wrap">
+        <h2>2. Write the program</h2>
+        <p>
+          Open the PLC panel, replace whatever is in its code editor with this, and check the panel reports no errors:
+        </p>
+        <pre class="code" translate="no" data-copy><code>PROGRAM Main
+VAR
+  Start : BOOL;
+  Eye : BOOL;
+  Run : BOOL;
+  Speed : REAL := 0.5;
+END_VAR
+
+Run := Start AND NOT Eye;
+END_PROGRAM</code></pre>
+        <p>
+          The belt runs once <code>Start</code> is true and stops while the sensor sees the box. Nothing in the scene sets
+          <code>Start</code>. A message from the broker does.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="broker">
+      <div class="wrap">
+        <h2>3. Start the broker</h2>
+        <p>
+          Install Mosquitto and start it. With no configuration file it listens on this computer only, on port 1883, and
+          takes any client without a login, which is all this guide needs:
+        </p>
+        <pre class="code" translate="no" data-copy><code>mosquitto -v</code></pre>
+        <ul class="dash">
+          <li>On Windows the installer puts it in <code>C:\Program Files\mosquitto</code> and registers it as a service. If the service is already running, there is nothing to start.</li>
+          <li>The same folder holds the two clients the next steps use, <code>mosquitto_sub</code> and <code>mosquitto_pub</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="publish">
+      <div class="wrap">
+        <h2>4. Switch on the publisher</h2>
+        <p>Open <span class="ui">Simulation &gt; PLC Controllers…</span> (or double-click the Controller node at the top of the PLC panel's organizer). Leave <span class="ui">Runs on</span> at <b>This simulator</b>, and in the <span class="ui">MQTT publisher</span> section:</p>
+        <ol class="steps">
+          <li><span class="ui">Broker</span>: <b>mqtt://127.0.0.1:1883</b> is the default, a broker on this computer. For one elsewhere, type its address.</li>
+          <li><span class="ui">Topic</span>: <b>oip</b> is the default. Everything is published under it, so two simulators on one broker each need their own.</li>
+          <li>Tick <span class="ui">Publish the program's variables</span>. The simulator connects at once; you do not need to press Play.</li>
+        </ol>
+        <figure class="shot">
+          <img src="img/mqtt-publisher.webp" width="673" height="264" loading="lazy" decoding="async"
+            alt="The MQTT publisher section of Controller Properties: Publish the program's variables ticked, Broker mqtt://127.0.0.1:1883, Topic oip, and the status line saying it is connected." />
+          <figcaption>The MQTT publisher section, connected.</figcaption>
+        </figure>
+        <p>The status line under it should read:</p>
+        <pre class="code" translate="no"><code>Connected to mqtt://127.0.0.1:1883: 4 variables under oip/tags, 3 writable through oip/set. Stopped: oip/status reads stopped until Play.</code></pre>
+        <p class="sub">
+          Like the other connection settings, these are saved on this computer, not in the scene.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="watch">
+      <div class="wrap">
+        <h2>5. Watch from another client</h2>
+        <p>In a terminal, subscribe to everything under the topic:</p>
+        <pre class="code" translate="no" data-copy><code>mosquitto_sub -h 127.0.0.1 -t "oip/#" -v</code></pre>
+        <p>It prints the program's four variables and the simulator's state straight away, before anything changes:</p>
+        <pre class="code" translate="no"><code>oip/tags/Main/Eye false
+oip/tags/Main/Run false
+oip/tags/Main/Speed 0.5
+oip/tags/Main/Start false
+oip/status stopped</code></pre>
+        <p>The layout is the same for every program:</p>
+        <div class="scroll-x">
+          <table class="map">
+            <thead><tr><th>Topic</th><th>What it carries</th></tr></thead>
+            <tbody>
+              <tr><td class="m">oip/tags/Main/Start</td><td>The variable <code>Main.Start</code>. Each dot in a name is a level, so a timer's outputs sit under the timer's name.</td></tr>
+              <tr><td class="m">oip/set/Main/Start</td><td>Publish here to write <code>Main.Start</code>, with the new value as the message.</td></tr>
+              <tr><td class="m">oip/status</td><td><code>running</code> while the program runs, <code>stopped</code> while it does not, and <code>offline</code> once the simulator is gone.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>A message is the value as text: <code>true</code> or <code>false</code> for a BOOL, a number in decimal for the number types, and a STRING as its own characters. A TIME is a number of milliseconds.</li>
+          <li>The values and the state are retained, which is why a client that subscribes late gets them at once. A value is published again only when it changes.</li>
+          <li>What an operator could change is writable, like a Start button or a setpoint. A variable a part feeds (the sensor), a constant and a timer's outputs are read only.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="run">
+      <div class="wrap">
+        <h2>6. Run the line from the client</h2>
+        <ol class="steps">
+          <li>Press <span class="ui">Play</span> in the simulator. The subscriber prints <code>oip/status running</code>, and the belt waits.</li>
+          <li>
+            In a second terminal, press Start:
+            <pre class="code" translate="no" data-copy><code>mosquitto_pub -h 127.0.0.1 -t oip/set/Main/Start -m true</code></pre>
+            The belt runs, the box reaches the sensor, the subscriber prints <code>oip/tags/Main/Eye true</code>, and the belt stops.
+          </li>
+          <li>Optional: press Stop and Play to start again, publish <code>0.2</code> to <code>oip/set/Main/Speed</code> and then <code>true</code> to <code>oip/set/Main/Start</code>. The belt carries the box at the new speed.</li>
+        </ol>
+        <figure class="shot">
+          <img src="img/box-stopped.webp" width="1260" height="630" loading="lazy" decoding="async"
+            alt="The box has ridden the belt conveyor and stopped in front of the photo eye." />
+          <figcaption>After the message on <code>oip/set/Main/Start</code>, the belt carried the box to the photo eye and stopped.</figcaption>
+        </figure>
+        <p>
+          The PLC panel's watch table shows what the client wrote, and Controller Properties shows the last write, for
+          example <code>Last write from the broker: Main.Start := TRUE</code>.
+        </p>
+        <p>
+          MQTT has no way to answer a message, so a write that is not taken is shown there too. Publish
+          <code>true</code> to <code>oip/set/Main/Eye</code> and it reads
+          <code>Last write refused: Main.Eye: it is read-only (a constant, or an input the scene feeds)</code>.
+        </p>
+        <div class="note">
+          <p>
+            Stop and Play keep the connection. On Stop the state reads <code>stopped</code> and the values keep what they
+            last were; on Play it reads <code>running</code> again. The simulator stays connected for as long as the box
+            is ticked, not for one run, because a dashboard stays subscribed while you edit and restart. Close the app
+            and the broker publishes <code>offline</code> for it.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tab">
+      <div class="wrap">
+        <h2>From a browser tab</h2>
+        <p>
+          A browser tab cannot open a plain MQTT connection, but it can open a WebSocket, and brokers carry MQTT over
+          one. Give Mosquitto a second listener for it. Save this as <code>oip.conf</code>:
+        </p>
+        <pre class="code" translate="no" data-copy><code>listener 1883 127.0.0.1
+listener 9001 127.0.0.1
+protocol websockets
+allow_anonymous true</code></pre>
+        <p>Start the broker with it (stop the one from step 3 first, since both want port 1883):</p>
+        <pre class="code" translate="no" data-copy><code>mosquitto -c oip.conf -v</code></pre>
+        <p>
+          In the tab, set <span class="ui">Broker</span> to <b>ws://127.0.0.1:9001</b> and tick the box. Everything else
+          in this guide is the same, and the command-line clients still use port 1883.
+        </p>
+        <p>
+          The first time, Chrome or Edge may ask whether this site may reach this computer or your local network.
+          Allow it. Without that the browser refuses the connection, and the status line reads as if no broker answered.
+        </p>
+        <p class="sub">
+          A page served over https reaches a broker on another computer only over <code>wss://</code>, so that broker's
+          WebSocket listener needs a certificate. The desktop app takes <code>ws://</code> and <code>wss://</code>
+          addresses as well.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="login">
+      <div class="wrap">
+        <h2>A broker with a login</h2>
+        <p>
+          For a broker that wants one, fill in <span class="ui">User name</span> and <span class="ui">Password</span>
+          in the same section. The user name is saved on this computer. The password is kept until the app closes and
+          never saved, so it is typed again after a restart.
+        </p>
+        <p class="sub">
+          Over <code>mqtt://</code> and <code>ws://</code> nothing is encrypted, the password included. Use those on
+          this computer or a test bench, and <code>wss://</code> anywhere else.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="trouble">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="trouble">
+          <dt>"Not connected to ...: nothing is listening on ..."</dt>
+          <dd>The broker is not running, or the address or port is wrong. The publisher keeps trying every few seconds, so start the broker and it connects by itself.</dd>
+
+          <dt>"a browser tab cannot open a plain mqtt:// connection"</dt>
+          <dd>You are in a browser tab with an <code>mqtt://</code> address. Use the broker's WebSocket address, as in <a href="#tab">From a browser tab</a>, or the desktop app.</dd>
+
+          <dt>"no MQTT broker answered at ws://..."</dt>
+          <dd>The port is not a WebSocket listener. A broker's plain MQTT port (1883) does not take WebSocket connections: it needs a listener of its own, such as 9001 above. It also reads this way when the browser did not let the page reach this computer: check the site's permissions for local network access.</dd>
+
+          <dt>"the broker refused the user name or password", or "the broker does not allow this client"</dt>
+          <dd>The broker wants a login. Fill in <span class="ui">User name</span> and <span class="ui">Password</span>. A refused login is not tried again until one of them changes.</dd>
+
+          <dt>A message on a set topic does nothing.</dt>
+          <dd>Controller Properties says why under <span class="ui">Last write refused</span>: the program is not running (press Play), the variable is read only, the name is not one the program has, or the message is not a value of its type (a BOOL takes <code>true</code>, <code>false</code>, <code>1</code> or <code>0</code>).</dd>
+
+          <dt>The subscriber shows values, but they never change.</dt>
+          <dd>Read <code>oip/status</code>. On <code>stopped</code>, press Play. On <code>offline</code>, the simulator is not connected and these are the values it left behind.</dd>
+
+          <dt>The variables are missing, or the status line says "no variables yet".</dt>
+          <dd>The program has not compiled. Fix the errors the PLC panel shows.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <footer class="site">
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <img class="mark" src="/oip-logo.svg" alt="Open Industry Project" />
+            <p class="blurb">A free industrial simulator, in your browser or as a desktop app.</p>
+          </div>
+          <div>
+            <h4>Get it</h4>
+            <ul>
+              <li><a href="https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe">Download for Windows</a></li>
+              <li><a href="https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb">Download for Linux (.deb)</a></li>
+              <li><a href="/app/">Launch the simulator in the browser</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/guides/opcua/">Guide: connect a SCADA or HMI over OPC UA</a></li>
+              <li><a href="/guides/modbus/">Guide: connect a real PLC over Modbus TCP</a></li>
+              <li><a href="/guides/">All guides</a></li>
+              <li><a href="/guides/reference/">Reference: defaults, address rules, timings</a></li>
+              <li><a href="/plc/">PLC language reference</a></li>
+              <li><a href="/app/?scene=demo">See a PLC-driven line run</a></li>
+              <li><a href="/">Back to the front page</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <span>&copy; Automation Standard LLC and contributors</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

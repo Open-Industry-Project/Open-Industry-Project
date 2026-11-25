@@ -13,7 +13,7 @@
 // link it belongs to.
 
 const { createServer, Socket } = require('node:net')
-const { BAD_LINK, heldByAnotherWindow, linkKey, linkNo, onPageGone, windowKeys } = require('./linkKeys.cjs')
+const { BAD_LINK, MQTT_LINK, heldByAnotherWindow, linkKey, linkNo, onPageGone, socketLinkNo, windowKeys } = require('./linkKeys.cjs')
 
 /** @type {Map<string, { server: import('node:net').Server | null, sockets: Map<number, import('node:net').Socket> }>} by linkKey */
 const links = new Map()
@@ -79,7 +79,8 @@ function carry(sender, entry, link, id, socket, remote) {
 /**
  * Register the `plcio:*` channels. `link` picks one of the window's links (linkKeys.cjs), 0 when absent.
  *   plcio:listen  {link, host, port} -> {error: string}            start that link's listener (a PLC that polls)
- *   plcio:connect {link, host, port} -> {error: string, id: number} connect to a PLC's server (a PLC that serves)
+ *   plcio:connect {link, host, port} -> {error: string, id: number} connect to a PLC's server (a PLC that serves), or,
+ *                                                                   on MQTT_LINK, to the MQTT publisher's broker
  *   plcio:close   {link}                                           stop the link and drop its connections
  *   plcio:write   {id, bytes}                                      send bytes on a connection
  *   plcio:drop    {id}                                             close a connection (a stream that is not Modbus)
@@ -128,7 +129,7 @@ function registerPlcIo(ipcMain, { consent } = {}) {
 
   ipcMain.handle('plcio:connect', async (event, opts) => {
     const sender = event.sender
-    const link = linkNo(opts)
+    const link = socketLinkNo(opts)
     if (link === null) return { error: BAD_LINK, id: 0 }
     const key = linkKey(sender.id, link)
     const mine = bump(key)
@@ -137,7 +138,8 @@ function registerPlcIo(ipcMain, { consent } = {}) {
     const port = Number(opts?.port)
     const bad = portError(port)
     if (bad) return { error: bad, id: 0 }
-    const what = `connect to a PLC at ${host}:${port}`
+    // the link says what is at the other end, so the question never repeats words the page chose
+    const what = `connect to ${link === MQTT_LINK ? 'an MQTT broker' : 'a PLC'} at ${host}:${port}`
     if (consent && !(await consent({ host, key: `plcio connect ${host}:${port}`, what }, sender)))
       return { error: `the connection to ${host}:${port} was not allowed`, id: 0 }
     if (generation.get(key) !== mine) return { error: 'superseded by a newer connect', id: 0 }
@@ -171,7 +173,7 @@ function registerPlcIo(ipcMain, { consent } = {}) {
   })
 
   ipcMain.handle('plcio:close', (event, opts) => {
-    const link = linkNo(opts)
+    const link = socketLinkNo(opts)
     if (link === null) return
     const key = linkKey(event.sender.id, link)
     bump(key)

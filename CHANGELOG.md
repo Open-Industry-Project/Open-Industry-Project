@@ -10,6 +10,9 @@ The first public source release. The [README](README.md#features) lists what it 
 
 - A desktop app for Windows (a signed installer) and Linux (a `.deb` and an AppImage).
 - Project tests: JSON regression tests for a project's control logic (`npm run test-project`).
+- An MQTT publisher beside the simulated PLC: the program's variables on a broker, one retained topic each, with a
+  set topic to write one. Over plain TCP from the desktop app and over WebSocket from a browser tab too, with a
+  guide ([guides/mqtt/](guides/mqtt/)).
 - An external PLC link over SLMP (MELSEC 3E binary frames): a Q, L, iQ-R or iQ-F CPU reads and
   writes the scene's tags as its own devices (`M10`, `Y0`, `D100`, `B1A`, `W10`, `TN5`), with a
   connection guide ([guides/slmp/](guides/slmp/)).

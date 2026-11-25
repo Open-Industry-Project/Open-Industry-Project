@@ -66,6 +66,20 @@ describe('the named controllers', () => {
     expect(s.controllers[1]).toMatchObject({ uaServer: true, uaServerPort: 4845, uaServerNetwork: false })
   })
 
+  it('keeps a valid MQTT broker, topic and user name, and falls back on anything else', async () => {
+    const { DEFAULT_EXTERNAL_PLC, sanitizeExternalPlc } = await import('./storePrefs')
+    expect(sanitizeExternalPlc({ mqtt: true, mqttUrl: 'wss://broker.example.com/mqtt', mqttTopic: 'plant/line1', mqttUser: 'line' })).toMatchObject({
+      mqtt: true,
+      mqttUrl: 'wss://broker.example.com/mqtt',
+      mqttTopic: 'plant/line1',
+      mqttUser: 'line',
+    })
+    const d = DEFAULT_EXTERNAL_PLC
+    expect(sanitizeExternalPlc({ mqtt: 'yes', mqttUrl: 'http://broker', mqttTopic: 'a/#', mqttUser: 7, mqttPassword: 'secret' })).toMatchObject({ mqtt: false, mqttUrl: d.mqttUrl, mqttTopic: d.mqttTopic, mqttUser: '' })
+    // a password is never part of the settings, so it cannot reach localStorage with them
+    expect('mqttPassword' in sanitizeExternalPlc({ mqttPassword: 'secret' })).toBe(false)
+  })
+
   it('names a link that shares a serving port', async () => {
     const { DEFAULT_EXTERNAL_PLC, servePortClash, sanitizeExternalPlc } = await import('./storePrefs')
     const two = [

@@ -39,8 +39,8 @@ export const WHY_NOT = M.whyNot
 const OPCUA_GUIDE = 'https://www.openindustryproject.org/guides/opcua/'
 
 /** A server's state, read again whenever the links report a change and every second, for the values going live. */
-export function useServerStatus(controller: EditorController, read: () => Readonly<OpcUaServerStatus>): OpcUaServerStatus {
-  const [status, setStatus] = useState<OpcUaServerStatus>(() => ({ ...read() }))
+export function useServerStatus<S extends object = OpcUaServerStatus>(controller: EditorController, read: () => Readonly<S>): S {
+  const [status, setStatus] = useState<S>(() => ({ ...read() }))
   useEffect(() => {
     const take = (): void => setStatus({ ...read() })
     take()

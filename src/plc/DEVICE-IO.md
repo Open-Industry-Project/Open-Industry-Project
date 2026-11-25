@@ -603,6 +603,56 @@ and Play again must keep the same subscription.
 A SCADA or HMI connects as to any OPC UA server: add an OPC UA connection to this endpoint (security None,
 anonymous), browse PLC / Main, and subscribe.
 
+## The simulated PLC's MQTT publisher: the same variables on a broker
+
+The same program, published the other way round: instead of waiting for clients, the simulator connects out to an
+MQTT broker and publishes the default controller's variables there, for a dashboard, a historian or a SCADA's MQTT
+client. It is a switch of its own in Controller Properties ("MQTT publisher"), beside the OPC UA server, and both
+can be on. It is not a way to run the scene from a PLC: MQTT has no cycle and no way to tell a stopped PLC from a
+quiet one, which every external-PLC link above depends on.
+
+**What is published** is what the OPC UA server publishes (`publishedVariables`), with the same read-only rule, up
+to 2000 variables (`MAX_MQTT_VARIABLES`: each is a retained message the broker keeps). MQTT fixes no layout, so
+this one is ours ([`core/io/mqtt.ts`](../core/io/mqtt.ts)), under a prefix the user chooses (`oip`):
+
+| Topic | Payload |
+|---|---|
+| `oip/status` | `running` while a program runs here, `stopped` while it does not, `offline` once the simulator is gone |
+| `oip/tags/Main/Start` | the variable `Main.Start`, one level per dot: `true` / `false`, a number in decimal, a string as it is |
+| `oip/set/Main/Start` | publish here to write the variable, with the value as the payload |
+
+Status and values are retained, so a client that subscribes later has the current ones at once. `offline` is the
+connection's will: the broker publishes it when the simulator disappears without a goodbye. There is no "out of
+service" for a value, so the values keep what they last were and `oip/status` says whether they are live. A
+variable the program no longer has gets its retained message cleared.
+
+**A write** reaches the program only while it runs, only for a variable a client may write, and only when the
+payload is a value of its type (`true`, `false`, `1` or `0` for a BOOL, a whole number in range for an integer).
+A refused write is shown in Controller Properties with the reason, since MQTT has no answer to send. A write
+published retained is taken once, when it is published; the copy the broker hands every new subscription is
+ignored, or it would be written again on every reconnect.
+
+**The connection** ([`editor/links/mqttPublisher.ts`](../editor/links/mqttPublisher.ts)) is MQTT 3.1.1 at QoS 0,
+a clean session, written here ([`plc/link/mqttClient.ts`](link/mqttClient.ts)) and holding no socket, like the
+Modbus and S7 clients. Two transports carry it. `mqtt://host:1883` is plain TCP through the desktop shell's
+socket (`plcIo.cjs`), on a link number of its own (`MQTT_LINK`) so it never shares one with a controller's PLC.
+`ws://` and `wss://` are MQTT over WebSocket, which a browser tab can open too, so this is the one connection the
+web app makes by itself. A page served over https reaches only `wss://`, or `ws://` on the same computer. The second
+needs the browser's local-network permission: measured on the deployed site in Chromium, `ws://127.0.0.1` is
+refused (`ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`) until the site is granted it, and works once it is. The
+page cannot tell that refusal from a port with no WebSocket listener, so the hint names both. A lost
+connection is tried again every 3 s and everything is published again; a refused login is not retried.
+
+**Unsecured unless `wss://`**: `mqtt://` and `ws://` carry the password in the clear. The user name is a machine
+setting; the password is typed per session and never saved. There is no `mqtts://` yet.
+
+`src/editor/links/mqttLive.test.ts` runs the session against a real broker when `OIP_MQTT_BROKER` names one, with
+Mosquitto's own `mosquitto_sub` and `mosquitto_pub` as the other clients. `e2e/verify-mqtt-electron.mjs` does the
+same through the app, the desktop shell over `mqtt://` and a browser tab over `ws://`: a message on the set topic
+presses Start, and the belt has to run and stop the box at the eye. It starts a Mosquitto of its own and skips on
+a machine without one. `guides/mqtt/` is the step-by-step page, followed by `e2e/guide-mqtt.mjs` with the page's
+own Mosquitto commands and configuration file.
+
 ## Watch only: a PLC that runs real equipment
 
 A controller set to Watch only (`ScenePlc.watch`) reads every point from its PLC, the tags parts write included, and

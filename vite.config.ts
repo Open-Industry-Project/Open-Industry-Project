@@ -352,6 +352,7 @@ export default defineConfig({
         plc: entry('./plc/index.html'),
         guideModbus: entry('./guides/modbus/index.html'),
         guideOpcua: entry('./guides/opcua/index.html'),
+        guideMqtt: entry('./guides/mqtt/index.html'),
         guidePlcServer: entry('./guides/plc-server/index.html'),
         guideS7: entry('./guides/s7/index.html'),
         guideSlmp: entry('./guides/slmp/index.html'),

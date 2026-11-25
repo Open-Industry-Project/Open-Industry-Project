@@ -23,6 +23,7 @@ import { desktopAdsHost, desktopEipHost, desktopOpcUaHost, desktopPlcIoHost } fr
 import type { AdsHost, EipHost, ExternalPlcLink, ExternalPlcStatus, OpcUaHost, PlcIoHost, PlcTagList } from './links/externalPlcStatus'
 import { desktopOpcUaServerHost, OPC_UA_SERVER_OFF } from './links/opcUaServer'
 import type { OpcUaServerHost, OpcUaServerStatus, PublishedProgram } from './links/opcUaServer'
+import type { MqttPublisherStatus } from './links/mqttPublisherStatus'
 import { programOutOfDate, type ReloadBlocker } from './program/programReload'
 import { coverSceneSwapIfArriving } from './sceneSwapCover'
 import type { EditorState, EditorStore, LiveCargoPose, ToolMode, TransformSpace } from './store/store'
@@ -465,6 +466,22 @@ export class EditorController {
 
   private syncOpcUaServer(): void {
     linkOps.syncOpcUaServer(this.links, this.program, this)
+  }
+
+  /** The simulated PLC's MQTT publisher's state, for Controller Properties. Changes notify through {@link onExternalPlcStatus}. */
+  get mqttStatus(): Readonly<MqttPublisherStatus> {
+    return linkOps.mqttStatus(this.links)
+  }
+
+  /** The broker's password, as typed in Controller Properties: kept until the app closes, never saved. */
+  get mqttPassword(): string {
+    return this.links.mqttPassword
+  }
+
+  set mqttPassword(text: string) {
+    if (text === this.links.mqttPassword) return
+    this.links.mqttPassword = text
+    linkOps.syncMqtt(this.links, this.program, this)
   }
 
   /** internal - for controller/program.ts: the default controller's program (null when it runs on an external PLC), and

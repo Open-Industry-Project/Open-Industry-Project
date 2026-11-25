@@ -4,6 +4,7 @@
 // (they're the user's persisted preferences).
 import { isAmsNetId } from '../../core/io/ads'
 import { isEipFamily } from '../../core/io/eipTarget'
+import { isMqttTopicPrefix, parseMqttUrl } from '../../core/io/mqtt'
 import type { EipFamily } from '../../core/io/eipTarget'
 import { MAX_BROWSE_ROOTS, opcUaBrowseRoot } from '../../core/io/opcUa'
 import { isControllerName } from '../../core/io/controllerTag'
@@ -391,6 +392,20 @@ export interface UaServerSettings {
 }
 
 /**
+ * The simulated PLC's MQTT publisher (editor/links/mqttPublisher.ts): the default controller's program, published to
+ * a broker by name. The password is not here: it is kept until the app closes and never saved.
+ */
+export interface MqttSettings {
+  mqtt: boolean
+  /** the broker: `mqtt://host:1883` (the desktop app), or `ws://` / `wss://` for MQTT over WebSocket (core/io/mqtt.ts) */
+  mqttUrl: string
+  /** the topic prefix everything is published under */
+  mqttTopic: string
+  /** '' for an anonymous session */
+  mqttUser: string
+}
+
+/**
  * This computer's settings for a controller other than the default one, by the name a part's tag gives it:
  * `Cell2::%IX0.0` is wired to the controller named Cell2 (core/io/controllerTag.ts). Its link to a PLC, and its
  * OPC UA server for when the simulator runs it.
@@ -401,11 +416,11 @@ export interface NamedPlcLink extends PlcLinkSettings, UaServerSettings {
 
 /**
  * The external-PLC settings: the default controller's link, the named controllers' links, and the simulated PLC's
- * OPC UA server. A machine setting, not the document's: which port this workstation listens on, where its PLCs
+ * OPC UA server and MQTT publisher. A machine setting, not the document's: which port this workstation listens on, where its PLCs
  * are, and whether its firewall should let a PLC on the network in, belongs to the workstation. What the document
  * carries is the wiring, the addresses and controller names in the parts' tags.
  */
-export interface ExternalPlcSettings extends PlcLinkSettings, UaServerSettings {
+export interface ExternalPlcSettings extends PlcLinkSettings, UaServerSettings, MqttSettings {
   /** the named controllers, in the order Controller Properties lists them; names are unique */
   controllers: readonly NamedPlcLink[]
 }
@@ -442,6 +457,10 @@ export const DEFAULT_EXTERNAL_PLC: ExternalPlcSettings = {
   uaServer: false,
   uaServerPort: DEFAULT_UA_SERVER_PORT,
   uaServerNetwork: false,
+  mqtt: false,
+  mqttUrl: 'mqtt://127.0.0.1:1883',
+  mqttTopic: 'oip',
+  mqttUser: '',
   controllers: [],
 }
 
@@ -478,6 +497,10 @@ export function sanitizeExternalPlc(raw: unknown): ExternalPlcSettings {
     uaServer: o.uaServer === true,
     uaServerPort: isPort(o.uaServerPort) ? o.uaServerPort : d.uaServerPort,
     uaServerNetwork: o.uaServerNetwork === true,
+    mqtt: o.mqtt === true,
+    mqttUrl: typeof o.mqttUrl === 'string' && parseMqttUrl(o.mqttUrl) ? o.mqttUrl : d.mqttUrl,
+    mqttTopic: isMqttTopicPrefix(o.mqttTopic) ? o.mqttTopic : d.mqttTopic,
+    mqttUser: typeof o.mqttUser === 'string' && o.mqttUser.length <= 256 ? o.mqttUser : d.mqttUser,
     controllers,
   }
 }

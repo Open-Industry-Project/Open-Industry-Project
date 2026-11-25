@@ -5,10 +5,13 @@
 // A scene has at most 32 controllers (src/core/scene/scenePlcs.ts MAX_SCENE_PLCS, which a unit test ties to MAX_LINKS),
 // links 0-31. One more number, BROWSE_LINK, is for the PLC connections window (src/editor/links/linkHosts.ts): a short
 // connection that lists a PLC's variables while a run may hold the controller's own link. Only the protocols that can
-// list a PLC's variables (adsIo.cjs, eipIo.cjs, opcUaIo.cjs) take it, through listingLinkNo.
+// list a PLC's variables (adsIo.cjs, eipIo.cjs, opcUaIo.cjs) take it, through listingLinkNo. And one more, MQTT_LINK, is
+// the simulated PLC's MQTT publisher's connection to its broker (src/editor/links/mqttPublisher.ts), which is open
+// whatever the controllers' links do. Only plcIo.cjs's connect and close take it, through socketLinkNo.
 
 const MAX_LINKS = 32
 const BROWSE_LINK = MAX_LINKS
+const MQTT_LINK = MAX_LINKS + 1
 
 /** The link number a call names: a whole number below {@link MAX_LINKS}, 0 when absent, null when malformed. */
 function linkNo(opts) {
@@ -20,6 +23,11 @@ function linkNo(opts) {
 /** {@link linkNo}, and BROWSE_LINK as well: for a protocol that lists a PLC's variables. */
 function listingLinkNo(opts) {
   return opts?.link === BROWSE_LINK ? BROWSE_LINK : linkNo(opts)
+}
+
+/** {@link linkNo}, and MQTT_LINK as well: for an outgoing socket. */
+function socketLinkNo(opts) {
+  return opts?.link === MQTT_LINK ? MQTT_LINK : linkNo(opts)
 }
 
 /** The map key of a window's link `link`. */
@@ -65,4 +73,4 @@ function onPageGone(sender, watched, close) {
 
 const BAD_LINK = 'not a link number (0-31)'
 
-module.exports = { MAX_LINKS, BROWSE_LINK, linkNo, listingLinkNo, linkKey, windowKeys, heldByAnotherWindow, onPageGone, BAD_LINK }
+module.exports = { MAX_LINKS, BROWSE_LINK, MQTT_LINK, linkNo, listingLinkNo, socketLinkNo, linkKey, windowKeys, heldByAnotherWindow, onPageGone, BAD_LINK }

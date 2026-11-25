@@ -75,8 +75,10 @@ jobs:
       - name: Smoke-test the deployment
         # Pointed at whatever URL this deployment got, so a broken header, an uncompressed wasm or
         # a cached shell is caught on a preview instead of on the live domain. Also asserts the
-        # collab WebSocket, read out of the built bundle.
+        # collab WebSocket: the server the build was given, which has to be in the built bundle.
         run: node scripts/smoke-prod.mjs ${{ steps.deploy.outputs.deployment-url }}
+        env:
+          VITE_COLLAB_URL: wss://collab.openindustryproject.org
 
       - name: Measure the edge
         # Throughput/TTFB against CDN baselines. Pages measures 4.5-15 MB/s at 95-290 ms warm TTFB

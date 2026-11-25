@@ -322,6 +322,7 @@ under the GPL, and nothing in the importing file would show it.
 | ffmpeg-static | GPL | Build-only devDependency; nothing it produces is linked into the bundle. |
 | [snap7](https://snap7.sourceforge.net/) (through [python-snap7](https://github.com/gijzelaerr/python-snap7) 2.x) | LGPL-3.0 (python-snap7: MIT) | Installed by hand into `.s7-loop/` (gitignored) and run as a **separate S7 server process** by `npm run s7-loop`. Never linked, never redistributed. |
 | libplctag's `ab_server` | MPL-2.0 OR LGPL-2.0-or-later | The upstream release's EtherNet/IP test simulator, fetched beside the library by `scripts/fetch-libplctag.mjs` and run as a **separate process** by the EtherNet/IP tests. electron-builder leaves it out of the installer. |
+| [Eclipse Mosquitto](https://mosquitto.org/) | EPL-2.0 OR EDL-1.0 | An MQTT broker and its command-line clients, from the machine's own install, run as **separate processes** by `e2e/verify-mqtt-electron.mjs` and `src/editor/links/mqttLive.test.ts`. Never linked, never redistributed. |
 
 Running a GPL program is unrestricted, and a GPL compiler's license does not reach what it compiles, so our
 exported ST stays ours.
@@ -338,8 +339,8 @@ corresponding source.
 
 No commercial vendor software (a vendor's IDE, PLC runtime or SCADA) is used to develop or test this
 project. Its external checks are open source: MATIEC, STruC++, the OpenPLC editor and runtime, the
-PLCopen TC6 schema, snap7 (an S7 server, for `npm run s7-loop`) and libplctag's `ab_server` (an
-EtherNet/IP test simulator). Nothing a vendor's software produced is committed or shipped.
+PLCopen TC6 schema, snap7 (an S7 server, for `npm run s7-loop`), libplctag's `ab_server` (an
+EtherNet/IP test simulator) and Mosquitto (an MQTT broker). Nothing a vendor's software produced is committed or shipped.
 
 The one vendor component the app itself uses is Beckhoff's `TcAdsDll.dll`, for the ADS link, and it is
 loaded at run time from the TwinCAT installation already on the user's PC, under that user's license (see

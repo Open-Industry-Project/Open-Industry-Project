@@ -184,15 +184,26 @@ function wasmProbes() {
     : []
 }
 
-/** the wss:// endpoint vite inlined from VITE_COLLAB_URL, read back out of the built bundle */
+/**
+ * The collab server's wss:// endpoint, read back out of the built bundle. The bundle holds other wss:// text (the
+ * MQTT section's example address is one), so "the first wss:// in the bundle" is not it. Where the build's
+ * VITE_COLLAB_URL is known (deploy-pages.yml hands this step the same one) it is that address, once it is found in
+ * the bundle; `missing` says it was not. Otherwise it is the first address with a real host name, dots and all.
+ */
 function collabUrlFromBundle() {
   const assets = join(DIST, 'assets')
   if (!existsSync(assets)) return null
+  const named = process.env.VITE_COLLAB_URL || null
   for (const f of readdirSync(assets).filter((n) => n.endsWith('.js'))) {
-    const m = readFileSync(join(assets, f), 'utf8').match(/wss:\/\/[A-Za-z0-9.-]+(?::\d+)?/)
-    if (m) return m[0]
+    const text = readFileSync(join(assets, f), 'utf8')
+    if (named) {
+      if (text.includes(named)) return { url: named }
+      continue
+    }
+    const m = text.match(/wss:\/\/[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?::\d+)?/)
+    if (m) return { url: m[0] }
   }
-  return null
+  return named ? { url: named, missing: true } : null
 }
 
 /** the content version the build gave `url` (vite.config.ts oip-asset-versions), read back out of the built bundle */
@@ -431,9 +442,12 @@ async function main() {
   // The URL is whatever VITE_COLLAB_URL was inlined at build time, so read it out of the bundle
   // rather than hardcoding it; a build without one (a local build that forgot the env var) is
   // reported, not failed, since collab is absent from that artifact.
-  const collab = collabUrlFromBundle()
-  if (!collab) {
+  const found = collabUrlFromBundle()
+  const collab = found?.url
+  if (!found) {
     console.log('  NOTE  no collab URL compiled into this build (VITE_COLLAB_URL unset) - collab is inert here')
+  } else if (found.missing) {
+    bad('collab websocket', `VITE_COLLAB_URL is ${collab}, but the built bundle does not hold it - the build and this check disagree on the server`)
   } else {
     const wsHost = collab.replace(/^wss:/, 'https:').replace(/\/$/, '')
     try {

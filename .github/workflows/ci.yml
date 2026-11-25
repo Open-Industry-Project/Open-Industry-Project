@@ -39,6 +39,22 @@ jobs:
         run: npm run lint
       - name: Unit tests
         run: npm test
+      - name: MQTT publisher against a real broker
+        # The unit suite holds the publisher (src/editor/links/mqttPublisher.ts) to a stand-in broker written beside it.
+        # This runs the same session against Mosquitto, over plain TCP and then over WebSocket, with Mosquitto's own
+        # mosquitto_sub and mosquitto_pub as the other clients, so nothing of ours is on the far side. A broker of the
+        # The listeners (1884, and 9001 for WebSocket) are given to the package's own service through its conf.d
+        # folder: a broker started by hand could not open a configuration file under the runner's temp folder.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mosquitto mosquitto-clients
+          printf '%s\n' 'listener 1884 127.0.0.1' 'listener 9001 127.0.0.1' 'protocol websockets' 'allow_anonymous true' | sudo tee /etc/mosquitto/conf.d/oip-ci.conf > /dev/null
+          sudo systemctl restart mosquitto
+          for i in $(seq 40); do mosquitto_pub -h 127.0.0.1 -p 1884 -t oip-ci-ready -m 1 2>/dev/null && break; sleep 0.25; done
+          # no broker after ten seconds: say why before the tests fail on it
+          mosquitto_pub -h 127.0.0.1 -p 1884 -t oip-ci-ready -m 1 || { sudo journalctl -u mosquitto -n 40 --no-pager; sudo tail -n 40 /var/log/mosquitto/mosquitto.log; exit 1; }
+          OIP_MQTT_BROKER=mqtt://127.0.0.1:1884 npx vitest run src/editor/links/mqttLive.test.ts
+          OIP_MQTT_BROKER=ws://127.0.0.1:9001 OIP_MQTT_TCP=127.0.0.1:1884 npx vitest run src/editor/links/mqttLive.test.ts
       - name: Listed library parts still run
         # Every part version the listed library holds from other publishers recorded what it did when it was listed
         # (docs/part-libraries.md). This downloads them by hash from the official libraries, checks the project's

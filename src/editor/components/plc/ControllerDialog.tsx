@@ -8,12 +8,13 @@ import { ExternalPlcSection, WHY_NOT as PLC_WHY_NOT } from './ExternalPlcSection
 import { NamedPlcsSection } from './NamedPlcsSection'
 import { PlcConnectionsWindow } from './PlcConnectionsWindow'
 import { OpcUaServerSection, WHY_NOT as SERVER_WHY_NOT } from './OpcUaServerSection'
+import { MqttSection } from './MqttSection'
 import { trapTab, useModalKeys } from '../inspector/menu'
 import { CloseIcon } from '../toolbarIcons'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('controllerDialog', {
-  bothNeedDesktop: 'Connecting to a PLC or serving OPC UA needs the desktop app: a browser tab cannot open a network connection or listen on a port.',
+  bothNeedDesktop: 'Connecting to a PLC or serving OPC UA needs the desktop app: a browser tab cannot open a plain network connection or listen on a port. The MQTT publisher works here, over WebSocket.',
   assignStillWorks: '{why} Assign I/O Addresses and the I/O list still work (right-click Top-level code in the organizer): wire the scene here, then open it in the desktop app to connect it.',
   title: 'Controller Properties',
   close: 'Close',
@@ -57,7 +58,7 @@ export function ControllerDialog({ store, state, controller, onClose }: { store:
     if (wiring) return
     const t = e.target as HTMLInputElement | null
     // (tag name, not `instanceof`: in a popped-out window the input belongs to another realm)
-    if (e.key === 'Enter' && t?.tagName === 'INPUT' && t.type === 'text') {
+    if (e.key === 'Enter' && t?.tagName === 'INPUT' && (t.type === 'text' || t.type === 'password')) {
       e.preventDefault()
       t.blur()
     } else if (ref.current) trapTab(ref.current, e)
@@ -83,7 +84,12 @@ export function ControllerDialog({ store, state, controller, onClose }: { store:
             store={store}
             state={state}
             controller={controller}
-            server={<OpcUaServerSection store={store} state={state} controller={controller} />}
+            server={
+              <>
+                <OpcUaServerSection store={store} state={state} controller={controller} />
+                <MqttSection store={store} state={state} controller={controller} />
+              </>
+            }
             onConnections={() => setWiring({ plc: null })}
           />
           <NamedPlcsSection store={store} state={state} controller={controller} onConnections={(plc) => setWiring({ plc })} />

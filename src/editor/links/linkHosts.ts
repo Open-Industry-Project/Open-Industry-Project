@@ -97,3 +97,12 @@ export function adsForLink(host: AdsHost, link: number): AdsHost {
  *  one past every controller's (0 to MAX_SCENE_PLCS - 1), so a list read during a run opens a connection of its own
  *  beside theirs. Only the shell's ADS, EtherNet/IP and OPC UA links take it. */
 export const BROWSE_LINK = MAX_SCENE_PLCS
+
+/** The shell's link number of the MQTT publisher's connection to its broker (apps/desktop/linkKeys.cjs MQTT_LINK): one
+ *  of its own, since the publisher is connected whatever the controllers' links do. Only the shell's socket takes it. */
+export const MQTT_LINK = MAX_SCENE_PLCS + 1
+
+/** The shell's socket as the MQTT publisher uses it (links/mqttPublisher.ts tcpDial). */
+export function mqttIo(host: PlcIoHost): PlcIoHost {
+  return plcIoForLink(host, MQTT_LINK)
+}

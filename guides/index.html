@@ -57,9 +57,9 @@
       <div class="wrap">
         <h2>Connecting a PLC, SCADA or HMI</h2>
         <p>
-          Three of these are tested by following them in the desktop app: Modbus against OpenPLC, OPC UA against an OPC UA
-          client (node-opcua), and S7 against a stand-in S7 CPU in this repository. The PLC-server, SLMP and ADS guides are
-          not tested this way.
+          Four of these are tested by following them in the desktop app: Modbus against OpenPLC, OPC UA against an OPC UA
+          client (node-opcua), MQTT against a Mosquitto broker, and S7 against a stand-in S7 CPU in this repository. The
+          PLC-server, SLMP and ADS guides are not tested this way.
         </p>
         <div class="guide-list">
           <a class="panel guide-card" href="/guides/modbus/">
@@ -85,6 +85,10 @@
           <a class="panel guide-card" href="/guides/opcua/">
             <h3>A SCADA or HMI on the line (OPC UA)</h3>
             <p>The program keeps running in the simulator, which publishes its variables on an OPC UA server for your SCADA, HMI or any OPC UA client.</p>
+          </a>
+          <a class="panel guide-card" href="/guides/mqtt/">
+            <h3>The line on an MQTT broker</h3>
+            <p>The program keeps running in the simulator, which publishes its variables to a broker, one topic each, for a dashboard or any MQTT client to follow and write. Works from a browser tab too.</p>
           </a>
           <a class="panel guide-card" href="/guides/reference/">
             <h3>Reference</h3>
