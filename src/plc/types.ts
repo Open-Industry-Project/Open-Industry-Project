@@ -374,6 +374,12 @@ export interface FbArg {
 
 /** One CASE label: an integer, an inclusive `lo..hi` range, or an enumeration member
  *  (resolved to its value by the checker, which is the only place the enum is known). */
+/** A range of the source, by offset: `from` its first character, `to` just past its last. */
+export interface SourceSpan {
+  from: number
+  to: number
+}
+
 export type CaseLabel =
   | { kind: 'single'; value: number }
   | { kind: 'range'; lo: number; hi: number }
@@ -389,8 +395,10 @@ export type Stmt =
   // `target` is the instance being called, and it is a place just like an assignment's target: a
   // variable, a struct field or an array element (`t(...)`, `line.gap(...)`, `zones[i](...)`)
   | { node: 'fbcall'; target: Expr; args: FbArg[]; pos: SourcePos }
-  | { node: 'if'; branches: { cond: Expr; body: Stmt[] }[]; elseBody: Stmt[] | null; pos: SourcePos }
-  | { node: 'case'; selector: Expr; cases: { labels: CaseLabel[]; body: Stmt[] }[]; elseBody: Stmt[] | null; pos: SourcePos }
+  // `span` is where an arm's statements are written (`elseSpan` the ELSE arm's), for an editor that marks the arms a
+  // running program is not taking. Only a statement written as text has one.
+  | { node: 'if'; branches: { cond: Expr; body: Stmt[]; span?: SourceSpan }[]; elseBody: Stmt[] | null; elseSpan?: SourceSpan; pos: SourcePos }
+  | { node: 'case'; selector: Expr; cases: { labels: CaseLabel[]; body: Stmt[]; span?: SourceSpan }[]; elseBody: Stmt[] | null; elseSpan?: SourceSpan; pos: SourcePos }
   // `vt` (the loop variable's declared type) is filled in by the checker, like Expr.t
   | { node: 'for'; varName: string; from: Expr; to: Expr; by: Expr | null; body: Stmt[]; pos: SourcePos; vt?: ScalarType; vGlobal?: boolean }
   | { node: 'while'; cond: Expr; body: Stmt[]; pos: SourcePos }

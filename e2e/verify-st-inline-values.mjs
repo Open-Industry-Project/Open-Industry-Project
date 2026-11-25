@@ -217,6 +217,55 @@ async function main() {
     check('two instances: an instance row in the organizer picks it, and wears the badge', rowShown && third.who === 'Line1' && badge === 1,
       `row=${rowShown} badge=${badge} ${JSON.stringify(third)}`)
 
+    // 7. the arms of an IF or a CASE the values say are not taken are dimmed (stBranches.ts), and the dimming follows
+    //    the values: `slow` flips about once a second, so each arm of its IF is dimmed in turn, never both.
+    await page.evaluate(() => window.__oip.controller.stop())
+    await page.evaluate(() =>
+      window.__oip.store.commitProgram('branches', {
+        source:
+          'PROGRAM Main\nVAR\n  tick : INT;\n  slow : BOOL;\n  mode : INT := 2;\n  a : INT;\n  b : INT;\nEND_VAR\n' +
+          'tick := tick + 1;\nIF tick >= 100 THEN\n  tick := 0;\n  slow := NOT slow;\nEND_IF;\n' +
+          'IF slow THEN\n  b := 1;\nELSE\n  b := 2;\nEND_IF;\n' +
+          'CASE mode OF\n  1:\n    a := 1;\n  2:\n    a := 2;\nELSE\n  a := 0;\nEND_CASE;\nEND_PROGRAM\n',
+        controller: { tasks: [{ name: 'Fast', intervalMs: 10, priority: 1 }], programs: [{ name: 'Line1', type: 'Main', task: 'Fast' }] },
+      }),
+    )
+    await page.waitForTimeout(600)
+    const dimmedLines = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('.cm-content .cm-line')]
+          .filter((l) => l.querySelector('.cm-st-untaken'))
+          .map((l) => {
+            const c = l.cloneNode(true)
+            c.querySelectorAll('.cm-st-value, .cm-st-monitor').forEach((el) => el.remove())
+            return c.textContent.replace(/\s+/g, ' ').trim()
+          })
+          .filter((text) => text !== ''),
+      )
+    const idle = await dimmedLines()
+    await page.evaluate(() => window.__oip.controller.run())
+    await page.locator('.cm-content').first().focus()
+    await page.keyboard.press('Control+Home')
+    await page.locator('.cm-st-untaken').first().waitFor({ state: 'attached', timeout: 10000 }).catch(() => {})
+    const seen = new Set()
+    let both = 0
+    let caseArms = []
+    for (let i = 0; i < 40 && seen.size < 2; i++) {
+      const lines = await dimmedLines()
+      const one = lines.includes('b := 1;'), two = lines.includes('b := 2;')
+      if (one && two) both++
+      if (one) seen.add('b := 1;')
+      if (two) seen.add('b := 2;')
+      caseArms = lines.filter((l) => l.startsWith('a :='))
+      await page.waitForTimeout(150)
+    }
+    check('untaken arms: each arm of an IF is dimmed in turn as its condition flips', seen.size === 2 && both === 0, `seen=${[...seen].join(' | ')} both=${both}`)
+    check('untaken arms: a CASE dims every arm but the selected one', caseArms.join('|') === 'a := 1;|a := 0;', caseArms.join('|'))
+    await page.evaluate(() => window.__oip.controller.stop())
+    await page.waitForTimeout(600)
+    const stopped = await dimmedLines()
+    check('untaken arms: nothing is dimmed while the program is not running', idle.length === 0 && stopped.length === 0, `idle=${idle.length} stopped=${stopped.length}`)
+
     check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
   } finally {
     await browser.close()

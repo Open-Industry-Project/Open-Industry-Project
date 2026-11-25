@@ -1,6 +1,6 @@
 // Statements for the ST parser: statement lists with their error recovery, and the control statements.
 
-import type { CaseLabel, Expr, Stmt } from './types'
+import type { CaseLabel, Expr, SourceSpan, Stmt } from './types'
 import { StError } from './types'
 import { ExprParser } from './parserExpr'
 
@@ -83,48 +83,55 @@ export abstract class StmtParser extends ExprParser {
     throw new StError(`unsupported statement near '${head.value || head.kind}'`, head.pos)
   }
 
+  /** an arm's statements, and where they are written: from the first one to the keyword or label that ends the arm */
+  private arm(atEnd: () => boolean): { body: Stmt[]; span: SourceSpan } {
+    const from = this.peek().pos.offset
+    const body = this.stmtList(atEnd)
+    return { body, span: { from, to: this.peek().pos.offset } }
+  }
+
   private ifStmt(): Stmt {
     const pos = this.eatKw('IF').pos
     const atEnd = (): boolean => this.isKw('ELSIF') || this.isKw('ELSE') || this.isKw('END_IF')
-    const branches: { cond: Expr; body: Stmt[] }[] = []
+    const branches: { cond: Expr; body: Stmt[]; span: SourceSpan }[] = []
     let cond = this.expr()
     this.eatKw('THEN')
-    branches.push({ cond, body: this.stmtList(atEnd) })
+    branches.push({ cond, ...this.arm(atEnd) })
     while (this.isKw('ELSIF')) {
       this.next()
       cond = this.expr()
       this.eatKw('THEN')
-      branches.push({ cond, body: this.stmtList(atEnd) })
+      branches.push({ cond, ...this.arm(atEnd) })
     }
-    let elseBody: Stmt[] | null = null
+    let rest: { body: Stmt[]; span: SourceSpan } | null = null
     if (this.isKw('ELSE')) {
       this.next()
-      elseBody = this.stmtList(atEnd)
+      rest = this.arm(atEnd)
     }
     this.eatKw('END_IF')
     this.blockEnd()
-    return { node: 'if', branches, elseBody, pos }
+    return { node: 'if', branches, elseBody: rest ? rest.body : null, ...(rest ? { elseSpan: rest.span } : {}), pos }
   }
 
   private caseStmt(): Stmt {
     const pos = this.eatKw('CASE').pos
     const selector = this.expr()
     this.eatKw('OF')
-    const cases: { labels: CaseLabel[]; body: Stmt[] }[] = []
+    const cases: { labels: CaseLabel[]; body: Stmt[]; span: SourceSpan }[] = []
     while (!this.isKw('ELSE') && !this.isKw('END_CASE')) {
       if (this.peek().kind === 'eof') throw new StError('expected END_CASE', this.peek().pos)
       const labels = this.caseLabels()
       this.eatOp(':')
-      cases.push({ labels, body: this.stmtList(() => this.isCaseClauseEnd()) })
+      cases.push({ labels, ...this.arm(() => this.isCaseClauseEnd()) })
     }
-    let elseBody: Stmt[] | null = null
+    let rest: { body: Stmt[]; span: SourceSpan } | null = null
     if (this.isKw('ELSE')) {
       this.next()
-      elseBody = this.stmtList(() => this.isKw('END_CASE'))
+      rest = this.arm(() => this.isKw('END_CASE'))
     }
     this.eatKw('END_CASE')
     this.blockEnd()
-    return { node: 'case', selector, cases, elseBody, pos }
+    return { node: 'case', selector, cases, elseBody: rest ? rest.body : null, ...(rest ? { elseSpan: rest.span } : {}), pos }
   }
 
   /** A clause body ends at the next label or at ELSE/END_CASE. A label is an int literal

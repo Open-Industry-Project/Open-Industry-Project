@@ -11,16 +11,19 @@ import { linter } from '@codemirror/lint'
 import type { Diagnostic as CmDiagnostic } from '@codemirror/lint'
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search'
 import { EditorState, StateEffect, StateField, type Extension, type Text } from '@codemirror/state'
-import { Decoration, drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers, WidgetType } from '@codemirror/view'
+import { Decoration, drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers, ViewPlugin, WidgetType } from '@codemirror/view'
+import type { DecorationSet, ViewUpdate } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
 import { BUILTIN_FUNCTIONS, KEYWORDS as ST_KEYWORDS, SCALAR_TYPES, USER_FB_TYPES, valueRefs, watchScopes } from '../../plc'
 import type { Controller } from '../../core/controller'
 import { keySetOf } from '../../core/watchKeys'
-import { watchIsEmpty, watchKeysOf } from '../../core/watchTable'
+import { watchElementKey, watchIsEmpty, watchKeysOf } from '../../core/watchTable'
 import type { MonitoredProgram, TagValue, WatchInstance } from '../../plc'
+import { parseStructure } from '../../plc/structure'
 // `t` is the highlighter's tags here; the i18n lookup is `msg`
 import { defineMessages, t as msg } from '../../core/i18n'
 import { declaredTypes, formatPlcValue, refType } from './plcValueText'
+import { branchPlan, untakenSpans, type BranchPlan } from './stBranches'
 import { stFolding } from './stFolding'
 import { stSearchPanel } from './stSearchPanel'
 import { checkFor } from './programWorkerClient'
@@ -214,6 +217,8 @@ const stTheme = EditorView.theme(
     '.cm-st-value': { display: 'inline-block', margin: '0 1px 0 5px', padding: '0 5px', borderRadius: '3px', background: 'rgba(86,182,194,0.12)', border: '1px solid var(--line-soft)', color: 'light-dark(#1b74a4, #9cdcfe)', fontSize: '11px', lineHeight: '1.3', verticalAlign: 'baseline' },
     '.cm-st-monitor': { margin: '0 0 0 10px', padding: '0 6px', borderRadius: '3px', border: '1px solid var(--line-soft)', background: 'rgba(86,182,194,0.12)', color: 'light-dark(#1b74a4, #9cdcfe)', font: 'inherit', fontSize: '11px', lineHeight: '1.3', cursor: 'pointer', verticalAlign: 'baseline' },
     '.cm-st-value-true': { color: 'light-dark(#1d8135, #3fd463)', borderColor: '#1f6f3a', background: 'rgba(63,212,99,0.12)' },
+    // an IF or CASE arm the running program is not taking (stBranches.ts)
+    '.cm-st-untaken': { opacity: '0.45' },
     '.cm-st-value-false': { color: 'light-dark(#52575d, #9aa0a6)', background: 'light-dark(rgba(0, 0, 0, 0.028), rgba(255,255,255,0.04))' },
   },
   { dark: true },
@@ -323,14 +328,18 @@ function docValueRefs(doc: Text): ReturnType<typeof valueRefs> {
 }
 
 /** The watch key each reference stands for, in the POU it is written in (plc/watchScope.ts), aligned with
- *  {@link docValueRefs} (null where the controller publishes nothing for it), and the programs that run as several
- *  instances. Memoized like the references, and again when the instances or the picks change. */
-const keysByDoc = new WeakMap<Text, { scope: string; keys: (string | null)[]; shared: MonitoredProgram[] }>()
-function docWatchKeys(doc: Text, live: LiveImage): { keys: (string | null)[]; shared: MonitoredProgram[] } {
+ *  {@link docValueRefs} (null where the controller publishes nothing for it), the programs that run as several
+ *  instances, and the IF and CASE statements whose arms are marked (stBranches.ts). Memoized like the references, and
+ *  again when the instances or the picks change. */
+const keysByDoc = new WeakMap<Text, { scope: string; keys: (string | null)[]; shared: MonitoredProgram[]; branches: BranchPlan | null }>()
+function docWatchKeys(doc: Text, live: LiveImage): { keys: (string | null)[]; shared: MonitoredProgram[]; branches: BranchPlan | null } {
   const kept = keysByDoc.get(doc)
   if (kept && kept.scope === live.scopeKey) return kept
-  const scopes = watchScopes(doc.toString(), live.instances, live.picked)
-  const out = { scope: live.scopeKey, keys: docValueRefs(doc).map((ref) => scopes.keyAt(ref.from, ref.name)), shared: scopes.shared }
+  const source = doc.toString()
+  const scopes = watchScopes(source, live.instances, live.picked)
+  // (the parse is the one the scopes were read from: plc/structure.ts keeps it)
+  const ast = parseStructure(source).ast
+  const out = { scope: live.scopeKey, keys: docValueRefs(doc).map((ref) => scopes.keyAt(ref.from, ref.name)), shared: scopes.shared, branches: ast ? branchPlan(ast, scopes.keyAt) : null }
   keysByDoc.set(doc, out)
   return out
 }
@@ -471,6 +480,8 @@ class MonitorWidget extends WidgetType {
   }
 }
 
+const untakenMark = Decoration.mark({ class: 'cm-st-untaken' })
+
 /** Replace the monitored variable image; an empty map removes all inline values. */
 const setWatchEffect = StateEffect.define<LiveImage>()
 
@@ -505,6 +516,38 @@ const watchField = StateField.define<LiveImage>({
       return Decoration.set(ranges, true)
     }),
 })
+
+/** A dimming mark over each IF or CASE arm the values say is not taken, for the part of the text on screen. */
+function untakenMarks(view: EditorView): DecorationSet {
+  const live = view.state.field(watchField)
+  const values = live.values
+  if (!hasValues(values)) return Decoration.none
+  const { branches } = docWatchKeys(view.state.doc, live)
+  if (!branches) return Decoration.none
+  const upper = keysByUpper(values)
+  // (an element of an array too long to be among the keys is asked of the table: core/watchTable.ts)
+  const read = (name: string): TagValue | undefined => {
+    const key = upper.get(name) ?? (name.includes('[') ? watchElementKey(values, name) : null)
+    return key == null ? undefined : values[key]
+  }
+  const length = view.state.doc.length
+  const spans = untakenSpans(branches, read, view.viewport.from, view.viewport.to).filter((span) => span.to <= length)
+  return Decoration.set(spans.map((span) => untakenMark.range(span.from, span.to)), true)
+}
+
+// Rebuilt on a value push, an edit and a scroll: the marks are worked out for the viewport only (stBranches.ts).
+const untakenPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = untakenMarks(view)
+    }
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.viewportChanged || update.state.field(watchField) !== update.startState.field(watchField)) this.decorations = untakenMarks(update.view)
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+)
 
 /** Push the latest variable image into an editor's inline overlay (call each scan), with the program instances that
  *  run it and the instance picked for a PROGRAM that runs as several, which say whose variable each name in it is. */
@@ -555,6 +598,7 @@ export function stExtensions(
     autocompletion({ override: [stCompletions(getTags)] }),
     stLinter(opts?.getProgram ?? (() => ({ controller: null, scanMs: DEFAULT_SCAN_MS })), opts?.lints ?? (() => true), opts?.getDefaultPlc ?? (() => undefined)),
     watchField,
+    untakenPlugin,
     stTheme,
     stPhrases(),
   ]
