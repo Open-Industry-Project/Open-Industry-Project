@@ -32,7 +32,7 @@ export class Rng {
   }
 }
 
-export type Ty = 'BOOL' | 'SINT' | 'INT' | 'DINT' | 'USINT' | 'UINT' | 'UDINT' | 'BYTE' | 'WORD' | 'DWORD' | 'REAL' | 'LREAL' | 'TIME' | 'STRING'
+export type Ty = 'BOOL' | 'SINT' | 'INT' | 'DINT' | 'USINT' | 'UINT' | 'UDINT' | 'BYTE' | 'WORD' | 'DWORD' | 'REAL' | 'LREAL' | 'TIME' | 'STRING' | 'WSTRING'
 
 const SIGNED: readonly Ty[] = ['SINT', 'INT', 'DINT']
 const UNSIGNED: readonly Ty[] = ['USINT', 'UINT', 'UDINT']
@@ -40,7 +40,8 @@ const INTS: readonly Ty[] = [...SIGNED, ...UNSIGNED]
 const BITS: readonly Ty[] = ['BYTE', 'WORD', 'DWORD']
 const REALS: readonly Ty[] = ['REAL', 'LREAL']
 const NUMERIC: readonly Ty[] = [...INTS, ...REALS]
-const SCALARS: readonly Ty[] = ['BOOL', ...INTS, ...BITS, ...REALS, 'TIME', 'STRING']
+const SCALARS: readonly Ty[] = ['BOOL', ...INTS, ...BITS, ...REALS, 'TIME', 'STRING', 'WSTRING']
+const isTextTy = (t: Ty): boolean => t === 'STRING' || t === 'WSTRING'
 const CONV_NUM: readonly Ty[] = ['REAL', 'LREAL', 'BOOL', 'TIME', ...INTS, ...BITS]
 
 const isIntTy = (t: Ty): boolean => INTS.includes(t)
@@ -189,6 +190,8 @@ export class StFuzzGen {
     if (t === 'BOOL') return this.r.chance(0.5) ? 'TRUE' : 'FALSE'
     if (t === 'TIME') return this.timeLit()
     if (t === 'STRING') return this.strLit()
+    // the same texts in double quotes (none holds a quote)
+    if (t === 'WSTRING') return this.strLit().replace(/'/g, '"')
     if (isRealTy(t)) return this.realLit(t)
     return this.intLit(t)
   }
@@ -277,7 +280,7 @@ export class StFuzzGen {
     }
     if (t === 'BOOL') return this.boolExpr(d)
     if (t === 'TIME') return this.timeExpr(d)
-    if (t === 'STRING') return this.stringExpr(d)
+    if (t === 'STRING' || t === 'WSTRING') return this.stringExpr(t, d)
     if (isBitTy(t)) return this.bitExpr(t, d)
     if (isRealTy(t)) return this.realExpr(t, d)
     return this.intExpr(t, d)
@@ -432,20 +435,20 @@ export class StFuzzGen {
     }
   }
 
-  private stringExpr(d: number): string {
+  private stringExpr(t: Ty, d: number): string {
     const r = this.r
     const n = (): string => (r.chance(0.8) ? `LIMIT(0, ${this.expr('INT', d)}, 14)` : this.expr('INT', d))
     switch (r.int(0, 6)) {
-      case 0: return `CONCAT(${this.same('STRING', d, r.int(2, 3))})`
-      case 1: return `LEFT(${this.expr('STRING', d)}, ${n()})`
-      case 2: return `RIGHT(${this.expr('STRING', d)}, ${n()})`
-      case 3: return `MID(${this.expr('STRING', d)}, ${n()}, ${n()})`
+      case 0: return `CONCAT(${this.same(t, d, r.int(2, 3))})`
+      case 1: return `LEFT(${this.expr(t, d)}, ${n()})`
+      case 2: return `RIGHT(${this.expr(t, d)}, ${n()})`
+      case 3: return `MID(${this.expr(t, d)}, ${n()}, ${n()})`
       case 4: {
-        const src = r.pick(['DINT', 'INT', 'BOOL', 'UDINT', 'SINT', 'WORD', 'REAL', 'TIME'] as Ty[])
-        return `${src}_TO_STRING(${this.expr(src, d)})`
+        const src = r.pick(['DINT', 'INT', 'BOOL', 'UDINT', 'SINT', 'WORD', 'REAL', 'TIME', t === 'STRING' ? 'WSTRING' : 'STRING'] as Ty[])
+        return `${src}_TO_${t}(${this.expr(src, d)})`
       }
-      case 5: return `SEL(${this.expr('BOOL', d)}, ${this.same('STRING', d, 2)})`
-      default: return this.lit('STRING')
+      case 5: return `SEL(${this.expr('BOOL', d)}, ${this.same(t, d, 2)})`
+      default: return this.lit(t)
     }
   }
 
@@ -453,7 +456,7 @@ export class StFuzzGen {
     const r = this.r
     switch (r.int(0, 11)) {
       case 0: case 1: case 2: {
-        const ct = r.pick(SCALARS.filter((s) => s !== 'STRING' || r.chance(0.3)))
+        const ct = r.pick(SCALARS.filter((s) => !isTextTy(s) || r.chance(0.3)))
         const op = ct === 'BOOL' ? r.pick(['=', '<>']) : r.pick(['=', '<>', '<', '>', '<=', '>='])
         return `(${this.expr(ct, d)} ${op} ${isIntTy(ct) || isBitTy(ct) ? this.untypedOr(ct, d) : this.expr(ct, d)})`
       }
@@ -653,7 +656,7 @@ export class StFuzzGen {
 
   private scalarType(): Ty {
     const r = this.r
-    return r.chance(0.3) ? r.pick(['DINT', 'INT', 'BOOL'] as Ty[]) : r.pick(SCALARS.filter((t) => t !== 'STRING' || r.chance(0.4)))
+    return r.chance(0.3) ? r.pick(['DINT', 'INT', 'BOOL'] as Ty[]) : r.pick(SCALARS.filter((t) => !isTextTy(t) || r.chance(0.4)))
   }
 
   private decl(name: string, s: Shape): string {
@@ -797,7 +800,7 @@ function stdOutputs(t: StdFb['type']): [string, Ty][] {
 }
 
 function typeText(s: Shape): string {
-  if (s.k === 'scalar') return s.t === 'STRING' ? 'STRING[10]' : s.t
+  if (s.k === 'scalar') return isTextTy(s.t) ? `${s.t}[10]` : s.t
   if (s.k === 'struct') return s.name
   return `ARRAY[${s.dims.map(([lo, hi]) => `${lo}..${hi}`).join(', ')}] OF ${typeText(s.elem)}`
 }
@@ -805,7 +808,7 @@ function typeText(s: Shape): string {
 /** Whether `src_TO_dst` is a conversion the language has. */
 function convertible(src: Ty, dst: Ty): boolean {
   if (src === dst) return false
-  if (src === 'STRING' || dst === 'STRING') return src !== 'TIME' || dst === 'STRING'
+  if (isTextTy(src) || isTextTy(dst)) return src !== 'TIME' || isTextTy(dst)
   return true
 }
 

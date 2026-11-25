@@ -351,7 +351,7 @@ export function renderPlcPage(m) {
             <h3>Not claimed</h3>
             <ul>
               <li>Compliance. There is no statement against the standard's feature tables and no PLCopen certification.</li>
-              <li>Completeness. Event tasks, 64-bit types, WSTRING and the other gaps in section 4 are missing.</li>
+              <li>Completeness. Event tasks, 64-bit types and the other gaps in section 4 are missing.</li>
               <li>Function Block Diagram, Sequential Function Chart and Instruction List. Only Structured Text and Ladder Diagram are read.</li>
               <li>Vendor extensions. IEC text is read as written, and vendor extensions are not translated.</li>
               <li>All of 3rd-edition object orientation: function blocks take METHOD, EXTENDS and INTERFACE, and variables take REF_TO, but there is no CLASS or NAMESPACE.</li>

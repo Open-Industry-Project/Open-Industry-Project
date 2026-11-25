@@ -8,7 +8,7 @@
 // The non-trivial semantics (width-correct shifts/rotates, rounding conversions) live as
 // helpers in runtime.ts.
 
-import { bcdToInt, big, bool, calendarValue, conv, idiv, intToBcd, is64, isBitString, isCalendar, isInt, isInt32, isReal, isString, isTime, num, rol, ror, shift64, shl, shr, str, strDelete, strFind, strInsert, strLeft, strMid, strReplace, strRight, widen, wrap, wrap64 } from './runtime'
+import { bcdToInt, big, bool, calendarValue, conv, idiv, intToBcd, is64, isBitString, isCalendar, isInt, isInt32, isReal, isString, isTime, num, rol, ror, shift64, shl, shr, str, strDelete, strFind, strInsert, strLeft, strMid, strReplace, strRight, stringMixFix, widen, wrap, wrap64 } from './runtime'
 import { SCALAR_TYPES, StError } from './types'
 import type { Expr, ScalarType, SourcePos, Value } from './types'
 
@@ -96,6 +96,15 @@ function calendarConversionError(src: ScalarType, dst: ScalarType): string | nul
   if (isCalendar(src) && isCalendar(dst)) return `${src}_TO_${dst} does not exist: a ${dst} is taken from a DT (DT_TO_${dst})`
   const cal = isCalendar(src) ? src : dst
   return `${src}_TO_${dst} is not portable: the reference compilers count a ${cal} in different units (${CALENDAR_UNITS[cal]}); ${CALENDAR_INSTEAD[cal]}`
+}
+
+/**
+ * A conversion reads text of the kind its name says. `STRING_TO_INT(w)` on a WSTRING, or `INT_TO_STRING(w)`, would
+ * otherwise carry a WSTRING into a STRING with no conversion written. Why the argument is refused, or null.
+ */
+function textKindError(src: ScalarType, dst: ScalarType, arg: ScalarType): string | null {
+  if (!isString(arg) || arg === src || (!isString(src) && arg !== 'WSTRING')) return null
+  return `${src}_TO_${dst} converts from ${src}, got ${arg}${isString(src) ? ` (write ${arg}_TO_${src}(...) first)` : ''}`
 }
 
 // Measured (docs/st-conformance.md, "Dates and times of day"): MATIEC by its execute oracle,
@@ -273,17 +282,24 @@ function needOrdered(name: string, t: ScalarType, pos: SourcePos): ScalarType {
   if (t === 'BOOL') throw new StError(`'${name}' needs ordered (numeric, TIME or STRING) arguments`, pos, name.length)
   return t
 }
-/** The string library takes STRING where it says STRING - no silent stringification. */
+/** The string library takes STRING (or WSTRING) where it says STRING - no silent stringification. */
 function needString(name: string, t: ScalarType, pos: SourcePos): ScalarType {
   if (!isString(t)) throw new StError(`'${name}' needs a STRING argument (write ${t}_TO_STRING(...))`, pos, name.length)
   return t
 }
-/** A set of operand types is usable together only if STRING is all-or-nothing. */
-function uniformStrings(name: string, types: ScalarType[], pos: SourcePos): boolean {
+/** Every text among a call's arguments is of one kind: all STRING or all WSTRING. Answers that kind. */
+function oneStringKind(name: string, types: ScalarType[], pos: SourcePos): ScalarType {
+  const strings = types.filter(isString)
+  const other = strings.find((t) => t !== strings[0])
+  if (other !== undefined) throw new StError(`'${name}': ${stringMixFix(other, strings[0]!)}`, pos, name.length)
+  return strings[0] ?? 'STRING'
+}
+/** A set of operand types is usable together only if STRING is all-or-nothing, and of one kind. The kind, or null. */
+function uniformStrings(name: string, types: ScalarType[], pos: SourcePos): ScalarType | null {
   const strings = types.filter(isString).length
-  if (strings === 0) return false
+  if (strings === 0) return null
   if (strings !== types.length) throw new StError(`'${name}' mixes STRING and non-STRING arguments`, pos, name.length)
-  return true
+  return oneStringKind(name, types, pos)
 }
 /** The REAL math set is defined on numbers only - a duration has no square root. */
 function needArith(name: string, t: ScalarType, pos: SourcePos): ScalarType {
@@ -301,12 +317,13 @@ function needBits(name: string, t: ScalarType, pos: SourcePos): ScalarType {
   }
   return t
 }
-/** SEL/MUX result: all-BOOL stays BOOL, all-STRING stays STRING, all-numeric widens;
+/** SEL/MUX result: all-BOOL stays BOOL, all-STRING stays STRING (all-WSTRING, WSTRING), all-numeric widens;
  *  mixing the kinds is an error (widen() would otherwise pick one and lose the other). */
 function combineSelectands(name: string, types: ScalarType[], pos: SourcePos): ScalarType {
   if (types.every((t) => t === 'BOOL')) return 'BOOL'
   if (types.some((t) => t === 'BOOL')) throw new StError(`'${name}' branches must be the same kind`, pos, name.length)
-  if (uniformStrings(name, types, pos)) return 'STRING'
+  const text = uniformStrings(name, types, pos)
+  if (text) return text
   sameTimeKind(name, types, pos)
   return types.reduce(widen)
 }
@@ -316,7 +333,7 @@ export function builtinResultType(name: string, argTypes: ScalarType[], pos: Sou
   const cv = parseConv(name)
   if (cv) {
     arity(name, argTypes.length, 1, 1, pos)
-    const why = calendarConversionError(cv.src, cv.dst)
+    const why = calendarConversionError(cv.src, cv.dst) ?? textKindError(cv.src, cv.dst, argTypes[0]!)
     if (why !== null) throw new StError(why, pos, name.length)
     return cv.dst
   }
@@ -344,9 +361,8 @@ export function builtinResultType(name: string, argTypes: ScalarType[], pos: Sou
     case 'LIMIT':
       arity(name, n, name === 'LIMIT' ? 3 : 2, name === 'LIMIT' ? 3 : Infinity, pos)
       argTypes.forEach((t) => needOrdered(name, t, pos))
-      if (uniformStrings(name, argTypes, pos)) return 'STRING'
       sameTimeKind(name, argTypes, pos)
-      return argTypes.reduce(widen)
+      return uniformStrings(name, argTypes, pos) ?? argTypes.reduce(widen)
     case 'SEL':
       arity(name, n, 3, 3, pos)
       if (argTypes[0] !== 'BOOL') throw new StError(`'SEL' selector (1st arg) must be BOOL`, pos, name.length)
@@ -391,7 +407,8 @@ export function builtinResultType(name: string, argTypes: ScalarType[], pos: Sou
     case 'MOVE':
       arity(name, n, 1, 1, pos)
       return argTypes[0]! // MOVE is the assignment operator as a function: type in, type out
-    // ---- string library (IEC Table 26). Lengths/positions are ordinary integers. ----
+    // ---- string library (IEC Table 26). Lengths/positions are ordinary integers. Each takes STRING or WSTRING,
+    // never the two together, and answers the kind it was given. ----
     case 'LEN':
       arity(name, n, 1, 1, pos)
       needString(name, argTypes[0]!, pos)
@@ -399,37 +416,36 @@ export function builtinResultType(name: string, argTypes: ScalarType[], pos: Sou
     case 'FIND':
       arity(name, n, 2, 2, pos)
       argTypes.forEach((t) => needString(name, t, pos))
+      oneStringKind(name, argTypes, pos)
       return 'INT'
     case 'LEFT':
     case 'RIGHT':
       arity(name, n, 2, 2, pos)
-      needString(name, argTypes[0]!, pos)
       needInt(name, argTypes[1]!, pos)
-      return 'STRING'
+      return needString(name, argTypes[0]!, pos)
     case 'MID':
     case 'DELETE':
       arity(name, n, 3, 3, pos)
-      needString(name, argTypes[0]!, pos)
       needInt(name, argTypes[1]!, pos)
       needInt(name, argTypes[2]!, pos)
-      return 'STRING'
+      return needString(name, argTypes[0]!, pos)
     case 'INSERT':
       arity(name, n, 3, 3, pos)
       needString(name, argTypes[0]!, pos)
       needString(name, argTypes[1]!, pos)
       needInt(name, argTypes[2]!, pos)
-      return 'STRING'
+      return oneStringKind(name, argTypes, pos)
     case 'REPLACE':
       arity(name, n, 4, 4, pos)
       needString(name, argTypes[0]!, pos)
       needString(name, argTypes[1]!, pos)
       needInt(name, argTypes[2]!, pos)
       needInt(name, argTypes[3]!, pos)
-      return 'STRING'
+      return oneStringKind(name, argTypes, pos)
     case 'CONCAT':
       arity(name, n, 2, Infinity, pos)
       argTypes.forEach((t) => needString(name, t, pos))
-      return 'STRING'
+      return oneStringKind(name, argTypes, pos)
   }
   if (VARIADIC_ARITH[name]) {
     arity(name, n, 2, Infinity, pos)
@@ -444,6 +460,7 @@ export function builtinResultType(name: string, argTypes: ScalarType[], pos: Sou
   if (COMPARISONS[name]) {
     arity(name, n, 2, Infinity, pos)
     sameTimeKind(name, argTypes, pos)
+    oneStringKind(name, argTypes, pos)
     return 'BOOL'
   }
   throw new StError(`unknown function '${name}'`, pos, name.length) // unreachable behind isBuiltinFunc
@@ -473,7 +490,7 @@ export function builtinFor(name: string, rt: ScalarType, arity: number): ((a: Va
     return (a) => conv(src, dst, a)
   }
   // (a 64-bit result is computed in bigints, which is evalBuiltin's)
-  if (rt === 'STRING' || is64(rt) || TIME_FUNCTIONS[name]) return null
+  if (isString(rt) || is64(rt) || TIME_FUNCTIONS[name]) return null
   switch (name) {
     case 'ABS': return arity === 1 ? (a) => coerceNum(rt, Math.abs(num(a))) : null
     case 'MIN': return arity === 2 ? (a, b) => coerceNum(rt, Math.min(num(a), num(b))) : null
@@ -510,7 +527,7 @@ export function comparisonArgs(mode: 'big' | 'num', args: Value[]): Value[] {
 export function evalBuiltin(name: string, rt: ScalarType, args: Value[]): Value {
   const r = evalRaw(name, rt, args)
   if (is64(rt)) return wrap64(rt, big(r))
-  return typeof r === 'bigint' ? (rt === 'BOOL' ? r !== 0n : rt === 'STRING' ? r.toString() : Number(r)) : r
+  return typeof r === 'bigint' ? (rt === 'BOOL' ? r !== 0n : isString(rt) ? r.toString() : Number(r)) : r
 }
 
 /** A 64-bit builtin's arguments, each converted to the result type first (runtime.ts). */
@@ -550,13 +567,13 @@ function evalRaw(name: string, rt: ScalarType, args: Value[]): Value {
     // MIN/MAX/LIMIT are generic over ordered values: on STRING they order lexicographically
     // (by character code, the same order the comparison operators use)
     case 'MIN':
-      if (rt === 'STRING') return args.map(str).reduce((a, b) => (b < a ? b : a))
+      if (isString(rt)) return args.map(str).reduce((a, b) => (b < a ? b : a))
       return coerceNum(rt, Math.min(...args.map(num)))
     case 'MAX':
-      if (rt === 'STRING') return args.map(str).reduce((a, b) => (b > a ? b : a))
+      if (isString(rt)) return args.map(str).reduce((a, b) => (b > a ? b : a))
       return coerceNum(rt, Math.max(...args.map(num)))
     case 'LIMIT': {
-      if (rt === 'STRING') {
+      if (isString(rt)) {
         const [lo, v, hi] = [str(args[0]!), str(args[1]!), str(args[2]!)]
         return v < lo ? lo : v > hi ? hi : v
       }

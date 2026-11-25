@@ -4,7 +4,7 @@
 // decides logical-vs-bitwise by operand type, and the interpreter emits the rest.
 
 import type { Access, AliasDef, Ast, ConfigurationDef, DataType, Decl, Diagnostic, EnumDef, FbDef, FuncDef, InterfaceDef, MethodDef, ProgramDef, ProgramInstanceDef, ResourceDef, ScalarType, SourcePos, StructDef, Stmt, SubrangeDef, TaskDef, Token } from './types'
-import { SCALAR_TYPES, StError } from './types'
+import { SCALAR_TYPES, StError, isStringType } from './types'
 import { lex } from './lexer'
 import { MOTION_LIBRARY_NAMES, MOTION_LIBRARY_SOURCE } from './motionPrelude'
 import { NOT_IEC, VAR_SECTIONS } from './parserBase'
@@ -406,7 +406,7 @@ class Parser extends DeclParser {
     } else if (retTok.kind === 'kw' && (SCALAR_TYPES as readonly string[]).includes(retTok.value)) {
       this.next()
       ret = retTok.value as ScalarType
-      if (retTok.value === 'STRING') retMaxLen = this.stringLen()
+      if (isStringType(retTok.value)) retMaxLen = this.stringLen()
     } else if (retTok.kind === 'ident') {
       ret = { fb: this.typeName().value }
     } else {

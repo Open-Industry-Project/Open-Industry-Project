@@ -33,7 +33,8 @@
       "DATE",
       "TOD",
       "DT",
-      "STRING"
+      "STRING",
+      "WSTRING"
     ],
     "defaultStringLength": 80,
     "notes": [
@@ -149,7 +150,8 @@
         "DATE",
         "TOD",
         "DT",
-        "STRING"
+        "STRING",
+        "WSTRING"
       ],
       "verified": [
         "INT_TO_REAL",
@@ -222,6 +224,7 @@
     "VAR_TEMP",
     "WHILE",
     "WORD",
+    "WSTRING",
     "XOR"
   ],
   "features": [
@@ -515,6 +518,30 @@
       "verdict": "compiles"
     },
     {
+      "id": "wstring",
+      "category": "Types",
+      "intent": "supported",
+      "title": "WSTRING with a capacity, the string functions and the comparisons",
+      "st": "VAR w : WSTRING[20]; n : INT; q : BOOL; END_VAR\nw := CONCAT(w, \"more\");\nn := FIND(w, \"or\");\nq := w < \"z\";",
+      "verdict": "compiles"
+    },
+    {
+      "id": "wstring-literal",
+      "category": "Types",
+      "intent": "supported",
+      "title": "A double-quoted (WSTRING) literal, with $\" and four-digit $ escapes",
+      "st": "VAR w : WSTRING; END_VAR\nw := \"say $\"hi$\" $00E9$N\";",
+      "verdict": "compiles"
+    },
+    {
+      "id": "wstring-convert",
+      "category": "Types",
+      "intent": "supported",
+      "title": "WSTRING_TO_STRING and STRING_TO_WSTRING",
+      "st": "VAR w : WSTRING; s : STRING := 'abc'; END_VAR\nw := STRING_TO_WSTRING(s);\ns := WSTRING_TO_STRING(w);",
+      "verdict": "compiles"
+    },
+    {
       "id": "literals",
       "category": "Types",
       "intent": "supported",
@@ -601,24 +628,6 @@
       "title": "The nine IEC string functions, 1-based",
       "st": "VAR s : STRING := 'hello world'; part : STRING; at : INT; END_VAR\npart := MID(s, 5, 1);\nat := FIND(s, 'world');\npart := REPLACE(s, 'X', 1, 1);",
       "verdict": "compiles"
-    },
-    {
-      "id": "wstring",
-      "category": "Types the subset lacks",
-      "intent": "unsupported",
-      "title": "WSTRING",
-      "st": "VAR s : WSTRING; END_VAR",
-      "verdict": "refused",
-      "message": "WSTRING is not supported: wide (UTF-16) strings are not implemented; STRING is"
-    },
-    {
-      "id": "wstring-literal",
-      "category": "Types the subset lacks",
-      "intent": "unsupported",
-      "title": "A double-quoted (WSTRING) literal",
-      "st": "VAR s : STRING; END_VAR\ns := \"wide\";",
-      "verdict": "refused",
-      "message": "double-quoted literals are WSTRING, which is not implemented; use a single-quoted STRING"
     },
     {
       "id": "ldt",
@@ -993,6 +1002,16 @@
       "verdict": "refused",
       "message": "cannot assign REAL to 'i' of type INT (write REAL_TO_INT(...))",
       "note": "Only IEC’s safe widenings are implicit. The error names the conversion to write."
+    },
+    {
+      "id": "wstring-mix",
+      "category": "Refused for portability",
+      "intent": "strict",
+      "title": "A STRING and a WSTRING mixed without a conversion",
+      "st": "VAR w : WSTRING; s : STRING; END_VAR\nw := s;",
+      "verdict": "refused",
+      "message": "cannot assign STRING to 'w' of type WSTRING (write STRING_TO_WSTRING(...))",
+      "note": "The two are different types in IEC. An assignment, a comparison or a string function takes one kind, and the error names WSTRING_TO_STRING or STRING_TO_WSTRING."
     },
     {
       "id": "string-members",
@@ -1370,6 +1389,10 @@
         "note": "The output is an IEC duration literal (T#1s500ms); IEC does not fix a TIME_TO_STRING format. Chosen so the output round-trips back through STRING_TO_TIME."
       },
       {
+        "case": "WSTRING_TO_STRING and STRING_TO_WSTRING carry the text across",
+        "note": "A STRING here holds any character a WSTRING does (an IEC STRING is single-byte), so the two conversions copy the text unchanged, where a target may have to drop or replace a character its STRING cannot hold."
+      },
+      {
         "case": "a fraction of a second prints in milliseconds, and a literal in a STRING reads back",
         "note": "IEC fixes no spelling for a calendar value as text. A fraction of a second prints in milliseconds, three places; MATIEC prints six (TOD#07:05:09.500000). Text that is no date reads as 0 (1970-01-01, midnight), as STRING_TO_INT of text that is no number reads as 0."
       },
@@ -1416,10 +1439,10 @@
     ]
   },
   "corpus": {
-    "groups": 27,
-    "cases": 275,
-    "rejectionCases": 71,
-    "replayedByOracle": 190,
+    "groups": 28,
+    "cases": 289,
+    "rejectionCases": 76,
+    "replayedByOracle": 192,
     "withheldFromOracle": [
       {
         "case": "integer division by zero faults the scan",
@@ -1508,6 +1531,54 @@
       {
         "case": "TIME_TO_STRING emits an IEC duration literal",
         "why": "same as REAL_TO_STRING - the format is implementation-defined, so a diff against MATIEC would be reporting a permitted difference"
+      },
+      {
+        "case": "the string library takes a WSTRING and answers one",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "CONCAT, INSERT, DELETE and REPLACE edit a WSTRING",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "a WSTRING literal has its own escapes, and each quote is plain inside the other literal",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "WSTRING compares lexicographically by character code",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "MIN, MAX and SEL take WSTRINGs and answer one",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "WSTRING_TO_STRING and STRING_TO_WSTRING carry the text across",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "a store into a WSTRING truncates to its declared capacity",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "a WSTRING is a struct field and an array element, each with its capacity",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "a WSTRING is a function result, an input and a VAR_IN_OUT",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "rejects a double-quoted literal stored into a STRING",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
+      },
+      {
+        "case": "rejects a string function given a STRING and a WSTRING together",
+        "why": "MATIEC refuses the program, but for a reason of its own: its CONCAT takes no WSTRING at all (\"Data type incompatibility for value passed in position 1\"), so its verdict says nothing about mixing the two kinds"
+      },
+      {
+        "case": "rejects a conversion given the other kind of text",
+        "why": "NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead."
       },
       {
         "case": "a fraction of a second prints in milliseconds, and a literal in a STRING reads back",
@@ -1857,6 +1928,7 @@
       "structured initial values: (field := value) and arrays of them",
       "file structure - POUs in any order, not just grouped by kind",
       "STRING is character data, ordered but not arithmetic",
+      "WSTRING is a character type of its own",
       "dates and times of day: DATE, TOD and DT",
       "tasks and programs: a CONFIGURATION runs PROGRAM instances on their own schedules",
       "located variables: AT binds a variable to an I/O point (%I, %Q) or to memory (%M)",
@@ -1908,7 +1980,9 @@
         "WORD"
       ],
       "compiledOnly": [],
-      "unverified": []
+      "unverified": [
+        "WSTRING"
+      ]
     },
     "functionBlocks": {
       "executed": [
@@ -2005,7 +2079,7 @@
       "unverified": []
     },
     "summary": {
-      "types": "20/20",
+      "types": "20/21",
       "functionBlocks": "12/22",
       "functions": "54/58"
     }

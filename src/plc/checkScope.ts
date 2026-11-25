@@ -3,7 +3,7 @@
 
 import { type EnumDefMap, type Env, type FbDefMap, type FuncDefMap, identKey, type InterfaceDefMap, type StructDefMap } from './program'
 import type { DataType, Decl, Diagnostic, Expr, FbDef, MethodDef } from './types'
-import { DEFAULT_STRING_LEN, isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
+import { DEFAULT_STRING_LEN, isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError, isStringType } from './types'
 
 /** identKey(member) -> which enumeration it belongs to and what it is worth. Members resolve
  *  unqualified, by this engine's own rule for a bare member name. */
@@ -36,7 +36,7 @@ export interface Scope {
 }
 
 /**
- * Declarations whose TYPE was refused (`x : WSTRING`, `x : Nope`). They stay in scope, so a later use
+ * Declarations whose TYPE was refused (`x : LDATE`, `x : Nope`). They stay in scope, so a later use
  * is not reported as "undeclared", but a use has nothing true to say about them either: it would be
  * checked against a type that never resolved, which reads as a function block, so one refused type
  * would add "cannot assign to function block 'x'" at every statement that named it.
@@ -126,9 +126,9 @@ export function typeName(t: DataType): string {
   if (isStruct(t)) return t.struct
   if (isUserFb(t)) return t.fb
   if (isInterface(t)) return t.iface
-  if (isRef(t)) return `REF_TO ${typeName(t.ref)}${t.ref === 'STRING' && t.maxLen !== undefined ? `[${t.maxLen}]` : ''}`
+  if (isRef(t)) return `REF_TO ${typeName(t.ref)}${isStringType(t.ref) && t.maxLen !== undefined ? `[${t.maxLen}]` : ''}`
   if (t.named !== undefined) return t.named
-  const cap = t.elem === 'STRING' && t.elemMaxLen !== undefined ? `[${t.elemMaxLen}]` : ''
+  const cap = isStringType(t.elem) && t.elemMaxLen !== undefined ? `[${t.elemMaxLen}]` : ''
   return `ARRAY[${t.dims.map((d) => `${d.lo}..${d.hi}`).join(', ')}] OF ${typeName(t.elem)}${cap}`
 }
 
@@ -172,6 +172,6 @@ export function designates(t: DataType): boolean {
 /** A declaration's type as an author wrote it, for a message: the subrange or STRING capacity included. */
 export function declTypeName(d: Decl): string {
   if (d.range) return d.range.name
-  if (d.type === 'STRING') return `STRING[${d.maxLen ?? DEFAULT_STRING_LEN}]`
+  if (isStringType(d.type)) return `${d.type}[${d.maxLen ?? DEFAULT_STRING_LEN}]`
   return typeName(d.type)
 }

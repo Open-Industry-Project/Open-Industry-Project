@@ -6,7 +6,7 @@ import { infer, inferType, throughFbOutput } from './checkExpr'
 import { AlreadyReported, lookup, placeRoot, placeText, sameDataType, type Scope, typeName } from './checkScope'
 import { containsFb, type FbDefMap, identKey, type InterfaceDefMap, isFb, isScalarType, methodDecls } from './program'
 import type { DataType, Decl, Expr, FbArg, MethodDef, RefType, ScalarType, SourcePos } from './types'
-import { DEFAULT_STRING_LEN, isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
+import { DEFAULT_STRING_LEN, isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError, isStringType } from './types'
 
 /** Check an output binding (`Q => place`): the destination must be a writable place that
  *  can hold the member's type. Same rules as an assignment, because that is what it is. A whole
@@ -135,8 +135,8 @@ function checkRefSource(src: Expr, ref: RefType, scope: Scope, what: string, las
     return
   }
   if (!sameDataType(st, want)) throw new StError(`${what} refers to ${typeName(want)}, and '${placeText(src)}' is ${typeName(st)}: a reference refers to a place of exactly its type`, src.pos)
-  if (want === 'STRING' && (src.node === 'var' || src.node === 'member' || src.node === 'index') && (src.maxLen ?? DEFAULT_STRING_LEN) !== (ref.maxLen ?? DEFAULT_STRING_LEN)) {
-    throw new StError(`${what} refers to STRING[${ref.maxLen ?? DEFAULT_STRING_LEN}], and '${placeText(src)}' holds ${src.maxLen ?? DEFAULT_STRING_LEN} characters: their capacities must match`, src.pos)
+  if (isStringType(want) && (src.node === 'var' || src.node === 'member' || src.node === 'index') && (src.maxLen ?? DEFAULT_STRING_LEN) !== (ref.maxLen ?? DEFAULT_STRING_LEN)) {
+    throw new StError(`${what} refers to ${want}[${ref.maxLen ?? DEFAULT_STRING_LEN}], and '${placeText(src)}' holds ${src.maxLen ?? DEFAULT_STRING_LEN} characters: their capacities must match`, src.pos)
   }
 }
 
@@ -155,7 +155,7 @@ export function refValue(v: Expr, ref: RefType, scope: Scope, what: string, last
   if (v.node === 'var' && !v.ref && pointerOf(v, scope) === 'ref') {
     const from = lookup(scope, v.name)!.type as RefType
     const want = ref.ref
-    const ok = isUserFb(want) && isUserFb(from.ref) ? derivesFrom(from.ref.fb, want.fb, scope.fbs) : sameDataType(from.ref, want) && (want !== 'STRING' || (from.maxLen ?? DEFAULT_STRING_LEN) === (ref.maxLen ?? DEFAULT_STRING_LEN))
+    const ok = isUserFb(want) && isUserFb(from.ref) ? derivesFrom(from.ref.fb, want.fb, scope.fbs) : sameDataType(from.ref, want) && (!isStringType(want) || (from.maxLen ?? DEFAULT_STRING_LEN) === (ref.maxLen ?? DEFAULT_STRING_LEN))
     if (!ok) throw new StError(`${what} refers to ${typeName(want)}, and '${v.name}' is ${typeName(from)}: a reference is given one of exactly its type`, v.pos)
     return { source: v, alias: true }
   }
@@ -212,11 +212,11 @@ export function checkCallArgs(args: FbArg[], decls: readonly Decl[], what: strin
       }
       // the in-out stands for the caller's variable, so a STRING's capacity is part of its type here: a longer
       // parameter would write text the variable has no room for
-      if (io.type === 'STRING') {
+      if (isStringType(io.type)) {
         const want = io.maxLen ?? DEFAULT_STRING_LEN
         const v = a.value
         const got = (v.node === 'var' || v.node === 'member' || v.node === 'index' ? v.maxLen : undefined) ?? DEFAULT_STRING_LEN
-        if (want !== got) throw new StError(`VAR_IN_OUT '${io.name}' needs exactly STRING[${want}], got STRING[${got}]`, a.pos)
+        if (want !== got) throw new StError(`VAR_IN_OUT '${io.name}' needs exactly ${io.type}[${want}], got ${io.type}[${got}]`, a.pos)
       }
       continue
     }

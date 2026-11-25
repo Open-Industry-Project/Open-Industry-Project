@@ -95,11 +95,11 @@ function maskOf(src: string): Uint8Array {
       i = end
       continue
     }
-    if (ch === "'") {
+    if (ch === "'" || ch === '"') {
       let k = i + 1
       while (k < src.length && src[k] !== '\n') {
         if (src[k] === '$') { k += 2; continue } // an escape, so `$'` does not close the literal
-        if (src[k] === "'") { k++; break }
+        if (src[k] === ch) { k++; break }
         k++
       }
       fill(i, k)

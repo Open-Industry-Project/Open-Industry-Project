@@ -7,9 +7,9 @@ import { checkMcall, isNull, pointerOf } from './checkCalls'
 import { become, declTypeName, exprEnum, lookup, placeText, sameDataType, type Scope, typeName } from './checkScope'
 import { LD_ROLES, ladderRole } from './ladder/ladder'
 import { type EnumDefMap, fbDecls, type FbDefMap, identKey, isFb, isScalarType } from './program'
-import { FB_POSITIONAL, fbMemberType, is64, isBitString, isCalendar, isInt, isReal, isString, isTime, widen, wrap, wrap64 } from './runtime'
+import { FB_POSITIONAL, fbMemberType, is64, isBitString, isCalendar, isInt, isReal, isString, isTime, stringMixFix, widen, wrap, wrap64 } from './runtime'
 import type { DataType, Decl, DeclType, Expr, FbArg, ScalarType, SourcePos, UserFbRef } from './types'
-import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
+import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError, isStringType } from './types'
 
 /**
  * Reject a place that a graphical dialect's element requires to be BOOL, in that dialect's words.
@@ -172,8 +172,8 @@ export function inferType(e: Expr, scope: Scope): DataType {
       e.t = 'BOOL'
       return 'BOOL'
     case 'str':
-      e.t = 'STRING'
-      return 'STRING'
+      e.t = e.wide ? 'WSTRING' : 'STRING'
+      return e.t
     case 'var': {
       // `Mode#Idle` always means the member, whatever else shares its name; a bare member name is
       // an enumeration constant too, unless a variable of that name shadows it
@@ -283,8 +283,8 @@ export function inferType(e: Expr, scope: Scope): DataType {
         return out.type
       }
       // IEC gives a STRING no members at all, so the program is told what it has instead
-      if (ot === 'STRING') {
-        throw new StError(`'.${e.field}': a STRING has no members in IEC 61131-3 - read its length with LEN() and its characters with MID()`, e.pos, e.field.length)
+      if (isStringType(ot)) {
+        throw new StError(`'.${e.field}': a ${ot} has no members in IEC 61131-3 - read its length with LEN() and its characters with MID()`, e.pos, e.field.length)
       }
       if (!isStruct(ot)) throw new StError(`'.${e.field}' on a value that is not a struct`, e.pos, e.field.length)
       const f = scope.structs.get(identKey(ot.struct))?.fields.find((x) => identKey(x.name) === identKey(e.field))
@@ -495,16 +495,17 @@ function needNumeric(op: string, t: ScalarType, side: Expr): void {
   )
 }
 
-/** STRING is ordered but not arithmetic: the six comparisons work (lexicographic, by
- *  character code) and nothing else does. IEC has no string `+`, so accepting one would
+/** STRING and WSTRING are ordered but not arithmetic: the six comparisons work (lexicographic, by
+ *  character code) between two of the same kind, and nothing else does. IEC has no string `+`, so accepting one would
  *  build here and fail on the target - the exact portability defect to refuse. */
 function inferStringBinary(e: Extract<Expr, { node: 'binary' }>, lt: ScalarType, rt: ScalarType, isCompare: boolean): ScalarType {
   if (!(isString(lt) && isString(rt))) {
-    throw new StError(`cannot ${isCompare ? 'compare' : 'combine'} ${lt} with ${rt}; both sides must be STRING`, e.pos)
+    throw new StError(`cannot ${isCompare ? 'compare' : 'combine'} ${lt} with ${rt}; both sides must be ${isString(lt) ? lt : rt}`, e.pos)
   }
+  if (lt !== rt) throw new StError(`cannot ${isCompare ? 'compare' : 'combine'} ${lt} with ${rt}; ${stringMixFix(lt, rt)}`, e.pos)
   if (isCompare) return 'BOOL'
   const fix = e.op === '+' ? '; use CONCAT(a, b) to join strings' : ''
-  throw new StError(`${e.op} is not defined on STRING operands${fix}`, e.pos)
+  throw new StError(`${e.op} is not defined on ${lt} operands${fix}`, e.pos)
 }
 
 function inferBinary(e: Extract<Expr, { node: 'binary' }>, scope: Scope): ScalarType {

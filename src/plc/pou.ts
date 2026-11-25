@@ -10,7 +10,7 @@ import type { WatchRange } from '../core/watchTable'
 import { controllerTags, identKey, isScalarType, passOrder, taskTable } from './program'
 import { bigOf, bool, is64, isInt, isString, low32, nsOf, num, roundEven, str, stringToBig, strLimit, tagOfBig, wrap, wrap64 } from './runtime'
 import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, Value, VarInfo, WatchPlan } from './types'
-import { isEnum, StError } from './types'
+import { isEnum, StError, isStringType } from './types'
 
 /** A stored value as a surface answers it (get, the watch table, outputs): a scalar, a 64-bit integer in the form a
  *  TagValue carries it, or undefined for an aggregate or nothing. Every surface that flattens the image goes through
@@ -253,7 +253,7 @@ const locatedKeys = (bindings: Map<string, LocatedBinding>, dir: LocatedBinding[
  * number, which holds one exactly only up to 2^53, so wiring one would be right until it was silently wrong.
  */
 function tagged(d: Decl): boolean {
-  return (isScalarType(d.type) && d.type !== 'STRING' && !is64(d.type)) || isEnum(d.type)
+  return (isScalarType(d.type) && !isStringType(d.type) && !is64(d.type)) || isEnum(d.type)
 }
 
 /**

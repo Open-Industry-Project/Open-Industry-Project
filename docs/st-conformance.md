@@ -125,6 +125,15 @@ spelling. A `TYPE Str16 : STRING[16]` hoist is no workaround (MATIEC's `simple_s
 string type name). So the renderer emits what the author wrote, the corpus uses unsized `STRING` wherever capacity
 is not the subject, and the one capacity case is withheld from both oracles with the diagnosis.
 
+**Neither compiler can check a `WSTRING` beyond its declaration.** Measured by compiling small programs through
+each. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler
+error (`generate_c_base.cc`), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles a
+declaration, a literal with its escapes, an assignment and the two conversions to and from `STRING`, and its
+output builds; it refuses a `STRING` stored into a `WSTRING`. Its runtime has no string function or comparison
+for the type, so those programs compile and then fail to build, and it reads no `WSTRING[n]`. MATIEC refuses
+the two mixing cases that hold no literal, which stay in the replay. Every other WSTRING case is withheld
+with this diagnosis and held to its goldens on both scan engines, and export warns when a program uses the type.
+
 ### BCD: the standard disagrees with itself
 
 This engine has the signed pair `BCD_TO_INT` / `INT_TO_BCD`. IEC's normative conversion table defines BCD over
@@ -291,7 +300,7 @@ must be a variable of exactly the declared type, since the block writes through 
 **Types.** `BOOL`; signed (`SINT`/`INT`/`DINT`/`LINT`), unsigned (`USINT`/`UINT`/`UDINT`/`ULINT`) and bit-string
 (`BYTE`/`WORD`/`DWORD`/`LWORD`) integers kept apart, the 64-bit ones exact over their whole range (see
 [64-bit integers](#64-bit-integers)); `REAL`, `LREAL`, `TIME`, `DATE`, `TIME_OF_DAY`/`TOD`,
-`DATE_AND_TIME`/`DT` (see [Dates and times of day](#dates-and-times-of-day)), `STRING`; with width-correct
+`DATE_AND_TIME`/`DT` (see [Dates and times of day](#dates-and-times-of-day)), `STRING`, `WSTRING`; with width-correct
 two's-complement wrapping, IEC widening, ties-to-even narrowing, truncating integer division and `MOD` taking the
 dividend's sign.
 
@@ -329,6 +338,19 @@ yielding 0 for nonsense (this engine's rule).
 **The string library.** `LEN`, `LEFT`, `RIGHT`, `MID`, `CONCAT`, `INSERT`, `DELETE`, `REPLACE`, `FIND`; positions
 1-based, `MID` is `(IN, L, P)`. A `STRING` shows in the watch table and value overlay but does not drive the scene
 (tag bindings stay numeric/boolean).
+
+**`WSTRING` is a type of its own.** `w : WSTRING[20]` is declared, bounded, truncated and defaulted to 80 as a
+`STRING` is, and it is a struct field, an array element, a function result, a `VAR_IN_OUT` and the target of a
+`REF_TO` on the same terms. Its literal is double-quoted (`"wide"`), with the escapes `$"`, `$$`,
+`$L`/`$N`/`$P`/`$R`/`$T` and a four-hex-digit code unit (`$00E9`); a STRING literal keeps its two-digit `$0D`.
+A single quote is an ordinary character in a WSTRING literal, and a double quote in a STRING literal. The string
+library, the comparisons, `MIN`/`MAX`/`LIMIT` and `SEL`/`MUX` take either kind and answer the kind they were
+given. The two never mix: an assignment, a comparison or a call holding one of each is refused, and the message
+names `WSTRING_TO_STRING` or `STRING_TO_WSTRING`. The `<src>_TO_<dst>` family includes `WSTRING` at both ends
+with the same formats and parsing as `STRING`, and a conversion reads text only of the kind its name says
+(`STRING_TO_INT` of a WSTRING is refused). Length and position count UTF-16 code units, so a character outside
+the basic plane counts as two. That count, and refusing the wrong kind of text in a conversion, are this
+engine's rules.
 
 **`&` is `AND`**, both in IEC's operator table and used by Annex F; it lexes to `AND` everywhere, and export keeps
 the author's spelling. **`0` and `1` are `BOOL` literals** beside `FALSE`/`TRUE` (the standard's examples write
@@ -563,7 +585,7 @@ both; the tier-2 harness backs each address with storage in `LOCATED_VARIABLES.h
 
 | Area | Missing |
 |------|---------|
-| Types | `WSTRING` (a double-quoted literal is rejected by name, so the message says which type is missing rather than "unexpected character"); `LDATE`/`LTOD`/`LDT` and `LTIME` (the type and an `LTIME#` / `LT#` literal are each refused by name); a default value on an alias, enumeration or array `TYPE` declaration (`TYPE Count : INT := 5;`; a `STRUCT` field's default is supported) |
+| Types | `WCHAR` and `CHAR`; `LDATE`/`LTOD`/`LDT` and `LTIME` (the type and an `LTIME#` / `LT#` literal are each refused by name); a default value on an alias, enumeration or array `TYPE` declaration (`TYPE Count : INT := 5;`; a `STRUCT` field's default is supported) |
 | Declarations | `VAR_ACCESS`, `VAR_CONFIG`, `RETAIN`/`NON_RETAIN` (accepted, no effect), 64-bit (`L`) located variables (no I/O point here is 64 bits wide: see [64-bit integers](#64-bit-integers)), and a direct address used in code (see [Located variables](#located-variables)) |
 | Configuration | event tasks (`SINGLE`), instance wiring in the `CONFIGURATION`, more than one `RESOURCE`, `WITH` on a function-block instance (see [Tasks and programs](#tasks-and-programs)) |
 | Statements | FB calls as expressions; leaving an input out of a formal call to a standard function (MATIEC takes it; every input is asked for here) |
@@ -639,6 +661,11 @@ Each is exercised by a corpus case carrying a `divergence` note.
     MATIEC's library `CTUD` counts up only while `CV` is below `PV` and down only while it is above 0. The corpus
     cases stay in the range where both agree, so a program that counts past `PV`, or below 0, should not assume a
     target does the same.
+18. **A `STRING` holds any character.** An IEC `STRING` is single-byte and a `WSTRING` double-byte. Here both hold
+    UTF-16 code units, so a `STRING` keeps text a single-byte target would not, and `WSTRING_TO_STRING` and
+    `STRING_TO_WSTRING` copy the text unchanged. A program that puts a character past one byte in a `STRING` should
+    not assume a target keeps it; write such text in a `WSTRING`. Case: "WSTRING_TO_STRING and STRING_TO_WSTRING
+    carry the text across".
 
 ## Known permissiveness
 

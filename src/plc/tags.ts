@@ -78,7 +78,7 @@ function stripText(text: string): string {
     if (past === i) out += text[i]
     else {
       // a string literal is part of what was written; a comment or a pragma is not
-      if (text[i] === "'") out += text.slice(i, past)
+      if (text[i] === "'" || text[i] === '"') out += text.slice(i, past)
       i = past - 1
     }
   }

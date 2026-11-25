@@ -200,7 +200,7 @@
             <h3>Not claimed</h3>
             <ul>
               <li>Compliance. There is no statement against the standard's feature tables and no PLCopen certification.</li>
-              <li>Completeness. Event tasks, 64-bit types, WSTRING and the other gaps in section 4 are missing.</li>
+              <li>Completeness. Event tasks, 64-bit types and the other gaps in section 4 are missing.</li>
               <li>Function Block Diagram, Sequential Function Chart and Instruction List. Only Structured Text and Ladder Diagram are read.</li>
               <li>Vendor extensions. IEC text is read as written, and vendor extensions are not translated.</li>
               <li>All of 3rd-edition object orientation: function blocks take METHOD, EXTENDS and INTERFACE, and variables take REF_TO, but there is no CLASS or NAMESPACE.</li>
@@ -219,13 +219,13 @@
         </p>
         <dl class="vocab">
           <dt>Types</dt>
-          <dd><div class="chips" translate="no"><span class="chip">BOOL</span><span class="chip">SINT</span><span class="chip">INT</span><span class="chip">DINT</span><span class="chip">LINT</span><span class="chip">USINT</span><span class="chip">UINT</span><span class="chip">UDINT</span><span class="chip">ULINT</span><span class="chip">BYTE</span><span class="chip">WORD</span><span class="chip">DWORD</span><span class="chip">LWORD</span><span class="chip">REAL</span><span class="chip">LREAL</span><span class="chip">TIME</span><span class="chip">DATE</span><span class="chip">TOD</span><span class="chip">DT</span><span class="chip">STRING</span></div></dd>
+          <dd><div class="chips" translate="no"><span class="chip">BOOL</span><span class="chip">SINT</span><span class="chip">INT</span><span class="chip">DINT</span><span class="chip">LINT</span><span class="chip">USINT</span><span class="chip">UINT</span><span class="chip">UDINT</span><span class="chip">ULINT</span><span class="chip">BYTE</span><span class="chip">WORD</span><span class="chip">DWORD</span><span class="chip">LWORD</span><span class="chip">REAL</span><span class="chip">LREAL</span><span class="chip">TIME</span><span class="chip">DATE</span><span class="chip">TOD</span><span class="chip">DT</span><span class="chip">STRING</span><span class="chip">WSTRING</span></div></dd>
           <dt>Function blocks</dt>
           <dd><div class="chips" translate="no"><span class="chip">TON</span><span class="chip">TOF</span><span class="chip">TP</span><span class="chip">R_TRIG</span><span class="chip">F_TRIG</span><span class="chip">CTU</span><span class="chip">CTD</span><span class="chip">CTUD</span><span class="chip">SR</span><span class="chip">RS</span><span class="chip">CTU_DINT</span><span class="chip">CTU_LINT</span><span class="chip">CTU_UDINT</span><span class="chip">CTU_ULINT</span><span class="chip">CTD_DINT</span><span class="chip">CTD_LINT</span><span class="chip">CTD_UDINT</span><span class="chip">CTD_ULINT</span><span class="chip">CTUD_DINT</span><span class="chip">CTUD_LINT</span><span class="chip">CTUD_UDINT</span><span class="chip">CTUD_ULINT</span></div></dd>
           <dt>Functions</dt>
           <dd><div class="chips" translate="no"><span class="chip">ABS</span><span class="chip">ACOS</span><span class="chip">ADD</span><span class="chip">ADD_DT_TIME</span><span class="chip">ADD_TIME</span><span class="chip">ADD_TOD_TIME</span><span class="chip">ASIN</span><span class="chip">ATAN</span><span class="chip">BCD_TO_INT</span><span class="chip">CONCAT</span><span class="chip">CONCAT_DATE_TOD</span><span class="chip">COS</span><span class="chip">DELETE</span><span class="chip">DIV</span><span class="chip">DIVTIME</span><span class="chip">DIV_TIME</span><span class="chip">EQ</span><span class="chip">EXP</span><span class="chip">EXPT</span><span class="chip">FIND</span><span class="chip">GE</span><span class="chip">GT</span><span class="chip">INSERT</span><span class="chip">INT_TO_BCD</span><span class="chip">LE</span><span class="chip">LEFT</span><span class="chip">LEN</span><span class="chip">LIMIT</span><span class="chip">LN</span><span class="chip">LOG</span><span class="chip">LT</span><span class="chip">MAX</span><span class="chip">MID</span><span class="chip">MIN</span><span class="chip">MOVE</span><span class="chip">MUL</span><span class="chip">MULTIME</span><span class="chip">MUL_TIME</span><span class="chip">MUX</span><span class="chip">NE</span><span class="chip">REPLACE</span><span class="chip">RIGHT</span><span class="chip">ROL</span><span class="chip">ROR</span><span class="chip">SEL</span><span class="chip">SHL</span><span class="chip">SHR</span><span class="chip">SIN</span><span class="chip">SQRT</span><span class="chip">SUB</span><span class="chip">SUB_DATE_DATE</span><span class="chip">SUB_DT_DT</span><span class="chip">SUB_DT_TIME</span><span class="chip">SUB_TIME</span><span class="chip">SUB_TOD_TIME</span><span class="chip">SUB_TOD_TOD</span><span class="chip">TAN</span><span class="chip">TRUNC</span></div><p class="sub" style="margin:0">Plus the &lt;SRC&gt;_TO_&lt;DST&gt; conversion family over those types.</p></dd>
           <dt>Keywords</dt>
-          <dd><div class="chips" translate="no"><span class="chip">AND</span><span class="chip">ARRAY</span><span class="chip">BOOL</span><span class="chip">BY</span><span class="chip">BYTE</span><span class="chip">CASE</span><span class="chip">CONSTANT</span><span class="chip">CONTINUE</span><span class="chip">DINT</span><span class="chip">DO</span><span class="chip">DWORD</span><span class="chip">ELSE</span><span class="chip">ELSIF</span><span class="chip">END_CASE</span><span class="chip">END_FOR</span><span class="chip">END_FUNCTION</span><span class="chip">END_FUNCTION_BLOCK</span><span class="chip">END_IF</span><span class="chip">END_REPEAT</span><span class="chip">END_STRUCT</span><span class="chip">END_TYPE</span><span class="chip">END_VAR</span><span class="chip">END_WHILE</span><span class="chip">EXIT</span><span class="chip">FALSE</span><span class="chip">FOR</span><span class="chip">FUNCTION</span><span class="chip">FUNCTION_BLOCK</span><span class="chip">IF</span><span class="chip">INT</span><span class="chip">LINT</span><span class="chip">LREAL</span><span class="chip">LWORD</span><span class="chip">MOD</span><span class="chip">NOT</span><span class="chip">OF</span><span class="chip">OR</span><span class="chip">REAL</span><span class="chip">REPEAT</span><span class="chip">RETURN</span><span class="chip">SINT</span><span class="chip">STRING</span><span class="chip">STRUCT</span><span class="chip">THEN</span><span class="chip">TIME</span><span class="chip">TO</span><span class="chip">TRUE</span><span class="chip">TYPE</span><span class="chip">UDINT</span><span class="chip">UINT</span><span class="chip">ULINT</span><span class="chip">UNTIL</span><span class="chip">USINT</span><span class="chip">VAR</span><span class="chip">VAR_EXTERNAL</span><span class="chip">VAR_GLOBAL</span><span class="chip">VAR_INPUT</span><span class="chip">VAR_IN_OUT</span><span class="chip">VAR_OUTPUT</span><span class="chip">VAR_TEMP</span><span class="chip">WHILE</span><span class="chip">WORD</span><span class="chip">XOR</span></div></dd>
+          <dd><div class="chips" translate="no"><span class="chip">AND</span><span class="chip">ARRAY</span><span class="chip">BOOL</span><span class="chip">BY</span><span class="chip">BYTE</span><span class="chip">CASE</span><span class="chip">CONSTANT</span><span class="chip">CONTINUE</span><span class="chip">DINT</span><span class="chip">DO</span><span class="chip">DWORD</span><span class="chip">ELSE</span><span class="chip">ELSIF</span><span class="chip">END_CASE</span><span class="chip">END_FOR</span><span class="chip">END_FUNCTION</span><span class="chip">END_FUNCTION_BLOCK</span><span class="chip">END_IF</span><span class="chip">END_REPEAT</span><span class="chip">END_STRUCT</span><span class="chip">END_TYPE</span><span class="chip">END_VAR</span><span class="chip">END_WHILE</span><span class="chip">EXIT</span><span class="chip">FALSE</span><span class="chip">FOR</span><span class="chip">FUNCTION</span><span class="chip">FUNCTION_BLOCK</span><span class="chip">IF</span><span class="chip">INT</span><span class="chip">LINT</span><span class="chip">LREAL</span><span class="chip">LWORD</span><span class="chip">MOD</span><span class="chip">NOT</span><span class="chip">OF</span><span class="chip">OR</span><span class="chip">REAL</span><span class="chip">REPEAT</span><span class="chip">RETURN</span><span class="chip">SINT</span><span class="chip">STRING</span><span class="chip">STRUCT</span><span class="chip">THEN</span><span class="chip">TIME</span><span class="chip">TO</span><span class="chip">TRUE</span><span class="chip">TYPE</span><span class="chip">UDINT</span><span class="chip">UINT</span><span class="chip">ULINT</span><span class="chip">UNTIL</span><span class="chip">USINT</span><span class="chip">VAR</span><span class="chip">VAR_EXTERNAL</span><span class="chip">VAR_GLOBAL</span><span class="chip">VAR_INPUT</span><span class="chip">VAR_IN_OUT</span><span class="chip">VAR_OUTPUT</span><span class="chip">VAR_TEMP</span><span class="chip">WHILE</span><span class="chip">WORD</span><span class="chip">WSTRING</span><span class="chip">XOR</span></div></dd>
         </dl>
         
           <div class="cat">
@@ -643,6 +643,24 @@ q := a &lt; b;
 lo := MIN(a, b);</code></pre>
               </div>
               <div class="card">
+                <div class="card-head">WSTRING with a capacity, the string functions and the comparisons</div>
+                <pre class="st-code" translate="no"><code>VAR w : WSTRING[20]; n : INT; q : BOOL; END_VAR
+w := CONCAT(w, &quot;more&quot;);
+n := FIND(w, &quot;or&quot;);
+q := w &lt; &quot;z&quot;;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">A double-quoted (WSTRING) literal, with $&quot; and four-digit $ escapes</div>
+                <pre class="st-code" translate="no"><code>VAR w : WSTRING; END_VAR
+w := &quot;say $&quot;hi$&quot; $00E9$N&quot;;</code></pre>
+              </div>
+              <div class="card">
+                <div class="card-head">WSTRING_TO_STRING and STRING_TO_WSTRING</div>
+                <pre class="st-code" translate="no"><code>VAR w : WSTRING; s : STRING := 'abc'; END_VAR
+w := STRING_TO_WSTRING(s);
+s := WSTRING_TO_STRING(w);</code></pre>
+              </div>
+              <div class="card">
                 <div class="card-head">Based, typed, exponent and separated literals</div>
                 <pre class="st-code" translate="no"><code>VAR
   h : WORD := 16#FF;
@@ -1046,15 +1064,6 @@ END_LADDER</code></pre></td>
               <thead><tr><th>Written</th><th>The engine's message</th></tr></thead>
               <tbody>
                 <tr>
-                  <td><div class="what">WSTRING</div><pre class="st-code" translate="no"><code>VAR s : WSTRING; END_VAR</code></pre></td>
-                  <td><div class="said" translate="no">WSTRING is not supported: wide (UTF-16) strings are not implemented; STRING is</div></td>
-                </tr>
-                <tr>
-                  <td><div class="what">A double-quoted (WSTRING) literal</div><pre class="st-code" translate="no"><code>VAR s : STRING; END_VAR
-s := &quot;wide&quot;;</code></pre></td>
-                  <td><div class="said" translate="no">double-quoted literals are WSTRING, which is not implemented; use a single-quoted STRING</div></td>
-                </tr>
-                <tr>
                   <td><div class="what">LDATE, LTOD, LDT (64-bit calendar types)</div><pre class="st-code" translate="no"><code>VAR x : LDT; END_VAR</code></pre></td>
                   <td><div class="said" translate="no">LDT is not supported: the 64-bit calendar types are IEC 3rd edition and not implemented; DT is</div></td>
                 </tr>
@@ -1288,6 +1297,11 @@ i := r;</code></pre></td>
                   <td><div class="said" translate="no">cannot assign REAL to 'i' of type INT (write REAL_TO_INT(...))</div><p class="note">Only IEC’s safe widenings are implicit. The error names the conversion to write.</p></td>
                 </tr>
                 <tr>
+                  <td><div class="what">A STRING and a WSTRING mixed without a conversion</div><pre class="st-code" translate="no"><code>VAR w : WSTRING; s : STRING; END_VAR
+w := s;</code></pre></td>
+                  <td><div class="said" translate="no">cannot assign STRING to 'w' of type WSTRING (write STRING_TO_WSTRING(...))</div><p class="note">The two are different types in IEC. An assignment, a comparison or a string function takes one kind, and the error names WSTRING_TO_STRING or STRING_TO_WSTRING.</p></td>
+                </tr>
+                <tr>
                   <td><div class="what">A STRING taken apart by members (S.LEN, S.DATA[i])</div><pre class="st-code" translate="no"><code>VAR s : STRING; n : DINT; END_VAR
 n := s.LEN;</code></pre></td>
                   <td><div class="said" translate="no">'.LEN': a STRING has no members in IEC 61131-3 - read its length with LEN() and its characters with MID()</div><p class="note">IEC gives a STRING no members: LEN() and MID() read it, and the error says so.</p></td>
@@ -1460,6 +1474,7 @@ VAR start AT %I* : BOOL; END_VAR</code></pre></td>
           <li><b>an out-of-range length or position clamps instead of erroring</b>IEC calls an out-of-range length/position an error. This engine clamps to the string instead - faulting a scan over a short string is not behaviour a controller survives.</li>
           <li><b>REAL_TO_STRING formatting is implementation-defined</b>IEC leaves float-to-text formatting to the implementation, and the vendors disagree (trailing zeros, exponent thresholds). We emit the shortest round-trip form. The VALUE is portable; the exact spelling is not, so do not parse it on the target.</li>
           <li><b>TIME_TO_STRING emits an IEC duration literal</b>The output is an IEC duration literal (T#1s500ms); IEC does not fix a TIME_TO_STRING format. Chosen so the output round-trips back through STRING_TO_TIME.</li>
+          <li><b>WSTRING_TO_STRING and STRING_TO_WSTRING carry the text across</b>A STRING here holds any character a WSTRING does (an IEC STRING is single-byte), so the two conversions copy the text unchanged, where a target may have to drop or replace a character its STRING cannot hold.</li>
           <li><b>a fraction of a second prints in milliseconds, and a literal in a STRING reads back</b>IEC fixes no spelling for a calendar value as text. A fraction of a second prints in milliseconds, three places; MATIEC prints six (TOD#07:05:09.500000). Text that is no date reads as 0 (1970-01-01, midnight), as STRING_TO_INT of text that is no number reads as 0.</li>
           <li><b>a TIME_OF_DAY pushed past midnight faults the scan</b>This engine faults on a TOD result past 24:00:00, the same choice as for an array subscript or a subrange: the simulator is where the mistake is cheapest to find. MATIEC does not check a TOD result: it goes on past 24:00:00 with a value that is no time of day.</li>
           <li><b>a DATE_AND_TIME before 1970 faults the scan</b>This engine's DT range is a 32-bit unsigned count of seconds from 1970, so it has no earlier instant, and a result before 1970 faults rather than hand a program a value an unsigned count cannot hold. MATIEC's count is signed and would go on.</li>
@@ -1519,11 +1534,11 @@ VAR start AT %I* : BOOL; END_VAR</code></pre></td>
         </div>
         <p class="body">
           The corpus samples the subset rather than covering it. A real IEC compiler has built and run
-          20/20 of the scalar types, 12/22 of the standard function blocks
+          20/21 of the scalar types, 12/22 of the standard function blocks
           and 54/58 of the named functions, with the results compared with the expected values
           scan for scan. A further 4 were compiled but never run, because the 2nd-edition compiler
           refuses them by design and only the 3rd-edition one builds them: <span translate="no">BCD_TO_INT, DIV_TIME, INT_TO_BCD, MUL_TIME</span>. The rest have not been checked by an outside tool, which is not the same as known to be wrong:
-          <span translate="no">CTD_DINT, CTD_LINT, CTD_UDINT, CTD_ULINT, CTUD_UDINT, CTUD_ULINT, CTU_DINT, CTU_LINT, CTU_UDINT, CTU_ULINT</span>.
+          <span translate="no">WSTRING, CTD_DINT, CTD_LINT, CTD_UDINT, CTD_ULINT, CTUD_UDINT, CTUD_ULINT, CTU_DINT, CTU_LINT, CTU_UDINT, CTU_ULINT</span>.
         </p>
       </div>
     </section>

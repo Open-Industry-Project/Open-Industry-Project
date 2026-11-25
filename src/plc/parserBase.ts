@@ -183,7 +183,7 @@ export class ParserBase {
    * has a variable called `Method`), so they arrive as ordinary identifiers and the parser
    * would otherwise fail on the next token: `FUNCTION_BLOCK Pump EXTENDS Base` would report
    * "expected ':='", a syntax error that isn't there. Naming the construct matches what the
-   * type checker does for WSTRING and LDATE: the program is valid ST, but outside the subset.
+   * type checker does for LTIME and LDATE: the program is valid ST, but outside the subset.
    * For the configuration layer, the message points to the path that does accept it (Import .st).
    */
   protected rejectUnsupported(): void {

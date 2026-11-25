@@ -7,14 +7,16 @@ import { parseCalendar } from './runtime'
 import { CALENDAR_TYPE_NAMES, SCALAR_TYPES, StError } from './types'
 
 /** Types that can prefix a typed literal (`INT#5`). BOOL is excluded - write TRUE/FALSE -
- *  and so is STRING, whose literal form is the quoted one (`'abc'`). */
-const TYPED_LITERAL_TYPES = new Set<string>(SCALAR_TYPES.filter((t) => t !== 'BOOL' && t !== 'STRING' && !(t in CALENDAR_TYPE_NAMES)))
+ *  and so are STRING and WSTRING, whose literal forms are the quoted ones (`'abc'`, `"abc"`). */
+const TYPED_LITERAL_TYPES = new Set<string>(SCALAR_TYPES.filter((t) => t !== 'BOOL' && t !== 'STRING' && t !== 'WSTRING' && !(t in CALENDAR_TYPE_NAMES)))
 
 /** The calendar literal prefixes, long and short (`D#2024-02-28`, `TIME_OF_DAY#12:00:00`), and the type each makes. */
 const CALENDAR_PREFIX: Readonly<Record<string, ScalarType>> = { ...CALENDAR_TYPE_NAMES, D: 'DATE' }
 
-/** IEC's `$` escapes inside a single-quoted STRING literal. `$XX` (two hex digits) is
- *  handled separately. `$N` is "newline" and `$L` "line feed"; both are LF on every target. */
+/** IEC's `$` escapes inside a quoted literal, STRING or WSTRING. A character code is handled separately: `$XX`
+ *  (two hex digits) in a STRING literal and `$XXXX` (four, one UTF-16 code unit) in a WSTRING literal. Either quote
+ *  may be escaped in either literal; the one that does not close the literal may also stand as it is.
+ *  `$N` is "newline" and `$L` "line feed"; both are LF on every target. */
 const STRING_ESCAPES: Record<string, string> = {
   $: '$', "'": "'", '"': '"',
   L: '\n', N: '\n', P: '\f', R: '\r', T: '\t',
@@ -292,17 +294,19 @@ function lexText(src: string): Token[] {
       advance()
       continue
     }
-    // STRING literal: single-quoted, with IEC's `$` escapes. A literal never spans a line
-    // (no target allows it), so an unterminated one is reported at its opening quote
+    // A quoted literal, with IEC's `$` escapes: single-quoted is a STRING, double-quoted a WSTRING. A literal never
+    // spans a line (no target allows it), so an unterminated one is reported at its opening quote
     // instead of swallowing the rest of the program.
-    if (c === "'") {
+    if (c === "'" || c === '"') {
       const pos = here()
+      const wide = c === '"'
+      const digits = wide ? 4 : 2
       advance()
       let out = ''
       for (;;) {
         if (i >= src.length || src[i] === '\n') throw new StError('unterminated string literal', pos)
         const ch = src[i]!
-        if (ch === "'") {
+        if (ch === c) {
           advance()
           break
         }
@@ -310,12 +314,13 @@ function lexText(src: string): Token[] {
           advance()
           const esc = src[i]
           if (esc === undefined) throw new StError('unterminated string literal', pos)
-          const hex = src.substr(i, 2)
-          if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+          const hex = src.substr(i, digits)
+          if (hex.length === digits && /^[0-9a-fA-F]+$/.test(hex)) {
             out += String.fromCharCode(parseInt(hex, 16))
-            advance(2)
+            advance(digits)
             continue
           }
+          if (wide && /[0-9a-fA-F]/.test(esc)) throw new StError("a character code in a WSTRING literal is four hex digits: \"$0041\"", here())
           const mapped = STRING_ESCAPES[esc.toUpperCase()] ?? STRING_ESCAPES[esc]
           if (mapped === undefined) throw new StError(`unknown string escape '$${esc}'`, here())
           out += mapped
@@ -325,13 +330,8 @@ function lexText(src: string): Token[] {
         out += ch
         advance()
       }
-      toks.push({ kind: 'str', value: out, raw: src.slice(pos.offset, i), num: 0, real: false, pos })
+      toks.push({ kind: 'str', value: out, raw: src.slice(pos.offset, i), num: 0, real: false, pos, ...(wide ? { wide: true } : {}) })
       continue
-    }
-    // A double-quoted literal is IEC's WSTRING form. It lexes far enough to say so by
-    // name, because "unexpected character" would send an author hunting the wrong bug.
-    if (c === '"') {
-      throw new StError('double-quoted literals are WSTRING, which is not implemented; use a single-quoted STRING', here())
     }
     // number. A '.' is only part of the literal when a digit follows it, so a
     // range dot (`1..5`) and member access stay separate tokens.

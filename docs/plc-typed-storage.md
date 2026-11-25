@@ -108,7 +108,8 @@ exactly that kind, planted on purpose, passes silently.
   span two address spaces, and a copy, a clear and a field address would each need both. In the arena a STRING is its
   length (the U16 at its address) and its code units (the one at `+2+2i`). A STRING place stored into another
   (`a := b`, a block's VAR_IN_OUT and outputs) is copied there unit for unit (`strCopy`), with no JS string built.
-  Any other read builds the text (`strAt`).
+  Any other read builds the text (`strAt`). A WSTRING is laid out, copied and read the same way: the two differ
+  only in the checker, which keeps them apart.
 - **BOOL is a byte**, read `!== 0` and written `? 1 : 0` in generated code. Every surface outside the scan (watch,
   memory, get, ports) answers `true` / `false`, as `TagValue` promises.
 - **A 64-bit integer leaves the arena as a number or its digits.** `Arena.load` and the watch table answer a number

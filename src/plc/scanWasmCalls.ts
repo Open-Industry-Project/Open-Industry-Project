@@ -9,7 +9,7 @@ import type { Emitter } from './scanWasm'
 import { no, type Kind, type Held, I32, I64, F64, VOID, isWidth, isLong, kindOf, placeOf, type Address, type Host, textOf, readsOnly } from './scanWasmBase'
 import type { TypeLayout } from './typed/layout'
 import type { Expr, FbType, ScalarType, Stmt, TagValue, Value } from './types'
-import { StError } from './types'
+import { StError, isStringType } from './types'
 
 /** A builtin function's call: its arguments in order, then the function. A number goes as an
  *  f64 and comes back as one, a truth as an i32; a text is read by the helper from where it is. A 64-bit integer
@@ -21,7 +21,7 @@ export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut
   // a comparison function with a 64-bit integer among its arguments takes them in one form (builtins.ts)
   const mode = comparisonMode(e.name, e.args)
   for (const a of e.args) {
-    if (a.t === 'STRING' || a.node === 'str') sig += em.text(a)
+    if (isStringType(a.t) || a.node === 'str') sig += em.text(a)
     else {
       const k = em.expr(a)
       if (k === 'b') sig += 'b'
@@ -35,7 +35,7 @@ export function builtin(em: Emitter, e: Extract<Expr, { node: 'call' }>, textOut
       }
     }
   }
-  const res = textOut === 'T' ? 'T' : textOut ? 't' : e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a call answering a text here') : is64(e.t) ? kindOf(e.t) : 'n'
+  const res = textOut === 'T' ? 'T' : textOut ? 't' : e.t === 'BOOL' ? 'b' : e.t === undefined || isStringType(e.t) ? no('a call answering a text here') : is64(e.t) ? kindOf(e.t) : 'n'
   const direct = e.t ? builtinFor(e.name, e.t, e.args.length) : null
   const name = e.name
   const rt = e.t as ScalarType
@@ -97,7 +97,7 @@ export function fnCall(em: Emitter, e: Extract<Expr, { node: 'call' }>): Kind {
   const fn = em.scope.typed.fn(e.name)
   if (!(fn.direct && !e.slots && e.args.length === fn.inputSlots.length)) {
     if (fn.result) return no('a whole value from a call used as a number')
-    const out = e.t === 'BOOL' ? 'b' : e.t === undefined || e.t === 'STRING' ? no('a function answering a text here') : is64(e.t) ? kindOf(e.t) : 'n'
+    const out = e.t === 'BOOL' ? 'b' : e.t === undefined || isStringType(e.t) ? no('a function answering a text here') : is64(e.t) ? kindOf(e.t) : 'n'
     em.fnGiven(e, fn)
     w.u8(0x41).sleb(em.wk(fn)).u8(0x41).sleb(e.slots ? em.wk(e.slots) : -1)
     w.u8(0x10).uleb(
@@ -111,7 +111,7 @@ export function fnCall(em: Emitter, e: Extract<Expr, { node: 'call' }>): Kind {
     )
     return out === 'b' ? 'b' : out === 'n' ? 'f' : out
   }
-  if (fn.resultSlot.layout.kind !== 'scalar' || fn.resultSlot.layout.scalar === 'STRING') return no('a function answering a text or a whole value')
+  if (fn.resultSlot.layout.kind !== 'scalar' || isStringType(fn.resultSlot.layout.scalar)) return no('a function answering a text or a whole value')
   const given: { v: number; k: Held; e: Expr }[] = []
   for (const a of e.args) given.push({ ...em.held(a), e: a })
   const fk = em.wk(fn)
@@ -136,7 +136,7 @@ export function fnGiven(em: Emitter, e: Extract<Expr, { node: 'call' }>, fn: { r
     if (fn.aggregate[at]) {
       em.aggregate(a)
       w.u8(0x10).uleb(em.import('argAddr', [I32], [], (h) => (v: number) => void h.args[h.args.length - 1]!.push(v >>> 0)))
-    } else if (a.t === 'STRING' || a.node === 'str') {
+    } else if (isStringType(a.t) || a.node === 'str') {
       const kind = em.text(a)
       w.u8(0x10).uleb(em.import(`argText${kind}`, [I32], [], (h) => (v: number) => {
         const t = textOf(h, kind, v)
@@ -268,9 +268,9 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
           w.u8(0x20).uleb(v).u8(0x36).uleb(2).uleb(p.off)
         })
       } else {
-        if (a.value.t === 'STRING') return no('a STRING VAR_IN_OUT of a method')
+        if (isStringType(a.value.t)) return no('a STRING VAR_IN_OUT of a method')
         const k = em.expr(a.value)
-        if (p.layout.kind !== 'scalar' || p.layout.scalar === 'STRING' || kindOf(p.layout.scalar) !== k) return no('a VAR_IN_OUT of another kind than its argument')
+        if (p.layout.kind !== 'scalar' || isStringType(p.layout.scalar) || kindOf(p.layout.scalar) !== k) return no('a VAR_IN_OUT of another kind than its argument')
         const v = em.local(em.typeOfKind(k))
         w.u8(0x21).uleb(v)
         stores.push(() => em.storeAt(p, v))
@@ -317,13 +317,13 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
       w.u8(0x41).sleb(p.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
       continue
     }
-    if (p.layout.kind === 'scalar' && p.layout.scalar === 'STRING') {
-      if (a.value.t !== 'STRING') return no('a STRING output of a method stored to a number')
+    if (p.layout.kind === 'scalar' && isStringType(p.layout.scalar)) {
+      if (!isStringType(a.value.t)) return no('a STRING output of a method stored to a number')
       em.textFrom(p)
       em.textPutTo(a.value, em.x.placeMaxLen(a.value), undefined)
       continue
     }
-    if (a.value.t === 'STRING') return no('a number output of a method stored to a STRING')
+    if (isStringType(a.value.t)) return no('a number output of a method stored to a STRING')
     const k = em.coerceStack(a.value.t as ScalarType, em.loadAt(p), undefined)
     const q = em.local(em.typeOfKind(k))
     w.u8(0x21).uleb(q)
@@ -336,7 +336,7 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
     w.u8(0x41).sleb(0).u8(0x21).uleb(result)
   } else {
     const res = at(sig.name)
-    if (res.layout.kind === 'scalar' && res.layout.scalar === 'STRING') {
+    if (res.layout.kind === 'scalar' && isStringType(res.layout.scalar)) {
       // a text: read before the frame is given back and kept by the host, its place there the result
       em.address(res)
       w.u8(0x10).uleb(em.import('textKeeps', [I32], [I32], (h) => (a: number) => h.texts.push(textOf(h, 's', a)) - 1))
@@ -369,7 +369,7 @@ export function methodCall(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): Ki
 export function answersText(em: Emitter, e: Extract<Expr, { node: 'mcall' }>): boolean {
   if (e.body || !e.sig || e.sig.ret === null) return false
   const res = em.scope.typed.frameOf(e.sig).byKey.get(identKey(e.sig.name))
-  return !!res && res.layout.kind === 'scalar' && res.layout.scalar === 'STRING'
+  return !!res && res.layout.kind === 'scalar' && isStringType(res.layout.scalar)
 }
 export function ifaceAt(em: Emitter): number {
   return em.import('ifaceAt', [I32, I32], [I32], (h) => (a: number, pi: number) => (h.H.ifaceAt as (a: number, p: unknown) => number)(a >>> 0, h.W[pi]))
@@ -379,7 +379,7 @@ export function ifaceAt(em: Emitter): number {
  *  a text ('t') by its place with the host, which keeps it as it is now whatever a later argument changes. */
 export function held(em: Emitter, e: Expr): { v: number; k: Held } {
   const w = em.w
-  if (e.t === 'STRING' || e.node === 'str') {
+  if (isStringType(e.t) || e.node === 'str') {
     const kind = em.text(e)
     if (kind !== 'T') w.u8(0x10).uleb(em.import(`textKeep${kind}`, [I32], [I32], (h) => (a: number) => h.texts.push(textOf(h, kind, a)) - 1))
     const v = em.local(I32)
@@ -404,7 +404,7 @@ export function storeGiven(em: Emitter, m: Address, v: number, k: Held, e: Expr)
   const w = em.w
   if (m.layout.kind !== 'scalar') return no('a whole value here')
   const t = m.layout.scalar
-  if (t === 'STRING') {
+  if (isStringType(t)) {
     if (k !== 't') return no('a number handed to a STRING input')
     // the text the host keeps, cut to the input's capacity and written
     em.address(m)
@@ -454,7 +454,7 @@ export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): vo
   // inputs as numbers. The block then reads it as an input the call left out, which is what a kept input is.
   const kept: (() => void)[] = []
   for (const a of s.args.filter((x) => !x.out)) {
-    if (a.value.t === 'STRING') return no('a STRING handed to a block')
+    if (isStringType(a.value.t)) return no('a STRING handed to a block')
     const wide = FB_INPUT_TYPES[blk][identKey(a.name)]
     if (wide !== undefined && is64(wide)) {
       const field = rec.byKey.get(identKey(a.name))
@@ -476,7 +476,7 @@ export function blockCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>): vo
   for (const a of s.args.filter((x) => x.out)) {
     const field = rec.byKey.get(identKey(a.name))
     if (!field || field.hidden || field.layout.kind !== 'scalar') return no(`the output '${a.name}'`)
-    if (a.value.t === 'STRING' || field.layout.scalar === 'STRING') return no('a STRING output')
+    if (isStringType(a.value.t) || isStringType(field.layout.scalar)) return no('a STRING output')
     const k = em.coerceStack(a.value.t as ScalarType, em.loadAt({ dyn: () => void em.w.u8(0x20).uleb(f), off: field.off, layout: field.layout }), undefined)
     const q = em.local(em.typeOfKind(k))
     w.u8(0x21).uleb(q)
@@ -744,11 +744,11 @@ export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst
         // a scalar: its value, in, and back out below
         const src = em.strSource(a.value)
         const slot = fAt(m.off, m.layout)
-        if (src && slot.layout.kind === 'scalar' && slot.layout.scalar === 'STRING') em.strCopy(slot, src, slot.layout.cap!)
+        if (src && slot.layout.kind === 'scalar' && isStringType(slot.layout.scalar)) em.strCopy(slot, src, slot.layout.cap!)
         else {
-          if (a.value.t === 'STRING') return no('a STRING VAR_IN_OUT that is not a place')
+          if (isStringType(a.value.t)) return no('a STRING VAR_IN_OUT that is not a place')
           const k = em.expr(a.value)
-          if (slot.layout.kind !== 'scalar' || slot.layout.scalar === 'STRING' || kindOf(slot.layout.scalar) !== k) return no('a VAR_IN_OUT of another kind than its argument')
+          if (slot.layout.kind !== 'scalar' || isStringType(slot.layout.scalar) || kindOf(slot.layout.scalar) !== k) return no('a VAR_IN_OUT of another kind than its argument')
           const v = em.local(em.typeOfKind(k))
           w.u8(0x21).uleb(v)
           em.storeAt(slot, v)
@@ -770,8 +770,8 @@ export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst
     const m = rec.byKey.get(identKey(a.name))
     if (!m || m.ref) continue
     const slot = fAt(m.off, m.layout)
-    if (slot.layout.kind === 'scalar' && slot.layout.scalar === 'STRING') {
-      if (a.value.t !== 'STRING') return no('a STRING VAR_IN_OUT copied back to a number')
+    if (slot.layout.kind === 'scalar' && isStringType(slot.layout.scalar)) {
+      if (!isStringType(a.value.t)) return no('a STRING VAR_IN_OUT copied back to a number')
       if (!readsOnly(a.value) || !em.strSource(a.value)) {
         em.textFrom(slot)
         em.textPutTo(a.value, undefined, undefined)
@@ -796,8 +796,8 @@ export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst
       w.u8(0x41).sleb(m.layout.size).op(0xfc, 0x0a, 0x00, 0x00)
       continue
     }
-    if (m.layout.kind === 'scalar' && m.layout.scalar === 'STRING') {
-      if (a.value.t !== 'STRING') return no('a STRING output stored to a number')
+    if (m.layout.kind === 'scalar' && isStringType(m.layout.scalar)) {
+      if (!isStringType(a.value.t)) return no('a STRING output stored to a number')
       if (!readsOnly(a.value) || !em.strSource(a.value)) {
         em.textFrom(m)
         em.textPutTo(a.value, em.x.placeMaxLen(a.value), undefined)
@@ -809,7 +809,7 @@ export function userCall(em: Emitter, s: Extract<Stmt, { node: 'fbcall' }>, inst
       em.strCopy(dst, m, maxLen === undefined ? cap : Math.min(cap, maxLen))
       continue
     }
-    if (a.value.t === 'STRING') return no('a STRING output')
+    if (isStringType(a.value.t)) return no('a STRING output')
     const k = em.coerceStack(a.value.t as ScalarType, em.loadAt(m), undefined)
     const q = em.local(em.typeOfKind(k))
     w.u8(0x21).uleb(q)

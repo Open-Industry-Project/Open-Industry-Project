@@ -8,6 +8,7 @@
 // A 64-bit integer is an i64 ('l' a LINT; 'L' a ULINT or an LWORD, the same bits read unsigned), and its arithmetic
 // is the i64's own, which wraps as the walker's bigints are wrapped (runtime.ts, "the 64-bit integers").
 
+import { isStringType } from './types'
 import { isBuiltinFunc } from './builtins'
 import { identKey, literal64 } from './program'
 import { is64, isCalendar, isInt, isReal, MAX_LOOP_ITERATIONS, wrap64 } from './runtime'
@@ -224,7 +225,7 @@ export class Emitter {
     }
     this.toF(k)
     if (t === 'REAL') w.u8(0xb6).u8(0xbb)
-    else if (t === 'STRING') no('a STRING store')
+    else if (isStringType(t)) no('a STRING store')
     // (LREAL and the time types: a number is stored as it is, runtime.ts wrap)
     return 'f'
   }
@@ -339,7 +340,7 @@ export class Emitter {
           this.wrapI(e.t)
           return kindOf(e.t)
         }
-        if (e.op === 'NEG' && e.t && (isReal(e.t) || (!isInt(e.t) && e.t !== 'BOOL' && e.t !== 'STRING'))) {
+        if (e.op === 'NEG' && e.t && (isReal(e.t) || (!isInt(e.t) && e.t !== 'BOOL' && !isStringType(e.t)))) {
           this.toF(this.num(e.expr))
           w.u8(0x9a)
           if (e.t === 'REAL') w.u8(0xb6).u8(0xbb)
@@ -363,7 +364,7 @@ export class Emitter {
       const lt = e.left.t
       const rt = e.right.t
       if (lt === undefined || rt === undefined) return no('a comparison of something untyped')
-      if (lt === 'STRING' || rt === 'STRING') {
+      if (isStringType(lt) || isStringType(rt)) {
         if (lt !== rt) return no('a STRING compared with a number')
         const sig = this.text(e.left) + this.text(e.right)
         w.u8(0x41).sleb(['=', '<>', '<', '>', '<=', '>='].indexOf(op))
@@ -768,7 +769,7 @@ export class Emitter {
       case 'REAL': this.at(a, 0x2a, 2); this.w.u8(0xbb); return 'f'
       case 'LINT': this.at(a, 0x29, 3); return 'l'
       case 'ULINT': case 'LWORD': this.at(a, 0x29, 3); return 'L'
-      case 'STRING': return no('a STRING read')
+      case 'STRING': case 'WSTRING': return no('a STRING read')
       default: this.at(a, 0x2b, 3); return 'f'
     }
   }
@@ -784,7 +785,7 @@ export class Emitter {
         case 'DINT': case 'UDINT': case 'DWORD': return [0x36, 2, false]
         case 'REAL': return [0x38, 2, true]
         case 'LINT': case 'ULINT': case 'LWORD': return [0x37, 3, false]
-        case 'STRING': return no('a STRING store')
+        case 'STRING': case 'WSTRING': return no('a STRING store')
         default: return [0x39, 3, false]
       }
     })()
@@ -919,7 +920,7 @@ export class Emitter {
         }
         const ranged = (s.target.node === 'var' || s.target.node === 'member' || s.target.node === 'index') && s.target.range !== undefined
         const t = s.target.t as ScalarType
-        if (t === 'STRING') return ranged ? no('a STRING subrange') : this.stringAssign(s)
+        if (isStringType(t)) return ranged ? no('a STRING subrange') : this.stringAssign(s)
         const k = this.coerce(t, s.pos, s.value)
         const v = this.local(this.typeOfKind(k))
         w.u8(0x22).uleb(v)
@@ -1069,10 +1070,10 @@ export class Emitter {
     const v = s.value
     const target = s.target
     const plain = (e: Expr): boolean => (e.node === 'var' ? e.constValue === undefined : e.node === 'member' || e.node === 'index')
-    if (v.t !== 'STRING' || !plain(v) || !plain(target) || !readsOnly(target)) return this.textStore(s)
+    if (!isStringType(v.t) || !plain(v) || !plain(target) || !readsOnly(target)) return this.textStore(s)
     const src = this.addr(v)
     const dst = this.addr(target)
-    if (src.layout.kind !== 'scalar' || src.layout.scalar !== 'STRING' || dst.layout.kind !== 'scalar' || dst.layout.scalar !== 'STRING') return no('a STRING store')
+    if (src.layout.kind !== 'scalar' || !isStringType(src.layout.scalar) || dst.layout.kind !== 'scalar' || !isStringType(dst.layout.scalar)) return no('a STRING store')
     const maxLen = this.x.placeMaxLen(target)
     const cap = maxLen === undefined ? dst.layout.cap! : Math.min(dst.layout.cap!, maxLen)
     this.strCopy(dst, src, cap)
@@ -1086,7 +1087,7 @@ export class Emitter {
     const v = s.value
     let lit = -1
     if (v.node === 'str' || (v.node === 'var' && typeof v.constValue === 'string')) lit = this.wk(v.node === 'str' ? v.value : v.constValue)
-    else if (v.node === 'call' && isBuiltinFunc(v.name) && (v.t === 'STRING' || v.t === undefined)) this.builtin(v, true)
+    else if (v.node === 'call' && isBuiltinFunc(v.name) && (isStringType(v.t) || v.t === undefined)) this.builtin(v, true)
     else {
       const kind = this.text(v)
       w.u8(0x10).uleb(
@@ -1109,7 +1110,7 @@ export class Emitter {
     const w = this.w
     if (target.node !== 'var' && target.node !== 'index' && target.node !== 'member') return no('a text stored into this')
     const dst = this.addr(target)
-    if (dst.layout.kind !== 'scalar' || dst.layout.scalar !== 'STRING') return no('a text stored into something else')
+    if (dst.layout.kind !== 'scalar' || !isStringType(dst.layout.scalar)) return no('a text stored into something else')
     const co = this.wk(this.x.coercerFor('STRING', maxLen, pos))
     this.address(dst)
     w.u8(0x41).sleb(dst.layout.cap!).u8(0x41).sleb(co).u8(0x41).sleb(lit)
@@ -1241,10 +1242,10 @@ export class Emitter {
 
   /** where the text `e` reads is, when `e` is a whole STRING place */
   strSource(e: Expr): Address | null {
-    if (e.t !== 'STRING') return null
+    if (!isStringType(e.t)) return null
     if (e.node === 'var' ? e.constValue !== undefined : e.node !== 'member' && e.node !== 'index') return null
     const a = this.addr(e)
-    return a.layout.kind === 'scalar' && a.layout.scalar === 'STRING' ? a : null
+    return a.layout.kind === 'scalar' && isStringType(a.layout.scalar) ? a : null
   }
   /** the slot of a REF_TO or an interface variable: the address it holds, not what it designates */
   slot(e: Expr): Address {
@@ -1312,7 +1313,7 @@ export class Emitter {
   /** one expression's value handed to the host: a truth, a number, or a text (an initial value that is not a literal) */
   valueOut(e: Expr): void {
     const w = this.w
-    if (e.t === 'STRING' || e.node === 'str') {
+    if (isStringType(e.t) || e.node === 'str') {
       const kind = this.text(e)
       w.u8(0x10).uleb(
         this.import(`valueT${kind}`, [I32], [], (h) => (a: number) => {

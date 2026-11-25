@@ -10,7 +10,7 @@ import { bool, CALL_DEPTH_MESSAGE, is64, isInt, MAX_CALL_DEPTH, num, wrap, wrap6
 import { publishWasmBody } from '../scanWasmBase'
 import { generateBody, generateValue, type GenBody, type GenInternals, type GenScope, type TypedScope } from '../scanCodegen'
 import type { DataType, Decl, Expr, FbDef, FuncDef, Initializer, MethodDef, ScalarType, Stmt, StructInit, TagPort, TagValue, Value, VarInfo } from '../types'
-import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from '../types'
+import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError, isStringType } from '../types'
 import type { WatchRange, WatchShape } from '../../core/watchTable'
 import { Arena, watchKindOf } from './arena'
 import { blocksOver } from './blocks'
@@ -710,7 +710,7 @@ export class TypedPou implements Pou {
       }
       if (layout.kind !== 'scalar') return
       // typed by the place: a BOOL takes a truth, a number a number (at its own width), a STRING text
-      const v = layout.scalar === 'BOOL' ? Boolean(value) : layout.scalar === 'STRING' ? String(value) : layout.enumerated ? num(value) : coerceScalar(layout.scalar, value)
+      const v = layout.scalar === 'BOOL' ? Boolean(value) : isStringType(layout.scalar) ? String(value) : layout.enumerated ? num(value) : coerceScalar(layout.scalar, value)
       this.#arena.store(layout, addr, v)
       return
     }

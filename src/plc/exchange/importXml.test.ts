@@ -14,8 +14,40 @@ import { importPlcopenXml, parseXml } from './importXml'
 import { toPlcopenXml } from './export'
 import { parseAndCheck } from '../checker'
 import { CONFORMANCE_CASES } from '../conformanceCases'
+import { compile } from '../interpreter'
 
 const roundTrip = (src: string): string => importPlcopenXml(toPlcopenXml(src)).source
+
+describe('WSTRING through PLCopen XML', () => {
+  const SRC = `TYPE Label : STRUCT name : WSTRING[8]; END_STRUCT; END_TYPE
+VAR w : WSTRING[12] := "a;b"; plain : WSTRING; a : ARRAY [0..1] OF WSTRING[4]; s : STRING[12]; n : INT; END_VAR
+w := CONCAT(w, "it's $"x$" $00E9"); n := LEN(w); s := WSTRING_TO_STRING(w);
+`
+
+  it('writes <wstring>, lowercase, with its capacity', () => {
+    const xml = toPlcopenXml(SRC)
+    expect(xml).toContain('<wstring length="12"/>')
+    expect(xml).toContain('<wstring/>')
+    expect(xml).toContain('<wstring length="8"/>')
+    expect(xml).toContain('<string length="12"/>')
+    expect(xml).not.toContain('<WSTRING')
+  })
+
+  it('reads back a program that declares the same types and computes the same values', () => {
+    const back = roundTrip(SRC)
+    expect(back).toMatch(/w : WSTRING\[12\] := "a;b"/)
+    expect(back).toMatch(/plain : WSTRING;/)
+    expect(back).toMatch(/OF WSTRING\[4\]/)
+    const run = (src: string): unknown[] => {
+      const p = compile(src)
+      p.scan(0.01)
+      return [p.get('w'), p.get('n'), p.get('s')]
+    }
+    expect(run(back)).toEqual(run(SRC))
+    // 13 characters joined, cut to the 12 that w holds
+    expect(run(SRC)).toEqual(['a;bit\'s "x" ', 12, 'a;bit\'s "x" '])
+  })
+})
 
 describe('the XML reader', () => {
   it('reads elements, attributes, text and both quote styles', () => {

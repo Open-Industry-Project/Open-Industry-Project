@@ -98,7 +98,7 @@ describe('diagnostics report every error, not just the first', () => {
   // to be checked against the type that never resolved instead, which reads as a function block.
   it('reports a refused type once, not again at each use of the variable', () => {
     const uses = ['x := 1;', 'y := x;', 'x(IN := TRUE);', 'y := x.Q;', 'IF x THEN y := 1; END_IF;', 'FOR x := 1 TO 3 DO y := 1; END_FOR;']
-    for (const type of ['LDATE', 'WSTRING', 'Nope']) {
+    for (const type of ['LDATE', 'LTIME', 'Nope']) {
       for (const use of uses) {
         const ds = diagnostics(`VAR x : ${type}; y : DINT; END_VAR\n${use}`)
         expect(ds.map((d) => d.message), `x : ${type}; ${use}`).toHaveLength(1)

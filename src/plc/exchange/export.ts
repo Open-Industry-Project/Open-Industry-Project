@@ -127,10 +127,10 @@ function innerTypeXml(t: DataType, maxLen?: number): string {
   if (isArray(t) && t.named !== undefined) return `<derived name="${esc(t.named)}"/>`
   if (isArray(t)) return `<derived name="ARRAY"/>` // nested arrays are not in the subset
   if (fbTypeName(t)) return `<derived name="${esc(t)}"/>`
-  if (t === 'STRING') {
+  if (t === 'STRING' || t === 'WSTRING') {
     // PLCopen carries the capacity as an attribute rather than in the type spec: the length
     // rides along with the variable
-    return maxLen !== undefined && maxLen !== DEFAULT_STRING_LEN ? `<string length="${maxLen}"/>` : '<string/>'
+    return maxLen !== undefined && maxLen !== DEFAULT_STRING_LEN ? `<${typeTag(t)} length="${maxLen}"/>` : `<${typeTag(t)}/>`
   }
   return `<${typeTag(t)}/>`
 }
@@ -903,11 +903,11 @@ function someInBodies(bodies: Stmt[][], isExpr: (x: Expr) => boolean, isStmt: (s
 }
 
 /** `TIME_TO_<number>` or `<number>_TO_TIME`: a duration converted to or from a count, whose unit the toolchains disagree
- *  on (BOOL and STRING are not counts). */
+ *  on (BOOL, STRING and WSTRING are not counts). */
 const convertsTimeAndNumber = (name: string): boolean => {
   const m = /^([A-Z]+)_TO_([A-Z]+)$/.exec(name.toUpperCase())
   if (!m || (m[1] === 'TIME') === (m[2] === 'TIME')) return false
-  return !['BOOL', 'STRING'].includes(m[1] === 'TIME' ? m[2]! : m[1]!)
+  return !['BOOL', 'STRING', 'WSTRING'].includes(m[1] === 'TIME' ? m[2]! : m[1]!)
 }
 
 /** How the warnings below name the target: the compiler OpenPLC v4's editor ships, at the version measured. */
@@ -1156,6 +1156,16 @@ function programLinesInPriorityOrder(config: ConfigurationDef): boolean {
   return ranks.every((r, i) => i === 0 || ranks[i - 1]! <= r)
 }
 
+/** Whether the program declares a WSTRING anywhere, or computes one. */
+function usesWstring(ast: Ast, bodies: Stmt[][]): boolean {
+  const wide = (t: DataType): boolean => t === 'WSTRING' || (isArray(t) && wide(t.elem)) || (isRef(t) && wide(t.ref))
+  const decls = [...ast.decls, ...ast.globals, ...ast.fbDefs.flatMap((d) => [...d.decls, ...(d.methods ?? []).flatMap((m) => m.decls)]), ...ast.programDefs.flatMap((p) => p.decls), ...ast.funcDefs.flatMap((f) => f.decls)]
+  if (decls.some((d) => wide(d.type as DataType))) return true
+  if (ast.typeDefs.some((s) => s.fields.some((f) => wide(f.type))) || ast.funcDefs.some((f) => wide(f.ret))) return true
+  if (ast.fbDefs.some((d) => (d.methods ?? []).some((m) => m.ret !== null && m.ret !== undefined && wide(m.ret)))) return true
+  return someInBodies(bodies, (x) => x.t === 'WSTRING')
+}
+
 function exportWarnings(ast: Ast): string[] {
   const warnings: string[] = []
   const bodies = [ast.body, ...ast.programDefs.map((p) => p.body), ...ast.fbDefs.map((fb) => fb.body), ...ast.funcDefs.map((fn) => fn.body)]
@@ -1207,6 +1217,12 @@ function exportWarnings(ast: Ast): string[] {
   if (timeUnit.size > 0) {
     warnings.push(
       `${[...timeUnit].sort().join(', ')}: a conversion between a TIME and a number counts milliseconds here, as it does in STruC++ (OpenPLC v4), but MATIEC (OpenPLC v3) counts seconds, both ways: T#1500ms converts to 1 there, and 1500 to T#1500s. To run the same on every target, keep the value a TIME and compare it with a TIME literal: elapsed >= T#5s.`,
+    )
+  }
+  // measured by compiling small WSTRING programs through each (docs/st-conformance.md, "WSTRING")
+  if (usesWstring(ast, bodies)) {
+    warnings.push(
+      `The program uses WSTRING. MATIEC (OpenPLC v3) reads the type but stops on a double-quoted literal, and has no string function or comparison for a WSTRING. ${OPENPLC_V4} builds a WSTRING declaration, a literal, an assignment and the conversions to and from STRING, but no string function or comparison on one, and no WSTRING[n]. Keep the text in a STRING for those targets.`,
     )
   }
   warnings.push(...strucppWarnings(ast, bodies))

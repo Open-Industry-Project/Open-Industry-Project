@@ -71,6 +71,9 @@ const OUTSIDE_EVERY_POU =
  * Why the array-of-instances cases cannot reach an external compiler, as measured. Kept
  * in one place because several cases share it word for word, and copies would drift apart.
  */
+const WSTRING_WITHHELD =
+  'NEITHER external compiler can check a WSTRING beyond its declaration, as measured. MATIEC parses the type and a double-quoted literal, then stops on the literal with an internal compiler error (generate_c_base.cc), and its string functions and comparisons take no WSTRING. STruC++ 0.6.2 compiles the declaration, the literal with its escapes, an assignment and the two conversions, and refuses a STRING stored into a WSTRING, but its runtime has no string function or comparison for the type and it reads no WSTRING[n]. Both scan engines are held to these goldens instead.'
+
 const FB_ARRAY_UNCHECKABLE =
   'no external compiler here can build it. MATIEC (2nd edition) has no arrays of function-block instances and refuses the declaration ("invalid item data type in array specification"), and STruC++ 0.6.2 cannot parse a call on an array element ("Expected `Assign`, found `(`"), so it never reaches the check. The goldens are checked in-process, through both engines'
 
@@ -1984,6 +1987,144 @@ s := TIME_TO_STRING(T#1s500ms);`,
         divergence:
           'The output is an IEC duration literal (T#1s500ms); IEC does not fix a TIME_TO_STRING format. Chosen so the output round-trips back through STRING_TO_TIME.',
         oracle: { skip: 'same as REAL_TO_STRING - the format is implementation-defined, so a diff against MATIEC would be reporting a permitted difference' },
+      },
+    ],
+  },
+  {
+    title: 'WSTRING is a character type of its own',
+    // A WSTRING is written in double quotes, takes the string library and the comparisons as a STRING does, and never
+    // mixes with one: a value crosses with WSTRING_TO_STRING or STRING_TO_WSTRING. The goldens are the STRING group's,
+    // derived the same way. Only the two refusals that need no literal reach an external compiler (WSTRING_WITHHELD).
+    cases: [
+      {
+        name: 'the string library takes a WSTRING and answers one',
+        src: `VAR w : WSTRING := "Conveyor"; END_VAR
+VAR_OUTPUT n : INT; l : WSTRING; r : WSTRING; m : WSTRING; f : INT; g : INT; END_VAR
+n := LEN(w); l := LEFT(w, 3); r := RIGHT(w, 3); m := MID(w, 2, 4);
+f := FIND(w, "vey"); g := FIND(w, "zz");`,
+        steps: [{ expect: { n: 8, l: 'Con', r: 'yor', m: 've', f: 4, g: 0 } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'CONCAT, INSERT, DELETE and REPLACE edit a WSTRING',
+        src: `VAR_OUTPUT c : WSTRING; i : WSTRING; d : WSTRING; p : WSTRING; END_VAR
+c := CONCAT("LINE", "-01");
+i := INSERT("ABEF", "CD", 2);
+d := DELETE("ABCDEF", 2, 3);
+p := REPLACE("ABCDEF", "xy", 2, 3);`,
+        steps: [{ expect: { c: 'LINE-01', i: 'ABCDEF', d: 'ABEF', p: 'ABxyEF' } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        // a character code in a WSTRING literal is four hex digits, one UTF-16 code unit; the quote that does not
+        // close a literal is an ordinary character in it
+        name: 'a WSTRING literal has its own escapes, and each quote is plain inside the other literal',
+        src: `VAR_OUTPUT q : WSTRING; d : WSTRING; u : WSTRING; a : WSTRING; n : INT; m : INT; k : INT; END_VAR
+q := "say $"hi$""; d := "a$$b"; u := "$00E9t$00E9"; a := "it's";
+n := LEN(q); m := LEN("x$000Dy"); k := LEN('a"b');`,
+        steps: [{ expect: { q: 'say "hi"', d: 'a$b', u: 'été', a: "it's", n: 8, m: 3, k: 3 } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'WSTRING compares lexicographically by character code',
+        src: `VAR a : WSTRING := "apple"; b : WSTRING := "banana"; c : WSTRING := "Apple"; END_VAR
+VAR_OUTPUT isLess : BOOL; isSame : BOOL; isAtLeast : BOOL; upperFirst : BOOL; differs : BOOL; END_VAR
+isLess := a < b; isSame := a = "apple"; isAtLeast := a >= b; upperFirst := c < a; differs := NE(a, b);`,
+        steps: [{ expect: { isLess: true, isSame: true, isAtLeast: false, upperFirst: true, differs: true } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'MIN, MAX and SEL take WSTRINGs and answer one',
+        src: `VAR pick : BOOL := TRUE; END_VAR
+VAR_OUTPUT lo : WSTRING; hi : WSTRING; s : WSTRING; END_VAR
+lo := MIN("b", "a", "c"); hi := MAX("b", "a", "c"); s := SEL(pick, "off", "on");`,
+        steps: [{ expect: { lo: 'a', hi: 'c', s: 'on' } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'WSTRING_TO_STRING and STRING_TO_WSTRING carry the text across',
+        src: `VAR w : WSTRING := "wide"; END_VAR
+VAR_OUTPUT s : STRING; v : WSTRING; t : WSTRING; n : INT; END_VAR
+s := WSTRING_TO_STRING(w); v := STRING_TO_WSTRING(CONCAT(s, '-1'));
+t := INT_TO_WSTRING(-42); n := WSTRING_TO_INT("1234");`,
+        steps: [{ expect: { s: 'wide', v: 'wide-1', t: '-42', n: 1234 } }],
+        divergence:
+          'A STRING here holds any character a WSTRING does (an IEC STRING is single-byte), so the two conversions copy the text unchanged, where a target may have to drop or replace a character its STRING cannot hold.',
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'a store into a WSTRING truncates to its declared capacity',
+        src: `VAR short : WSTRING[3]; END_VAR VAR_OUTPUT out : WSTRING[8]; n : INT; END_VAR
+short := "abcdef"; out := short; n := LEN(short);`,
+        steps: [{ expect: { out: 'abc', n: 3 } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'a WSTRING is a struct field and an array element, each with its capacity',
+        src: `TYPE Label : STRUCT name : WSTRING[8]; id : INT; END_STRUCT; END_TYPE
+VAR t : Label; u : Label; a : ARRAY [0..2] OF WSTRING[4]; b : ARRAY [0..2] OF WSTRING[4]; END_VAR
+VAR_OUTPUT x : WSTRING; y : WSTRING; n : INT; id : INT; END_VAR
+t.name := "conveyor-long"; t.id := 7; u := t;
+a[1] := "abcdef"; b := a;
+x := u.name; y := b[1]; n := LEN(b[0]); id := u.id;`,
+        steps: [{ expect: { x: 'conveyor', y: 'abcd', n: 0, id: 7 } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'a WSTRING is a function result, an input and a VAR_IN_OUT',
+        src: `FUNCTION Wrap : WSTRING
+VAR_INPUT s : WSTRING; END_VAR
+Wrap := CONCAT("[", s, "]");
+END_FUNCTION
+FUNCTION_BLOCK Stamp
+VAR_IN_OUT text : WSTRING; END_VAR
+VAR_OUTPUT len : INT; last : WSTRING; END_VAR
+text := CONCAT(text, "!"); len := LEN(text); last := RIGHT(text, 1);
+END_FUNCTION_BLOCK
+VAR st : Stamp; w : WSTRING := "go"; END_VAR
+VAR_OUTPUT out : WSTRING; n : INT; l : WSTRING; END_VAR
+st(text := w); out := Wrap(w); n := st.len; l := st.last;`,
+        steps: [{ expect: { out: '[go!]', n: 3, l: '!' } }, { expect: { out: '[go!!]', n: 4, l: '!' } }],
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        // strictness, and the one WSTRING rule an external compiler checks here: no literal is involved
+        name: 'rejects a STRING stored into a WSTRING',
+        src: `VAR w : WSTRING; s : STRING; END_VAR
+w := s;`,
+        steps: [],
+        rejects: /cannot assign STRING to 'w' of type WSTRING \(write STRING_TO_WSTRING\(\.\.\.\)\)/,
+      },
+      {
+        name: 'rejects a WSTRING compared with a STRING',
+        src: `VAR w : WSTRING; s : STRING; b : BOOL; END_VAR
+b := w = s;`,
+        steps: [],
+        rejects: /cannot compare WSTRING with STRING; a STRING and a WSTRING do not mix \(convert one side: WSTRING_TO_STRING\(\.\.\.\) or STRING_TO_WSTRING\(\.\.\.\)\)/,
+      },
+      {
+        name: 'rejects a double-quoted literal stored into a STRING',
+        src: `VAR s : STRING; END_VAR
+s := "wide";`,
+        steps: [],
+        rejects: /cannot assign WSTRING to 's' of type STRING \(write WSTRING_TO_STRING\(\.\.\.\)\)/,
+        oracle: { skip: WSTRING_WITHHELD },
+      },
+      {
+        name: 'rejects a string function given a STRING and a WSTRING together',
+        src: `VAR w : WSTRING; s : STRING; END_VAR
+w := CONCAT(w, s);`,
+        steps: [],
+        rejects: /'CONCAT': a STRING and a WSTRING do not mix/,
+        oracle: { skip: 'MATIEC refuses the program, but for a reason of its own: its CONCAT takes no WSTRING at all ("Data type incompatibility for value passed in position 1"), so its verdict says nothing about mixing the two kinds' },
+      },
+      {
+        name: 'rejects a conversion given the other kind of text',
+        src: `VAR w : WSTRING; n : INT; END_VAR
+n := STRING_TO_INT(w);`,
+        steps: [],
+        rejects: /STRING_TO_INT converts from STRING, got WSTRING \(write WSTRING_TO_STRING\(\.\.\.\) first\)/,
+        oracle: { skip: WSTRING_WITHHELD },
       },
     ],
   },

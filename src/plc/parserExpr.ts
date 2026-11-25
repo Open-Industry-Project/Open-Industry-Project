@@ -221,7 +221,7 @@ export class ExprParser extends ParserBase {
     }
     if (t.kind === 'str') {
       this.next()
-      return { node: 'str', value: t.value, pos: t.pos }
+      return { node: 'str', value: t.value, pos: t.pos, ...(t.wide ? { wide: true as const } : {}) }
     }
     if (this.isKw('TRUE')) {
       this.next()

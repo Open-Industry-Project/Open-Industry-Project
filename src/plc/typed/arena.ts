@@ -64,7 +64,7 @@ export class Arena {
       case 'UDINT': case 'DWORD': return this.U32[addr >> 2]!
       case 'REAL': return this.F32[addr >> 2]!
       case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return this.F64[addr >> 3]!
-      case 'STRING': return this.strAt(addr)
+      case 'STRING': case 'WSTRING': return this.strAt(addr)
     }
   }
 
@@ -87,7 +87,7 @@ export class Arena {
       case 'UDINT': case 'DWORD': return { cells: this.U32, index: addr >> 2 }
       case 'REAL': return { cells: this.F32, index: addr >> 2 }
       case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return { cells: this.F64, index: addr >> 3 }
-      case 'STRING': case 'LINT': case 'ULINT': case 'LWORD': return undefined
+      case 'STRING': case 'WSTRING': case 'LINT': case 'ULINT': case 'LWORD': return undefined
     }
   }
 
@@ -105,7 +105,7 @@ export class Arena {
       case 'UDINT': case 'DWORD': this.U32[addr >> 2] = v as number; return
       case 'REAL': this.F32[addr >> 2] = v as number; return
       case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': this.F64[addr >> 3] = v as number; return
-      case 'STRING': this.strPut(addr, slot.cap!, v as string)
+      case 'STRING': case 'WSTRING': this.strPut(addr, slot.cap!, v as string)
     }
   }
 
@@ -149,7 +149,7 @@ export function watchKindOf(t: ScalarType): number {
     case 'UDINT': case 'DWORD': return WATCH_KIND.U32
     case 'REAL': return WATCH_KIND.F32
     case 'LREAL': case 'TIME': case 'DATE': case 'TOD': case 'DT': return WATCH_KIND.F64
-    case 'STRING': return WATCH_KIND.STRING
+    case 'STRING': case 'WSTRING': return WATCH_KIND.STRING
     case 'LINT': return WATCH_KIND.I64
     case 'ULINT': case 'LWORD': return WATCH_KIND.U64
   }

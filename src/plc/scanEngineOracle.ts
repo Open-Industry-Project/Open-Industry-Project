@@ -9,6 +9,7 @@
 //
 // Test support, not app code: nothing outside the specs imports it.
 
+import { isStringType } from './types'
 import { compile, setScanEngine, type ScanEngine } from './interpreter'
 import { TaskScheduler } from './scanEngine'
 import { TypedUnsupported } from './typed/layout'
@@ -137,7 +138,7 @@ export function compareEngines(src: string, steps: readonly OracleStep[], opts: 
  *  precision holds exactly (NaN included); the rest are numbers. */
 export function inForm(type: string, v: TagValue): boolean {
   if (type === 'BOOL') return typeof v === 'boolean'
-  if (type === 'STRING') return typeof v === 'string'
+  if (isStringType(type)) return typeof v === 'string'
   // a 64-bit integer: a whole number in its type's range, as a surface carries one (types.ts TagValue) - a number
   // while a number holds it exactly, its decimal digits past that, never the other way round
   if (is64(type as ScalarType)) {

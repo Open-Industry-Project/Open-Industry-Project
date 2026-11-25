@@ -169,6 +169,18 @@ describe('PLCopen XML export', () => {
     expect(xml).toContain('<variable name="seal">')
   })
 
+  it('writes a WSTRING capacity in brackets, and leaves a double-quoted literal as it is written', () => {
+    const text = canonicalSyntax('VAR w : WSTRING(20) := "STRING(5) (* no *)"; END_VAR\nw := "a";\n')
+    expect(text).toContain('w : WSTRING[20] := "STRING(5) (* no *)";')
+  })
+
+  it('warns that a WSTRING program does not build on the open-source targets', () => {
+    const warned = (src: string): boolean => exportProgram(src, 'iec-text').warnings.some((w) => w.startsWith('The program uses WSTRING.'))
+    expect(warned('VAR w : WSTRING; END_VAR\n')).toBe(true)
+    expect(warned('VAR n : INT; END_VAR\nn := LEN("abc");\n')).toBe(true)
+    expect(warned("VAR s : STRING; END_VAR\ns := 'say \"hi\"';\n")).toBe(false)
+  })
+
   it('spells elementary types the way TC6 requires: string lowercase, the rest upper', () => {
     // a schema validator rejects <STRING> outright, with an error that reads like the type
     // is unknown -- this is the trap OpenPLC documents in its own generator

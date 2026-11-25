@@ -106,11 +106,16 @@ export function isBitString(t: ScalarType): boolean {
   return t === 'BYTE' || t === 'WORD' || t === 'DWORD' || t === 'LWORD'
 }
 
-/** STRING - character data. Ordered (so it compares) but not arithmetic: `+` on two
+/** STRING or WSTRING - character data. Ordered (so it compares) but not arithmetic: `+` on two
  *  STRINGs is a type error here because IEC has no string `+`, only CONCAT. Accepting it
  *  would compile in the simulator and fail to build on every target. */
 export function isString(t: ScalarType): boolean {
-  return t === 'STRING'
+  return t === 'STRING' || t === 'WSTRING'
+}
+
+/** What to write where a STRING meets a WSTRING: the two never mix, and each conversion is named. */
+export function stringMixFix(a: ScalarType, b: ScalarType): string {
+  return `a STRING and a WSTRING do not mix (convert one side: ${a}_TO_${b}(...) or ${b}_TO_${a}(...))`
 }
 
 /**
@@ -262,7 +267,7 @@ const RANK: Record<ScalarType, number> = {
   // rejects those operand pairs before widen() is reached. Present only so the table stays total.
   TIME: 6,
   DATE: 6.25, TOD: 6.5, DT: 6.75,
-  STRING: 7,
+  STRING: 7, WSTRING: 7.5,
 }
 
 /** The wider of two scalar types - the result type of a mixed binary expression. */
@@ -528,7 +533,7 @@ function stringToNum(dst: ScalarType, s: string): number {
  *  the low bits (two's-complement wrap); anything ->BOOL is `<> 0`. STRING converts by
  *  formatting and parsing (`INT_TO_STRING(42)` = '42', `STRING_TO_INT('42x')` = 42). */
 export function conv(src: ScalarType, dst: ScalarType, v: Value): Value {
-  if (dst === 'STRING') {
+  if (isString(dst)) {
     if (typeof v === 'string') return v
     if (src === 'BOOL' || typeof v === 'boolean') return bool(v) ? 'TRUE' : 'FALSE'
     if (typeof v === 'bigint') return v.toString()

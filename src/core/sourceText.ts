@@ -8,21 +8,18 @@
 
 /**
  * Where the text that starts at `i` ends (a string literal, a comment or a pragma), or `i` itself when none starts
- * there. The lexer's rules: `'…'` with IEC's `$` escape, never spanning a line (an unterminated literal stops at the
- * newline, as the lexer reports it); `(* … *)` and `// …` comments; `{ … }` pragmas.
- *
- * `"…"` is not text: the lexer refuses a double quote outright (WSTRING is not implemented). On text that is never
- * lexed (a clipboard, a section sniffed for its dialect), treating a stray `"` as a string would hide everything after
- * it on the line, an IEC contact included.
+ * there. The lexer's rules: `'…'` (a STRING literal) and `"…"` (a WSTRING literal) with IEC's `$` escape, never
+ * spanning a line (an unterminated literal stops at the newline, as the lexer reports it); `(* … *)` and `// …`
+ * comments; `{ … }` pragmas. The other quote inside a literal is an ordinary character.
  */
 export function skipText(source: string, i: number): number {
   const c = source[i]
-  if (c === "'") {
+  if (c === "'" || c === '"') {
     for (let j = i + 1; j < source.length; j++) {
       const d = source[j]
       if (d === '\n') return j
       if (d === '$') j++
-      else if (d === "'") return j + 1
+      else if (d === c) return j + 1
     }
     return source.length
   }

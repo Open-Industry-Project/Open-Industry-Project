@@ -14,10 +14,12 @@ export function formatPlcValue(v: TagValue, type?: string, maxChars = Infinity):
   if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE'
   // a 64-bit integer past 2^53 arrives as its digits (plc/types.ts TagValue), and shows as the number it is
   if (typeof v === 'string' && (type === 'LINT' || type === 'ULINT' || type === 'LWORD')) return v
-  // a STRING shows quoted, in the ST spelling, so an empty one still reads as a value
+  // a STRING shows quoted, in the ST spelling, so an empty one still reads as a value. A WSTRING shows in its own
+  // double quotes.
   if (typeof v === 'string') {
     const shown = v.length > maxChars ? `${v.slice(0, maxChars)}...` : v
-    return `'${shown.replace(/\n/g, '$N')}'`
+    const quote = type?.startsWith('WSTRING') ? '"' : "'"
+    return `${quote}${shown.replace(/\n/g, '$N')}${quote}`
   }
   return Number.isInteger(v) ? String(v) : v.toFixed(3)
 }

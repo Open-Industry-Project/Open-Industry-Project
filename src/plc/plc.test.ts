@@ -1255,8 +1255,9 @@ describe('STRING', () => {
     expect(() => compile("VAR s : STRING; END_VAR\ns := 'oops;\n")).toThrow(/unterminated string literal/)
   })
 
-  it('names WSTRING when a double-quoted literal appears, instead of "unexpected character"', () => {
-    expect(() => compile('VAR s : STRING; END_VAR\ns := "wide";\n')).toThrow(/WSTRING, which is not implemented/)
+  it('reads a double-quoted literal as a WSTRING, which a STRING does not take (wstring.test.ts)', () => {
+    expect(() => compile('VAR s : STRING; END_VAR\ns := "wide";\n')).toThrow(/cannot assign WSTRING to 's' of type STRING \(write WSTRING_TO_STRING\(\.\.\.\)\)/)
+    expect(once('VAR s : STRING; END_VAR\ns := \'say "hi"\';').get('s')).toBe('say "hi"')
   })
 
   it('truncates a store to the declared capacity, silently, like every target', () => {
@@ -1420,7 +1421,7 @@ describe('STRING', () => {
 describe('standard types this subset does not implement', () => {
   it('says why rather than "unknown type"', () => {
     expect(() => compile('VAR n : LDATE; END_VAR\n')).toThrow(/LDATE is not supported: the 64-bit calendar types/)
-    expect(() => compile('VAR s : WSTRING; END_VAR\n')).toThrow(/WSTRING is not supported: wide \(UTF-16\) strings/)
+    expect(() => compile('VAR t : LTIME; END_VAR\n')).toThrow(/LTIME is not supported: the 64-bit duration/)
     expect(() => compile('VAR d : LDT; END_VAR\n')).toThrow(/LDT is not supported: the 64-bit calendar types/)
   })
 

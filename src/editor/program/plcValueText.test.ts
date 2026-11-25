@@ -25,6 +25,17 @@ Speed := 1;
 END_PROGRAM
 `
 
+describe('formatPlcValue', () => {
+  it('shows a STRING in single quotes and a WSTRING in double quotes', () => {
+    expect(formatPlcValue('abc', 'STRING')).toBe("'abc'")
+    expect(formatPlcValue('abc', 'STRING[20]')).toBe("'abc'")
+    expect(formatPlcValue('abc', 'WSTRING')).toBe('"abc"')
+    expect(formatPlcValue('', 'WSTRING[20]')).toBe('""')
+    expect(formatPlcValue('abcdef', 'WSTRING', 3)).toBe('"abc..."')
+    expect(formatPlcValue('abc')).toBe("'abc'")
+  })
+})
+
 describe('typeOfKey', () => {
   const types = declaredTypeSets(SOURCE)
 

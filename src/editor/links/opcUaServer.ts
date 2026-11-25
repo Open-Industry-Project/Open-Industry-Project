@@ -81,6 +81,7 @@ const BUILTIN_OF: Record<Exclude<VarInfo['type'], WideType>, number> = {
   TOD: 11,
   DT: 11,
   STRING: 12,
+  WSTRING: 12,
   // an enumeration is an integer at run time
   ENUM: 4,
 }

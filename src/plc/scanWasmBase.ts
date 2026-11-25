@@ -1,6 +1,7 @@
 // What the WebAssembly emitter's files share (scanWasm.ts, scanWasmCalls.ts): the byte writer, the kinds of value on
 // the stack, the link between one program's bodies, and what the host keeps for the helpers a body imports.
 
+import { isStringType } from './types'
 import type { GenBody, GenInternals } from './scanCodegen'
 import { type TypeLayout, TypedUnsupported } from './typed/layout'
 import { is64 } from './runtime'
@@ -32,7 +33,7 @@ export const MASK: Partial<Record<ScalarType, number>> = { USINT: 0xff, BYTE: 0x
 export const WIDE: Partial<Record<ScalarType, true>> = { UDINT: true, DWORD: true }
 export const isWidth = (t: string | undefined): t is ScalarType => t === 'SINT' || t === 'INT' || t === 'DINT' || t === 'USINT' || t === 'BYTE' || t === 'UINT' || t === 'WORD' || t === 'UDINT' || t === 'DWORD'
 export const RANGE: Partial<Record<ScalarType, readonly [number, number]>> = { SINT: [-128, 127], INT: [-32768, 32767], DINT: [-2147483648, 2147483647], USINT: [0, 255], BYTE: [0, 255], UINT: [0, 65535], WORD: [0, 65535], UDINT: [0, 4294967295], DWORD: [0, 4294967295] }
-export const kindOf = (t: ScalarType): Kind => (t === 'BOOL' ? 'b' : WIDE[t] ? 'u' : isWidth(t) ? 'i' : t === 'LINT' ? 'l' : is64(t) ? 'L' : t === 'STRING' ? no('a STRING') : 'f')
+export const kindOf = (t: ScalarType): Kind => (t === 'BOOL' ? 'b' : WIDE[t] ? 'u' : isWidth(t) ? 'i' : t === 'LINT' ? 'l' : is64(t) ? 'L' : isStringType(t) ? no('a STRING') : 'f')
 
 /**
  * The bodies of one program, where they can call each other without leaving WebAssembly: a table of functions, with a

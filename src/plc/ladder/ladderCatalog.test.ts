@@ -48,7 +48,7 @@ END_LADDER
 /** A value of each type to start a variable at: not zero, so a DIV or a LN has something to work on. */
 const START: Record<ScalarType, string> = {
   BOOL: 'TRUE', SINT: '3', INT: '3', DINT: '3', LINT: '3', USINT: '3', UINT: '3', UDINT: '3', ULINT: '3', BYTE: '3', WORD: '3', DWORD: '3', LWORD: '3',
-  REAL: '0.5', LREAL: '0.5', TIME: 'T#3s', DATE: 'D#2020-01-02', TOD: 'TOD#01:02:03', DT: 'DT#2020-01-02-01:02:03', STRING: "'abc'",
+  REAL: '0.5', LREAL: '0.5', TIME: 'T#3s', DATE: 'D#2020-01-02', TOD: 'TOD#01:02:03', DT: 'DT#2020-01-02-01:02:03', STRING: "'abc'", WSTRING: '"abc"',
 }
 
 /** The types to try an operand at, commonest first, so the search below ends early. */

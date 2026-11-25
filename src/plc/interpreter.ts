@@ -22,7 +22,7 @@ import { compileTyped } from './typed/compile'
 import { TypedUnsupported } from './typed/layout'
 import { big, bool, CALL_DEPTH_MESSAGE, calendarRangeError, copyData, type Fb, type FbArgs, fbMemberType, idiv, imod, is64, isCalendar, isInt, isInt32, isReal, makeFb, MAX_CALL_DEPTH, MAX_LOOP_ITERATIONS, num, str, unboundMessage, wrap, wrap64 } from './runtime'
 import type { ArrayDim, ArrayType, CompiledProgram, DataType, Decl, Expr, FbArg, FbDef, FbType, FuncDef, Initializer, MethodDef, ScalarType, SourcePos, Stmt, StructInit, StructRef, TagPort, TagValue, UserFbRef, Value, VarInfo } from './types'
-import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError } from './types'
+import { isArray, isEnum, isInterface, isRef, isStruct, isUserFb, StError, isStringType } from './types'
 
 /** An ordinary store into a place (assignment, a tag write, an argument): every such store of the walker comes through here. */
 function put(owner: Record<string | number, unknown>, key: string | number, v: unknown): void {
@@ -236,7 +236,7 @@ function runFunction(def: FuncDef, args: DataValue[], fbDefs: FbDefMap, funcs: F
   pou.scan(0) // functions are stateless and FB-free, so no timer reads the clock
   const v = pou.image.home(def.name)?.[def.name]
   if (v !== undefined) return v
-  return def.ret === 'BOOL' ? false : def.ret === 'STRING' ? '' : isScalarType(def.ret) && is64(def.ret) ? 0n : 0
+  return def.ret === 'BOOL' ? false : isStringType(def.ret) ? '' : isScalarType(def.ret) && is64(def.ret) ? 0n : 0
 }
 
 /** Builds a fresh function-block instance of a type, wherever inside a value one is needed. */
@@ -259,7 +259,7 @@ function shapedRecord(key: object, fields: readonly { name: string; type: DataTy
   let shape = recordShapes.get(key)
   if (!shape) {
     shape = {}
-    for (const f of fields) shape[f.name] = f.type === 'BOOL' ? false : f.type === 'STRING' ? '' : isScalarType(f.type) && is64(f.type) ? 0n : isScalarType(f.type) || isEnum(f.type) ? 0 : (null as unknown as DataValue)
+    for (const f of fields) shape[f.name] = f.type === 'BOOL' ? false : isStringType(f.type) ? '' : isScalarType(f.type) && is64(f.type) ? 0n : isScalarType(f.type) || isEnum(f.type) ? 0 : (null as unknown as DataValue)
     recordShapes.set(key, shape)
   }
   return { ...shape }
@@ -344,7 +344,7 @@ function zeroData(t: DataType, structDefs: StructDefMap, enumDefs: EnumDefMap, m
   }
   if (t === 'BOOL') return false
   if (isScalarType(t) && is64(t)) return 0n
-  return t === 'STRING' ? '' : 0
+  return isStringType(t) ? '' : 0
 }
 
 function makeArray(dims: ArrayDim[], k: number, elem: DataType, structDefs: StructDefMap, enumDefs: EnumDefMap, mkFb: FbFactory): DataValue[] {
@@ -1282,7 +1282,7 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
       for (const d of decls) {
         if (d.section === 'VAR_OUTPUT' && isScalarType(d.type)) {
           const v = own(d.name)[d.name]
-          out.push([d.name, tagOf(v) ?? (d.type === 'STRING' ? '' : 0)])
+          out.push([d.name, tagOf(v) ?? (isStringType(d.type) ? '' : 0)])
         }
       }
       return out

@@ -12,10 +12,12 @@ describe('the text a program splice steps over', () => {
     expect(skipText("'open\nx", 0)).toBe(5) // an unterminated literal stops at the line, as the lexer reports it
   })
 
-  // The lexer refuses a double quote outright (WSTRING is not implemented), so there is no double-quoted text.
-  // On text never lexed, skipping `"…"` would let a stray `"` hide everything after it on the line.
-  it('a double quote is not text, because the lexer has no double-quoted literal', () => {
-    expect(skipText('"abc" x', 0)).toBe(0)
-    expect(findInCode('"a;b"', 0, (i) => '"a;b"'[i] === ';')).toBe(2)
+  it('a double-quoted WSTRING literal is text, and each quote is an ordinary character inside the other', () => {
+    expect(skipText('"abc" x', 0)).toBe(5)
+    expect(findInCode('"a;b"', 0, (i) => '"a;b"'[i] === ';')).toBe(-1)
+    expect(skipText('"say $"hi$"" x', 0)).toBe(12) // `$"` is an escaped quote, not the end
+    expect(skipText('"it\'s" x', 0)).toBe(6)
+    expect(skipText("'a\"b' x", 0)).toBe(5)
+    expect(skipText('"open\nx', 0)).toBe(5)
   })
 })

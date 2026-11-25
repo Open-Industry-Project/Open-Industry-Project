@@ -2,7 +2,7 @@
 // TYPE blocks.
 
 import type { AliasDef, ArrayDim, ArrayType, DataType, Decl, DeclType, EnumDef, EnumMember, Expr, Initializer, ScalarType, StructDef, StructField, StructInit, SubrangeDef, Token, VarSection } from './types'
-import { DEFAULT_STRING_LEN, isArray, SCALAR_TYPES, StError } from './types'
+import { DEFAULT_STRING_LEN, isArray, SCALAR_TYPES, StError, isStringType } from './types'
 import { VAR_SECTIONS } from './parserBase'
 import { LadderParser } from './parserLadder'
 
@@ -68,7 +68,7 @@ export class DeclParser extends LadderParser {
       const parenAfter = this.peek(1).kind === 'op' && this.peek(1).value === '('
       if (this.isOp('(')) enums.push(this.enumDef(nameTok))
       else if (this.isKw('STRUCT')) structs.push(this.structDef(nameTok))
-      else if (next.kind === 'kw' && TYPE_KW.has(next.value) && next.value !== 'STRING' && parenAfter) subranges.push(this.subrangeDef(nameTok))
+      else if (next.kind === 'kw' && TYPE_KW.has(next.value) && !isStringType(next.value) && parenAfter) subranges.push(this.subrangeDef(nameTok))
       else aliases.push(this.aliasDef(nameTok))
     }
     this.eatKw('END_TYPE')
@@ -208,7 +208,7 @@ export class DeclParser extends LadderParser {
     if (t.kind === 'kw' && t.value === 'ARRAY') return { type: this.arrayType() }
     if (t.kind === 'kw' && (SCALAR_TYPES as readonly string[]).includes(t.value)) {
       this.next()
-      return { type: t.value as ScalarType, ...(t.value === 'STRING' ? { maxLen: this.stringLen() } : {}) }
+      return { type: t.value as ScalarType, ...(isStringType(t.value) ? { maxLen: this.stringLen() } : {}) }
     }
     if (t.kind === 'ident' && t.value.toUpperCase() === 'REFERENCE') throw new StError(REFERENCE_TO_NOT_IEC, t.pos, t.value.length)
     if (t.kind === 'ident' && t.value.toUpperCase() === 'REF_TO') throw new StError('a METHOD returning a REF_TO is not implemented; return the value', t.pos, t.value.length)
@@ -265,7 +265,7 @@ export class DeclParser extends LadderParser {
     } else if (typeTok.kind === 'kw' && TYPE_KW.has(typeTok.value)) {
       this.next()
       type = typeTok.value as DeclType
-      if (type === 'STRING') maxLen = this.stringLen()
+      if (isStringType(type)) maxLen = this.stringLen()
     } else if (this.startsPointerType()) {
       const r = this.referenceType()
       type = r.type
@@ -418,7 +418,7 @@ export class DeclParser extends LadderParser {
     return { value: 0, expr: this.addExpr() }
   }
 
-  /** The optional capacity on a STRING type, consumed after its keyword. IEC spells it
+  /** The optional capacity on a STRING or WSTRING type, consumed after its keyword. IEC spells it
    *  `STRING[80]`; `STRING(80)` is read too (imported code uses both), and an export writes IEC's. */
   protected stringLen(): number {
     const open = this.isOp('[') ? '[' : this.isOp('(') ? '(' : null
@@ -449,7 +449,7 @@ export class DeclParser extends LadderParser {
     if (this.startsPointerType()) return this.referenceType()
     if (t.kind === 'kw' && (SCALAR_TYPES as readonly string[]).includes(t.value)) {
       this.next()
-      return { type: t.value as ScalarType, maxLen: t.value === 'STRING' ? this.stringLen() : undefined }
+      return { type: t.value as ScalarType, maxLen: isStringType(t.value) ? this.stringLen() : undefined }
     }
     if (t.kind === 'ident') return { type: { struct: this.typeName().value } }
     throw new StError('array element type must be a scalar, a struct, an enumeration or a function block', t.pos)
@@ -474,9 +474,9 @@ export class DeclParser extends LadderParser {
     if (target.kind === 'kw' && target.value === 'ARRAY') return { type: { ref: this.arrayType() } }
     if (target.kind === 'kw' && TYPE_KW.has(target.value)) {
       this.next()
-      if (target.value === 'STRING') {
+      if (isStringType(target.value)) {
         const maxLen = this.stringLen()
-        return { type: { ref: 'STRING', maxLen }, maxLen }
+        return { type: { ref: target.value as ScalarType, maxLen }, maxLen }
       }
       return { type: { ref: target.value as ScalarType } }
     }
@@ -493,7 +493,7 @@ export class DeclParser extends LadderParser {
     if (this.startsPointerType()) return this.referenceType()
     if (t.kind === 'kw' && (SCALAR_TYPES as readonly string[]).includes(t.value)) {
       this.next()
-      return { type: t.value as ScalarType, maxLen: t.value === 'STRING' ? this.stringLen() : undefined }
+      return { type: t.value as ScalarType, maxLen: isStringType(t.value) ? this.stringLen() : undefined }
     }
     if (t.kind === 'ident') return { type: { struct: this.typeName().value } }
     throw new StError('expected a type', t.pos)

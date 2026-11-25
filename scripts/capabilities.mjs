@@ -139,6 +139,12 @@ const PROBES = [
     st: "VAR s : STRING[20] := 'line$N'; n : INT; END_VAR\ns := CONCAT(s, 'more');\nn := LEN(s);" },
   { id: 'string-order', category: 'Types', intent: 'supported', title: 'STRING compares and sorts, but has no +',
     st: "VAR\n  a : STRING := 'abc';\n  b : STRING := 'abd';\n  lo : STRING; q : BOOL;\nEND_VAR\nq := a < b;\nlo := MIN(a, b);" },
+  { id: 'wstring', category: 'Types', intent: 'supported', title: 'WSTRING with a capacity, the string functions and the comparisons',
+    st: 'VAR w : WSTRING[20]; n : INT; q : BOOL; END_VAR\nw := CONCAT(w, "more");\nn := FIND(w, "or");\nq := w < "z";' },
+  { id: 'wstring-literal', category: 'Types', intent: 'supported', title: 'A double-quoted (WSTRING) literal, with $" and four-digit $ escapes',
+    st: 'VAR w : WSTRING; END_VAR\nw := "say $"hi$" $00E9$N";' },
+  { id: 'wstring-convert', category: 'Types', intent: 'supported', title: 'WSTRING_TO_STRING and STRING_TO_WSTRING',
+    st: "VAR w : WSTRING; s : STRING := 'abc'; END_VAR\nw := STRING_TO_WSTRING(s);\ns := WSTRING_TO_STRING(w);" },
   { id: 'literals', category: 'Types', intent: 'supported', title: 'Based, typed, exponent and separated literals',
     st: 'VAR\n  h : WORD := 16#FF;\n  bits : BYTE := 2#1010_1010;\n  oct : INT := 8#17;\n  typed : INT := INT#5;\n  r : REAL := 1.0E-3;\nEND_VAR\nh := h OR WORD#16#0F;' },
   { id: 'bool-0-1', category: 'Types', intent: 'supported', title: '0 and 1 are BOOL literals (the standard’s own examples use them)',
@@ -165,9 +171,6 @@ const PROBES = [
     st: "VAR s : STRING := 'hello world'; part : STRING; at : INT; END_VAR\npart := MID(s, 5, 1);\nat := FIND(s, 'world');\npart := REPLACE(s, 'X', 1, 1);" },
 
   // ---- the subset boundary: types the standard has and this engine does not ----
-  { id: 'wstring', category: 'Types the subset lacks', intent: 'unsupported', title: 'WSTRING', st: 'VAR s : WSTRING; END_VAR' },
-  { id: 'wstring-literal', category: 'Types the subset lacks', intent: 'unsupported', title: 'A double-quoted (WSTRING) literal',
-    st: 'VAR s : STRING; END_VAR\ns := "wide";' },
   { id: 'ldt', category: 'Types the subset lacks', intent: 'unsupported', title: 'LDATE, LTOD, LDT (64-bit calendar types)', st: 'VAR x : LDT; END_VAR' },
   { id: 'ltime', category: 'Types the subset lacks', intent: 'unsupported', title: 'LTIME (64-bit duration)', st: 'VAR t : LTIME; END_VAR' },
 
@@ -279,6 +282,9 @@ const PROBES = [
   { id: 'narrowing-store', category: 'Refused for portability', intent: 'strict', title: 'A narrowing store without the conversion',
     st: 'VAR r : REAL := 1.5; i : INT; END_VAR\ni := r;',
     note: 'Only IEC’s safe widenings are implicit. The error names the conversion to write.' },
+  { id: 'wstring-mix', category: 'Refused for portability', intent: 'strict', title: 'A STRING and a WSTRING mixed without a conversion',
+    st: 'VAR w : WSTRING; s : STRING; END_VAR\nw := s;',
+    note: 'The two are different types in IEC. An assignment, a comparison or a string function takes one kind, and the error names WSTRING_TO_STRING or STRING_TO_WSTRING.' },
   { id: 'string-members', category: 'Refused for portability', intent: 'strict', title: 'A STRING taken apart by members (S.LEN, S.DATA[i])',
     st: 'VAR s : STRING; n : DINT; END_VAR\nn := s.LEN;',
     note: 'IEC gives a STRING no members: LEN() and MID() read it, and the error says so.' },

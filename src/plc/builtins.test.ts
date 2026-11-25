@@ -222,7 +222,7 @@ describe('builtinFor: a call site with its dispatch decided once computes what e
   // the generated scan engine calls these instead of evalBuiltin (scanCodegen.ts), so every specialised case is held to
   // the general path on values chosen to reach the edges: negatives, fractions, ties, overflow, NaN, booleans
   const values: TagValue[] = [0, 1, -1, 2.5, -2.5, 3.5, 127, 128, -129, 32767, 40000, -2147483649, 4294967296, 1e10, Number.NaN, true, false]
-  const numeric = SCALAR_TYPES.filter((t) => t !== 'STRING' && t !== 'BOOL' && t !== 'TIME' && !['DATE', 'TOD', 'DT'].includes(t))
+  const numeric = SCALAR_TYPES.filter((t) => t !== 'STRING' && t !== 'WSTRING' && t !== 'BOOL' && t !== 'TIME' && !['DATE', 'TOD', 'DT'].includes(t))
   const same = (a: Value, b: Value): boolean => Object.is(a, b)
 
   it('numeric conversions, every pair', () => {

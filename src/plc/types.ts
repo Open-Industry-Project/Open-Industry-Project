@@ -25,6 +25,7 @@ export interface SourcePos {
 // silently). The bound is a property of the declaration, not
 // of the type - `maxLen` below - because IEC assignment compatibility ignores it: any
 // STRING stores into any STRING place, it just may not survive the trip whole.
+// WSTRING follows every one of these rules, with a capacity of its own (`WSTRING[20]`).
 // The 64-bit integers (LINT, ULINT, LWORD) are whole numbers a JS number cannot hold exactly past 2^53, so inside the
 // engine a value of one is a bigint (the walker) or an i64 (a WebAssembly body). See `Value` below for how a surface
 // outside the engine reads one.
@@ -35,9 +36,16 @@ export const SCALAR_TYPES = [
   'BYTE', 'WORD', 'DWORD', 'LWORD',
   'REAL', 'LREAL', 'TIME',
   'DATE', 'TOD', 'DT',
-  'STRING',
+  'STRING', 'WSTRING',
 ] as const
 export type ScalarType = (typeof SCALAR_TYPES)[number]
+
+/** The two character types. WSTRING is a type of its own, written with double-quoted literals, and stored and
+ *  bounded as a STRING is. The two never mix: a value crosses with WSTRING_TO_STRING or STRING_TO_WSTRING. */
+export type StringType = 'STRING' | 'WSTRING'
+export function isStringType(t: unknown): t is StringType {
+  return t === 'STRING' || t === 'WSTRING'
+}
 
 /**
  * The calendar types, by the names TC6 XML and every error message give them (`TOD`, `DT`); the long
@@ -259,8 +267,8 @@ export type Expr =
   // integer (program.ts `literal64`), else `value`. Digits, not a bigint, so a tree still copies as JSON.
   | { node: 'num'; value: number; real: boolean; declared?: ScalarType; pos: SourcePos; t?: ScalarType; big?: string }
   | { node: 'bool'; value: boolean; pos: SourcePos; t?: ScalarType }
-  // a single-quoted STRING literal, already unescaped by the lexer ('a$$b' -> `a$b`)
-  | { node: 'str'; value: string; pos: SourcePos; t?: ScalarType }
+  // a quoted literal, already unescaped by the lexer ('a$$b' -> `a$b`): a STRING, or with `wide` a double-quoted WSTRING
+  | { node: 'str'; value: string; wide?: true; pos: SourcePos; t?: ScalarType }
   // `global` is set by the checker when the name resolved to a VAR_GLOBAL rather than a
   // POU local, so a reader knows which storage it names. `enum` carries the
   // enumeration a value belongs to: enum values are integers at runtime (so `t` is the
@@ -711,6 +719,8 @@ export interface Token {
   value: string
   /** source spelling of a string literal, including quotes - for diagnostic lengths */
   raw?: string
+  /** set on a 'str' token written in double quotes: a WSTRING literal */
+  wide?: true
   num: number
   real: boolean
   /** a whole-number literal's exact value in decimal digits, when `num` cannot hold it (past 2^53) */

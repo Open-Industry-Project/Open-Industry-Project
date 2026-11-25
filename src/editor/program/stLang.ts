@@ -79,10 +79,11 @@ const stLanguage = StreamLanguage.define<StState>({
       return 'comment'
     }
 
-    // STRING literal. A literal never spans a line (the lexer rejects that), so an
+    // A STRING ('...') or WSTRING ("...") literal. A literal never spans a line (the lexer rejects that), so an
     // unterminated one colours to end of line instead of miscolouring the rest of the
     // file. `$'` is an escaped quote and must not close the literal.
-    if (stream.peek() === "'") {
+    const quote = stream.peek()
+    if (quote === "'" || quote === '"') {
       stream.next()
       while (!stream.eol()) {
         const ch = stream.next()
@@ -90,7 +91,7 @@ const stLanguage = StreamLanguage.define<StState>({
           stream.next() // whatever follows is escaped, including a quote
           continue
         }
-        if (ch === "'") break
+        if (ch === quote) break
       }
       return 'string'
     }
