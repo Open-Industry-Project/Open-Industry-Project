@@ -11,14 +11,15 @@ Free and open-source warehouse/manufacturing simulator that runs in the browser.
 
 The goal is to provide an open platform for people to test their ideas or educate themselves
 using standard industrial equipment and PLC languages. It includes its own PLC, so no hardware
-or PLC software is needed to get started.
+or PLC software is needed to get started. That suits PLC training and learning ladder logic or
+Structured Text.
 
 [![The editor running the demo palletizing line: the scene tree, the 3D view with conveyors, a robot palletizer and an AGV, the Inspector on the robot, and the live ladder program in the PLC panel](.github/readme-hero.jpg)](https://www.openindustryproject.org/app/?scene=demo)
 
 The editor runs at [openindustryproject.org/app](https://www.openindustryproject.org/app/?scene=demo),
 which opens a demo palletizing line.
 
-A desktop app is needed to connect to an external PLC:
+A desktop app is needed to connect to an external PLC for virtual commissioning:
 
 - Windows: signed [installer](https://downloads.openindustryproject.org/desktop/Open-Industry-Project-Setup.exe)
 - Linux: [.deb](https://downloads.openindustryproject.org/desktop/open-industry-project_amd64.deb) (Ubuntu, Debian)
