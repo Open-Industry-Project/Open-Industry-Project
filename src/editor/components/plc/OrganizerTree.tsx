@@ -16,7 +16,8 @@ const M = defineMessages('organizer', {
   plcSimulated: 'simulated',
   plcExternal: 'external PLC',
   plcHint: '{name}: its tasks and the program instances on them. Double-click for Controller Properties',
-  plcNoProgram: 'Runs on a PLC outside the app.',
+  runsOnHint: 'Open Controller Properties',
+  plcNoProgram:'Runs on a PLC outside the app.',
   plcUnlisted: 'not set up',
   plcUnlistedNote: 'Not one of the project\'s controllers yet, so nothing runs its tasks.',
   plcSetUp: 'Set up',
@@ -850,9 +851,22 @@ export function OrganizerTree(props: OrganizerTreeProps): ReactElement {
           </span>
           {/* i18n-ok: the controller's name, as the tags spell it */}
           <span className="org-title">{name}</span>
-          <span className="org-kind" data-testid={isDefault ? 'org-controller-runs-on' : 'org-plc-kind'} data-unlisted={unlisted || undefined}>
+          {/* a button, so one click opens the dialog that sets what it says; the rest of the row folds */}
+          <button
+            type="button"
+            className="org-kind org-kind-btn"
+            data-testid={isDefault ? 'org-controller-runs-on' : 'org-plc-kind'}
+            data-unlisted={unlisted || undefined}
+            title={t(M.runsOnHint)}
+            onClick={(e) => {
+              e.stopPropagation()
+              onControllerProperties()
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             {kind}
-          </span>
+          </button>
           {isDefault && problems.length > 0 && (
             <span className="org-problem-count" data-testid="org-problem-count" title={problems.join('\n')}>
               {t(M.problems, { count: problems.length })}

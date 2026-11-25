@@ -318,6 +318,13 @@ async function main() {
     await page.keyboard.press('Escape')
     await tid(page, 'controller-props').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {})
     check('...and Escape closes it', (await tid(page, 'controller-props').count()) === 0)
+    // the runs-on label is a button: one click opens the same dialog, and the row it sits on does not fold
+    await tid(page, 'org-controller-runs-on').click()
+    await tid(page, 'controller-props').waitFor({ timeout: 8000 })
+    check('one click on where it runs opens Controller Properties too', await tid(page, 'external-plc-here').isChecked())
+    await page.keyboard.press('Escape')
+    await tid(page, 'controller-props').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {})
+    check('...and leaves the Controller open', (await node.getAttribute('aria-expanded')) === 'true')
     check('no link status beside Play while the program runs here', (await tid(page, 'plc-link-status').count()) === 0)
 
     // ---- the count is every problem the table has ----
