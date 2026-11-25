@@ -22,7 +22,7 @@ const M = defineMessages('controllerDialog', {
 })
 
 // Controller Properties: where the program runs. Opened from the organizer's Controller node (double-click, or its
-// right-click Properties), from the toolbar's link status, and by the "PLC Controllers…" command, which is how a search
+// right-click Properties), from the toolbar's link status, and by the "Controller Properties…" command, which is how a search
 // for "PLC" or "Modbus" in the palette finds it. These are settings of the controller, so they
 // live on its node.
 //

@@ -29,6 +29,8 @@ export interface PaletteItem {
   readonly label: string
   /** the English label when the shown one is translated, so the name in the docs and tutorials still finds the row */
   readonly alias?: string
+  /** other words that find the row (Command.findBy) */
+  readonly findBy?: readonly string[]
   /** right-hand column: a chord for a command, a part type for a scene row */
   readonly detail?: string
   /** greyed and unselectable (a command whose enablement says no) */
@@ -76,6 +78,19 @@ export function scoreMatch(haystack: string, needle: string): number | null {
   return Math.max(1, 500 - spread)
 }
 
+/**
+ * A row's extra words, scored one point under the label's tier like the alias. A scattered match does not count:
+ * the words are short ("S7", "ADS"), and two stray letters would put the row in unrelated results.
+ */
+function findByScore(words: readonly string[], q: string): number {
+  let best = -1
+  for (const word of words) {
+    const score = scoreMatch(word, q)
+    if (score !== null && score >= 700 && score - 1 > best) best = score - 1
+  }
+  return best
+}
+
 /** later tiers lose ties - see the header: kind is a tie-break, never a boost */
 const KIND_RANK: Record<PaletteKind, number> = { command: 0, part: 1, catalog: 2 }
 
@@ -94,6 +109,7 @@ export function rankPaletteItems(items: readonly PaletteItem[], query: string, p
       q === '' ? -1 : (scoreMatch(`${item.group} ${item.label}`, q) ?? -1) - 50,
       // one point under the shown label's tier: an equal hit on the shown text wins the tie
       q === '' || item.alias === undefined ? -1 : (scoreMatch(item.alias, q) ?? 0) - 1,
+      q === '' || item.findBy === undefined ? -1 : findByScore(item.findBy, q),
     )
     if (score >= 0) scored.push({ item, score })
   }

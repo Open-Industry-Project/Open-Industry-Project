@@ -107,6 +107,7 @@ export interface Command {
   id: string
   label: string
   group: CommandGroup
+  findBy?: readonly string[] // names the palette also finds it by, the same in every language
   /** keymap action whose chord this command shows. The app binds it, so a menu only displays it. */
   keys?: KeyActionId
   /** an accelerator the native menu owns, for commands the app doesn't bind itself (Ctrl+N, F5, …) */
@@ -898,12 +899,11 @@ const COMMAND_DEFS: readonly Command[] = [
     run: ({ store }) => void ioAssign().then((m) => m.runIoAssignment(store)).catch(warnFailed('sim.assignIo')),
   },
   {
-    // Where the program runs: here, or on a real PLC that Play hands the scene's I/O to (Modbus TCP either way round,
-    // or OPC UA). The organizer's Controller node and the toolbar's link status open the same dialog; this is the way
-    // in for someone who searches the palette for "PLC", "Modbus" or "OPC", and the name says it lists every controller.
+    // Where the program runs, here or on a real PLC. The label is the dialog's title, so the name a hint gave finds it.
     id: 'sim.externalPlc',
-    label: 'PLC Controllers…',
+    label: 'Controller Properties…',
     group: 'Simulation',
+    findBy: ['PLC', 'Modbus', 'OPC UA', 'MQTT', 'S7', 'ADS', 'SLMP', 'EtherNet/IP'], // i18n-ok: names
     run: ({ ui }) => ui.showControllerProperties(),
   },
   {

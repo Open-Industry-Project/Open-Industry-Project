@@ -112,6 +112,14 @@ describe('rankPaletteItems', () => {
     expect(rankPaletteItems([save, shown], 'save').map((i) => i.key)).toEqual(['part:s', 'cmd:save'])
   })
 
+  it("finds a command by its extra words, but not by letters scattered across one", () => {
+    const props: PaletteItem = { ...item('command', 'Controller Properties…', 'Simulation'), findBy: ['PLC', 'OPC UA', 'ADS'] }
+    expect(rankPaletteItems([props], 'plc')).toHaveLength(1)
+    expect(rankPaletteItems([props], 'opc')).toHaveLength(1)
+    expect(rankPaletteItems([props], 'properties')).toHaveLength(1)
+    expect(rankPaletteItems([props], 'pa')).toHaveLength(0)
+  })
+
   it('a group hit never outranks a direct label hit', () => {
     // 'Scene' is the parts group; a command literally called "Scene Tree" must win the query 'scene'
     const hits = rankPaletteItems([item('part', 'Diverter', 'Scene'), item('command', 'Scene Tree', 'View')], 'scene')

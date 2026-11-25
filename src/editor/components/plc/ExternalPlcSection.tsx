@@ -1,5 +1,5 @@
 // Where the program runs: the body of the Controller Properties dialog (ControllerDialog.tsx), opened from the
-// organizer's Controller node, the toolbar's link status and the "PLC Controllers…" command. Here in the simulator, or
+// organizer's Controller node, the toolbar's link status and the "Controller Properties…" command. Here in the simulator, or
 // on a real PLC that Play hands the scene's I/O to instead (editor/links/externalPlc.ts).
 //
 // What it carries is not configured here. A part is wired to an I/O point by its PLC tag (`%IX100.0`), and

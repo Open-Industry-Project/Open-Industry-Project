@@ -66,6 +66,7 @@ export function CommandPalette({ store, state, controller, onClose }: CommandPal
         label: cmd.label,
         // the English label (commands.ts localizeCommand registers it under this id) still finds a translated command
         alias: englishAlias(cmd.label, messageSource(`command.${cmd.id}.label`)),
+        findBy: cmd.findBy,
         // in the shortcuts panel's notation (⌘ on a Mac), and the chord this surface binds (F5 is the menu's)
         detail: commandChord(cmd),
         disabled: !commandEnabled(cmd.id),

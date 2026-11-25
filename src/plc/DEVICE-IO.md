@@ -772,7 +772,7 @@ nothing drives them.
 
 Where a person meets it:
 
-- **Simulation > PLC Controllers…** (Controller Properties) lists the controllers in one section, the default first
+- **Simulation > Controller Properties…** lists the controllers in one section, the default first
   with its name, each with what runs it: This simulator or An external PLC. A simulated one lists the program
   instances it runs. A new one gets the first port after the default link's that no link uses, since two links serving on
   one port cannot both listen, and a clash is said on both links. Each folds to its status line, with one

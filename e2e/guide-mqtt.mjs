@@ -9,7 +9,7 @@
 //   step 1  the parts' Comms fields set through the Inspector, by name (Main.Eye, Main.Run, Main.Speed)
 //   step 2  the page's program typed into the PLC panel's code editor
 //   step 3  the broker started with the page's command
-//   step 4  PLC Controllers... from the palette; the Broker and Topic defaults; the box ticked; the status line
+//   step 4  Controller Properties... from the palette; the Broker and Topic defaults; the box ticked; the status line
 //   step 5  the page's mosquitto_sub prints the page's five lines
 //   step 6  Play: running, the belt waits; the page's mosquitto_pub: the belt runs and the box stops at the eye; the
 //           last write shown; a write to the eye refused, and shown; Stop and Play; a Speed setpoint sets the belt's
