@@ -23,7 +23,9 @@ function register(folder: string): string {
   return m.id
 }
 
-function run(castAllBeams: boolean): { trace: string; casts: number } {
+/** `crowd`: a floor of parked boxes away from the belt, enough of them that the floor grid answers what is near
+ *  (cargoRegistry.ts GRID_MIN_ROWS); a few stand by the far row of eyes. */
+function run(castAllBeams: boolean, crowd = false): { trace: string; casts: number } {
   clearPackages()
   const belt = register('belt-conveyor')
   const sensor = register('diffuse-sensor')
@@ -50,6 +52,10 @@ function run(castAllBeams: boolean): { trace: string; casts: number } {
       return cast(...a)
     },
   })
+  if (crowd) {
+    for (let i = 0; i < 80; i++) w.spawnBoxAt(-40 + (i % 10) * 0.6, 0.2, -3 + Math.floor(i / 10) * 0.6, 0.2, 0.15, 0.2, 0, 5, [0, 0, 1])
+    for (let i = 0; i < 3; i++) w.spawnBoxAt(30.4 + i * 2, 1.25, 0.1, 0.2, 0.15, 0.2, 0, 5, [0, 0, 1])
+  }
   const lines: string[] = []
   for (let i = 0; i < 700; i++) {
     // boxes set down on the belt one after another, and one dropped beside it
@@ -71,6 +77,14 @@ describe('beams with nothing near them', () => {
     expect(all.trace).toMatch(/"hit":true/)
     expect(all.trace).toMatch(/"Eye\d+":true/)
     expect(all.trace).toMatch(/"Eye\d+":false/)
+    expect(quiet.trace).toBe(all.trace)
+    expect(quiet.casts).toBeLessThan(all.casts / 2)
+  })
+
+  it('the same with enough cargo that the floor grid says what is near a beam', () => {
+    const quiet = run(false, true)
+    const all = run(true, true)
+    expect(all.trace).toMatch(/"Eye\d+":true/)
     expect(quiet.trace).toBe(all.trace)
     expect(quiet.casts).toBeLessThan(all.casts / 2)
   })

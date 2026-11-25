@@ -486,6 +486,26 @@ export class CargoRegistry {
     return out.sort(ascending)
   }
 
+  /** Whether {@link rowsNear} would answer with no rows, and null where it answers null. It stops at the first cell
+   *  that holds a row and lists none: a sensor beside a full rack asks this on every step, and listing and sorting
+   *  the rack's rows to learn there is one cost more than every beam cast of the step. */
+  noRowsNear(snap: Float32Array | null, x0: number, z0: number, x1: number, z1: number): boolean | null {
+    if (!snap || this.boxes.length < GRID_MIN_ROWS) return null
+    const ix0 = Math.floor(x0 / GRID_CELL)
+    const ix1 = Math.floor(x1 / GRID_CELL)
+    const iz0 = Math.floor(z0 / GRID_CELL)
+    const iz1 = Math.floor(z1 / GRID_CELL)
+    if (!((ix1 - ix0 + 1) * (iz1 - iz0 + 1) <= GRID_MAX_CELLS)) return null // huge, or not finite
+    this.ensureRowGrid(snap)
+    for (let ix = ix0; ix <= ix1; ix++) {
+      for (let iz = iz0; iz <= iz1; iz++) {
+        const list = this.rowGrid.get(gridKey(ix, iz))
+        if (list !== undefined && list.length > 0) return false
+      }
+    }
+    return true
+  }
+
   /** free the snapshot reader; after the world's JoltInterface is gone */
   dispose(): void {
     // the cache's own references (keep): the bodies are gone, so this frees the shapes

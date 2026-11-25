@@ -182,8 +182,7 @@ export class SensorRegistry {
     if (!(x1 - x0 < Infinity && z1 - z0 < Infinity)) return false // a beam that is not finite: cast it
     if (rows >= GRID_MIN_ROWS) {
       // many bodies: the floor grid's cells under the box
-      const near = cargo.rowsNear(snap, x0, z0, x1, z1)
-      return near !== null && near.length === 0
+      return cargo.noRowsNear(snap, x0, z0, x1, z1) === true
     }
     for (let i = 0; i < rows; i++) {
       const o = i * 7
