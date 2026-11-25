@@ -99,14 +99,19 @@ export function axesAgree(a: FacetAxes | null | undefined, b: FacetAxes): boolea
   return dn >= 0.999 && Math.abs(df) >= 0.999
 }
 
+/** is this entry's surface moving? A stopped belt lets its cargo sleep. */
+const entryRuns = (e: ConveyorEntry): boolean => (e.kind === 'linear' ? e.vx !== 0 || e.vy !== 0 || e.vz !== 0 : e.omega !== 0)
+
 /** The per-contact JS listener (ContactListenerJS). `conveyors` / `conveyorAxes` are SimWorld's live maps, read on
- *  every contact; `surfaceVel` / `angularVel` its reusable Jolt temporaries. */
+ *  every contact; `surfaceVel` / `angularVel` its reusable Jolt temporaries. `conveyed` collects the dynamic bodies
+ *  (by pointer) a running entry drove this step, for ConveyorFacets.keepConveyedAwake. */
 export function createConveyorContactListener(
   J: JoltModule,
   conveyors: ReadonlyMap<number, ConveyorEntry[]>,
   conveyorAxes: ReadonlyMap<number, (FacetAxes | null)[]>,
   surfaceVel: Jolt.Vec3,
   angularVel: Jolt.Vec3,
+  conveyed: Set<number>,
 ): Jolt.ContactListenerJS {
   const onConveyorContact = (
     body1Ptr: number,
@@ -193,6 +198,9 @@ export function createConveyorContactListener(
     }
     add(e1, -1)
     add(e2, 1)
+    // A callback may not change a body, so the cargo is only noted here, as the native listener does.
+    if (e1 && entryRuns(e1) && body2.IsDynamic()) conveyed.add(body2Ptr)
+    if (e2 && entryRuns(e2) && body1.IsDynamic()) conveyed.add(body1Ptr)
     surfaceVel.Set(vx, vy, vz)
     settings.mRelativeLinearSurfaceVelocity = surfaceVel
     angularVel.Set(0, wy, 0)

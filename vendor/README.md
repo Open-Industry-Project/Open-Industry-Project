@@ -2,19 +2,20 @@
 
 ## jolt-physics (a fork of JoltPhysics.js)
 
-`vendor/jolt-physics-1.1.1-oip.10.tgz` is the physics engine the app runs: a build of
+`vendor/jolt-physics-1.1.1-oip.12.tgz` is the physics engine the app runs: a build of
 [JoltPhysics.js](https://github.com/jrouwe/JoltPhysics.js) (MIT) with additions this project needs, installed through a
 `file:` dependency in the root `package.json`. `npm install jolt-physics` from the registry gives upstream's build,
 which the app can run but only on its slower JavaScript fallbacks. `vendor/jolt-physics/` holds the unpacked package
 files the tarball is made from.
 
 **Source:** upstream commit `c43eabb4c90f4db4cb292f88a0d768efe896c3ca` ("Update to Jolt v5.7.0", three commits after
-the `1.1.1` tag; upstream has not tagged a release with Jolt 5.7.0) plus the four patches in
+the `1.1.1` tag; upstream has not tagged a release with Jolt 5.7.0) plus the five patches in
 `vendor/jolt-physics-src/`. `node scripts/jolt-src.mjs <dir>` fetches upstream at that commit and applies them as
 commits on a branch `oip/1.1.1-jolt-5.7.0`. What the build adds:
 
 - `ConveyorContactListener`, a native contact listener that applies conveyor surface velocity and the running-surface
-  and flank gates in C++ (the app feature-detects it and falls back to a JavaScript listener without it);
+  and flank gates in C++, and keeps a box on a running deck from falling asleep (the app feature-detects it and falls
+  back to a JavaScript listener without it);
 - `BodySnapshot`, a batched reader for body positions and rotations;
 - SIMD in the single-threaded builds (upstream enables it only in the multithreaded ones), a build option set in step
   2 below rather than a source change;
@@ -31,6 +32,7 @@ The patches are source only; the compiled files exist only in this tarball.
 | `0002-ConveyorContactListener-gate-conveying-...` | each facet's running-surface normal and the gate on it (`SetSurfaceGateCos`) |
 | `0003-ConveyorContactListener-let-a-facet-s-...` | each facet's flow axis and the flank gate (`SetFlankProtectCos`), so a side wall keeps colliding |
 | `0004-ConveyorContactListener-let-a-facet-carry-...` | each facet's own surface friction, so a merged deck's members grip as their own conveyors do |
+| `0005-ConveyorContactListener-keep-a-body-on-...` | a box riding a running facet is noted in the callback and its sleep test restarted after the step (`SetKeepConveyedAwake`, `KeepConveyedAwake`), so a slow or ramping belt keeps carrying it |
 
 ### Changing the engine
 

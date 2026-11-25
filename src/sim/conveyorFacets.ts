@@ -27,6 +27,8 @@ export class ConveyorFacets {
   // registration rather than re-synced per step; see SURFACE_GATE_COS / FLANK_PROTECT_COS.
   private readonly conveyorAxes = new Map<number, (FacetAxes | null)[]>()
   private readonly listener: Jolt.ContactListenerJS
+  /** the dynamic bodies (by pointer) the JS listener saw a running entry drive this step; see keepConveyedAwake */
+  private readonly conveyed = new Set<number>()
   /** forked build's native conveyor listener (null = stock build / ?jsconveyor / ?joltraw) */
   private readonly nativeConveyor: Jolt.ConveyorContactListener | null
   /** Float64 view over the native listener's facet table (see FACET_* constants) */
@@ -44,12 +46,12 @@ export class ConveyorFacets {
    */
   constructor(
     private readonly J: JoltModule,
-    system: Jolt.PhysicsSystem,
+    private readonly system: Jolt.PhysicsSystem,
     private readonly surfaceVel: Jolt.Vec3,
     private readonly angularVel: Jolt.Vec3,
     opts: { benchRaw: boolean; forceJsListener: boolean },
   ) {
-    this.listener = createConveyorContactListener(J, this.conveyors, this.conveyorAxes, surfaceVel, angularVel)
+    this.listener = createConveyorContactListener(J, this.conveyors, this.conveyorAxes, surfaceVel, angularVel, this.conveyed)
     // Prefer the forked build's native conveyor listener: the JS listener's per-contact WASM→JS
     // crossings dominate step cost at industrial contact counts (~12 ms/step @1000 boxes) and are
     // fundamentally incompatible with the multithreaded build (contact callbacks fire on pthread
@@ -65,6 +67,8 @@ export class ConveyorFacets {
       // older forks lack these setters; they then convey every contact and gate every flank
       this.nativeConveyor.SetSurfaceGateCos?.(SURFACE_GATE_COS)
       this.nativeConveyor.SetFlankProtectCos?.(FLANK_PROTECT_COS)
+      // an older fork lacks this too; its cargo then sleeps on a slow deck (see keepConveyedAwake)
+      this.nativeConveyor.SetKeepConveyedAwake?.(system)
       const heap = (J as unknown as { HEAPF64: Float64Array }).HEAPF64
       this.facetTable = new Float64Array(heap.buffer, this.nativeConveyor.GetFacetTablePtr(), FACET_CAPACITY * FACET_STRIDE)
       this.facetFree = [{ base: 0, count: FACET_CAPACITY }]
@@ -175,6 +179,28 @@ export class ConveyorFacets {
   clear(): void {
     this.rev++
     this.conveyors.clear()
+  }
+
+  /**
+   * Call after every physics step. A box riding a running deck starts its sleep test again, so it does not fall
+   * asleep there. Jolt calls a body at rest when it travels under 3 cm in half a second, which a box on a deck
+   * slower than 0.06 m/s does: a slow belt, or the first moments of a drive's ramp. Asleep it gets no contact
+   * callbacks, so the deck's surface velocity never reaches it again. A box held against a stop on a running deck
+   * stays awake too, since the deck is still pushing it. A box on a stopped deck sleeps as before, and the deck's
+   * start wakes it (SimWorld.wakeCargoOn). The listener notes the bodies and this resets them, because a contact
+   * callback may not change a body.
+   */
+  keepConveyedAwake(): void {
+    if (this.nativeConveyor) {
+      this.nativeConveyor.KeepConveyedAwake?.(this.system)
+      return
+    }
+    if (this.conveyed.size === 0) return
+    for (const ptr of this.conveyed) {
+      const body = this.J.wrapPointer(ptr, this.J.Body)
+      if (body.IsActive()) body.ResetSleepTimer()
+    }
+    this.conveyed.clear()
   }
 
   /** destroy the listeners and the temporaries; after the world's JoltInterface is gone */

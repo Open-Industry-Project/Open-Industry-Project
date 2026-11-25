@@ -425,6 +425,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     for (const b of this.called) this.facets.syncPart(b) // only a called part drove an entry; the solver reads the table next
     const t4 = performance.now()
     this.joltInterface.Step(this.dt, 1)
+    this.facets.keepConveyedAwake()
     const p = this.phaseMs
     p.cull += t1 - t0
     p.behaviors += t2 - t1

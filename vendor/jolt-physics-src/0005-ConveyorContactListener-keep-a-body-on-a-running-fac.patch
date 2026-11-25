@@ -1,0 +1,153 @@
+From f602c8cb5c5d23b90f37a6925f39910f6f8c98c0 Mon Sep 17 00:00:00 2001
+From: ryevdokimov <105675984+ryevdokimov@users.noreply.github.com>
+Date: Wed, 25 Nov 2026 00:38:00 -0500
+Subject: [PATCH 5/5] ConveyorContactListener: keep a body on a running facet from
+ falling asleep
+
+Jolt calls a body at rest when its points stay inside a small sphere for a
+while. A body riding a slow belt does, and so does one on a belt whose drive
+ramps up from a stop. Asleep it gets no contact callbacks, so the belt's
+surface velocity never reaches it again and it stays where it stopped.
+
+SetKeepConveyedAwake turns the rule on. A contact callback may not change a
+body, so the listener only notes each dynamic body a running facet drove, once
+a step whatever thread saw it. KeepConveyedAwake, called after
+PhysicsSystem::Update, restarts the sleep test of each. A body on a stopped
+facet sleeps as before. Off unless set, so an older caller sees no change.
+---
+ JoltJS.h   | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ JoltJS.idl |  2 ++
+ 2 files changed, 71 insertions(+)
+
+diff --git a/JoltJS.h b/JoltJS.h
+index 6a28251..042ef65 100644
+--- a/JoltJS.h
++++ b/JoltJS.h
+@@ -73,7 +73,9 @@
+ #include "Jolt/Skeleton/SkeletonPose.h"
+ #include "Jolt/Skeleton/Skeleton.h"
+ 
++#include <atomic>
+ #include <iostream>
++#include <memory>
+ #include <malloc.h>
+ #include <unistd.h>
+ #include <emscripten/em_asm.h>
+@@ -910,6 +912,11 @@ public:
+ /// - friction is the facet's own surface friction, combined with the other body's as Jolt combines two
+ ///   bodies' (sqrt(a * b)) in place of the conveyor body's value, for a body whose facets grip differently.
+ ///   0 means none, so a table written by an older caller behaves exactly as it did before this field existed.
++/// - A body riding a running facet does not fall asleep, once SetKeepConveyedAwake is called. Jolt
++///   calls a body at rest when its points stay inside a small sphere for a while, and a body on a
++///   slow belt does. Asleep it gets no contact callbacks, so the belt can never move it again.
++///   A callback may not change a body, so it only notes the body; KeepConveyedAwake, called
++///   after the step, restarts the sleep test of each one noted.
+ /// - A conveyor body advertises its facets in its (32-bit) user data:
+ ///   bit 31 = conveyor tag, bits 12..30 = base slot, bits 0..11 = entry count.
+ ///   count == 0 participates in ghost filtering only (e.g. conveying rigs' frame rails).
+@@ -971,6 +978,34 @@ public:
+ 		mFlankProtectCos = inCos;
+ 	}
+ 
++	/// Keep a dynamic body that rides a running facet from falling asleep. Off until called, and
++	/// then KeepConveyedAwake must follow every PhysicsSystem::Update.
++	void					SetKeepConveyedAwake(PhysicsSystem *inSystem)
++	{
++		mMaxBodies = inSystem->GetMaxBodies();
++		mConveyedFlags.reset(new std::atomic<uint8>[mMaxBodies]);
++		for (uint32 i = 0; i < mMaxBodies; i++)
++			mConveyedFlags[i].store(0, std::memory_order_relaxed);
++		mConveyed.resize(mMaxBodies);
++		mConveyedCount.store(0, std::memory_order_relaxed);
++	}
++
++	/// Restart the sleep test of every body the last step's contacts conveyed. Call it after
++	/// PhysicsSystem::Update, from the thread that called Update.
++	void					KeepConveyedAwake(PhysicsSystem *inSystem)
++	{
++		uint32 count = mConveyedCount.exchange(0, std::memory_order_relaxed);
++		const BodyLockInterface &lock = inSystem->GetBodyLockInterfaceNoLock();
++		for (uint32 i = 0; i < count; i++)
++		{
++			BodyID id(mConveyed[i]);
++			mConveyedFlags[id.GetIndex()].store(0, std::memory_order_relaxed);
++			Body *body = lock.TryGetBody(id);
++			if (body != nullptr && body->IsActive())
++				body->ResetSleepTimer();
++		}
++	}
++
+ 	virtual void			OnContactAdded(const Body &inBody1, const Body &inBody2, const ContactManifold &inManifold, ContactSettings &ioSettings) override
+ 	{
+ 		HandleContact(inBody1, inBody2, inManifold, ioSettings);
+@@ -1020,6 +1055,29 @@ private:
+ 		return abs(surface.Dot(inOutward)) <= mFlankProtectCos && abs(flow.Dot(inOutward)) <= mFlankProtectCos;
+ 	}
+ 
++	/// Is this facet's surface moving? A stopped belt lets its cargo sleep.
++	static inline bool		FacetRuns(const double *inFacet)
++	{
++		if (inFacet == nullptr)
++			return false;
++		if (inFacet[0] == 1.0)
++			return inFacet[1] != 0.0 || inFacet[2] != 0.0 || inFacet[3] != 0.0;
++		return inFacet[0] == 2.0 && inFacet[4] != 0.0;
++	}
++
++	/// Note a conveyed body for KeepConveyedAwake. Callbacks run on several threads and one body
++	/// can be in several at once, so the flag makes sure each body takes one place in the list.
++	inline void				NoteConveyed(const Body &inBody)
++	{
++		if (!inBody.IsDynamic())
++			return;
++		BodyID id = inBody.GetID();
++		uint32 index = id.GetIndex();
++		if (index >= mMaxBodies || mConveyedFlags[index].exchange(1, std::memory_order_relaxed) != 0)
++			return;
++		mConveyed[mConveyedCount.fetch_add(1, std::memory_order_relaxed)] = id.GetIndexAndSequenceNumber();
++	}
++
+ 	inline const double *	ResolveFacet(const Body &inBody, uint64 inUserData, const SubShapeID &inSubShapeID) const
+ 	{
+ 		uint32 count = (uint32)(inUserData & 0xfffull);
+@@ -1112,6 +1170,13 @@ private:
+ 		};
+ 		add(e1, -1.0);
+ 		add(e2, 1.0);
++		if (mMaxBodies != 0)
++		{
++			if (FacetRuns(e1))
++				NoteConveyed(inBody2);
++			if (FacetRuns(e2))
++				NoteConveyed(inBody1);
++		}
+ 		ioSettings.mRelativeLinearSurfaceVelocity = Vec3((float)vx, (float)vy, (float)vz);
+ 		ioSettings.mRelativeAngularSurfaceVelocity = Vec3(0.0f, (float)wy, 0.0f);
+ 		// Only DRIVEN facets get here: the ghost gates returned above, and a registered-but-undriven
+@@ -1133,6 +1198,10 @@ private:
+ 	float					mFrictionCoupling = 0.0f;
+ 	float					mSurfaceGateCos = -1.0f;
+ 	float					mFlankProtectCos = -1.0f;
++	uint32					mMaxBodies = 0; ///< 0 until SetKeepConveyedAwake
++	std::unique_ptr<std::atomic<uint8>[]> mConveyedFlags;
++	Array<uint32>			mConveyed;
++	std::atomic<uint32>		mConveyedCount { 0 };
+ };
+ 
+ /// Batched body-state snapshot (OIP fork addition): one WASM call fills a flat float buffer with
+diff --git a/JoltJS.idl b/JoltJS.idl
+index 1ba1523..15886db 100644
+--- a/JoltJS.idl
++++ b/JoltJS.idl
+@@ -2220,6 +2220,8 @@ interface ConveyorContactListener {
+ 	void SetFrictionCoupling(float inCoupling);
+ 	void SetSurfaceGateCos(float inCos);
+ 	void SetFlankProtectCos(float inCos);
++	void SetKeepConveyedAwake(PhysicsSystem inSystem);
++	void KeepConveyedAwake(PhysicsSystem inSystem);
+ };
+ 
+ ConveyorContactListener implements ContactListener;
+-- 
+2.53.0.windows.2
+
