@@ -22,6 +22,9 @@ import { frameBottom, frameHeightParam } from '../_shared/rollerFrame.js'
 // the baked footprint of the default 90° / innerRadius 0.825 / width 1.524 arc: innerRadius + width + stub
 const OUTER = 0.825 + 1.524 + 0.085
 
+const ROLLER_PITCH = 0.075 // centre to centre at the centreline, the straight roller bed's pitch
+const END_INSET = ROLLER_PITCH / 2 // each end axle's distance in from its end, along the centreline
+
 const drive = conveyorDrive() // the ramp, the pulse and the encoder, remembered between steps
 
 definePart({
@@ -29,7 +32,9 @@ definePart({
     id: 'oip.curved-roller-conveyor',
     name: 'Curved Roller Conveyor',
     category: 'Equipment',
-    conveyor: { bed: 'arc', surface: 'roller', speedParam: 'speed', frictionParam: 'friction', reverseParam: 'reverse' },
+    // endRollerInset: the end axles stand half a roller pitch in from each end (geometry() below), and a straight
+    // roller bed butted to this curve takes its grid from that axle
+    conveyor: { bed: 'arc', surface: 'roller', speedParam: 'speed', frictionParam: 'friction', reverseParam: 'reverse', endRollerInset: END_INSET },
     geometry: { kind: 'drawn', bounds: { length: OUTER, width: OUTER, top: 0.17 }, conveys: true },
   },
   params: {
@@ -104,7 +109,8 @@ definePart({
       var path = edgePath(sign)
       var z1 = sign * 0.01, z2 = sign * 0.03
       var wall = g.sweep([[FB, 0], [FB, z1], [-0.005, z1], [-0.005, 0]], path, { caps: true })
-      var flange = g.sweep([[-0.005, z1], [-0.005, z2], [0, z2], [0, z1]], path, { caps: true })
+      // from the wall's inner face out, over its top: the guard sheet stands inside the flange, sharing no face with it
+      var flange = g.sweep([[-0.005, 0], [-0.005, z2], [0, z2], [0, 0]], path, { caps: true })
       return g.merge(wall, flange)
     }
     var frame = { desc: g.merge(sideRail(-1), sideRail(1)), finish: 'frame' }
@@ -129,22 +135,32 @@ definePart({
 
     // 3. ROLLERS (render-only, spinning) — a bank laid on the arc: one roller per roller pitch of centreline arc
     // length. Each is yawed t+π/2 so its axle points radially (across flow) and spins about it at the bed speed.
-    var R = 0.024, PITCH = 0.075 // rendered roller radius + centre-to-centre pitch
+    // They are TAPERED, as a curve's rollers are: the radius grows with the distance from the arc's centre, R at the
+    // centreline. So the gap between neighbours is the same share of the pitch from the inner rail to the outer one
+    // (straight tubes at this pitch run into each other at the inner rail), and every point of a tube's surface
+    // moves at the speed the arc gives it there.
+    var R = 0.024, PITCH = ROLLER_PITCH // rendered roller radius + centre-to-centre pitch
     var rollerLen = Math.max(w - 0.004, 0.01) // body recessed just behind the inner/outer frame walls
     var WALL = 0.01, STUB_PROT = 0.02, STUB_ANCHOR = 0.015 // frame wall thickness / stub poke past it / anchor into the bed
     var stubR = R * 0.34
     var stubOff = hw + (WALL + STUB_PROT - STUB_ANCHOR) / 2 // stub centre outside the bed edge
     var stubLen = WALL + STUB_PROT + STUB_ANCHOR
     var dtheta = PITCH / Math.max(rc, 0.01) // centreline pitch → angular step (density matches a straight neighbour)
-    var count = Math.max(2, Math.ceil(sweep / dtheta) + 1)
+    // The first and last axles stand half a pitch of centreline arc in from the ends, as a real bed's do. Every tube
+    // is then inside the bed (a tapered tube's edges are radial lines R / rc of angle either side of its axle, less
+    // than half a step), and two beds butted together make one pitch across the joint between them.
+    var edge = Math.min(END_INSET / Math.max(rc, 0.01), sweep / 2)
+    var span = Math.max(sweep - 2 * edge, 0)
+    var count = span > 1e-6 ? Math.max(2, Math.ceil(span / dtheta - 1e-9) + 1) : 1
     var insts = []
-    // rollers span exactly the arc [0, sweep] — no tangent lead-in/out overhang, so a roller curve butts flush.
+    // the axles are spread evenly over what is left, at the pitch or a little under it
     for (var ri = 0; ri < count; ri++) {
-      var a = (sweep * ri) / (count - 1)
+      var a = count > 1 ? edge + (span * ri) / (count - 1) : sweep / 2
       insts.push({ x: rc * Math.cos(a), z: -rc * Math.sin(a), yaw: a + Math.PI / 2, length: rollerLen })
     }
     // axles at y = -R (the tube tops are the conveying plane); the stubs centred stubOff out from the bed's centreline
-    var rollers = rollerBed(g, insts, { radius: R, y: -R, stub: { radius: stubR, length: stubLen, protrude: stubOff - rollerLen / 2 } })
+    var taper = { inner: R * (rc - rollerLen / 2) / rc, outer: R * (rc + rollerLen / 2) / rc }
+    var rollers = rollerBed(g, insts, { radius: R, y: -R, taper: taper, stub: { radius: Math.min(stubR, taper.inner * 0.6), length: stubLen, protrude: stubOff - rollerLen / 2 } })
 
     // 4. SUPPORT LEGS (steel trestles) — dual-post legs (posts + foot plates + collars + sleeves + clamps +
     // crossbar braces + hex bolts), built leg-local then yawed to each arc station's sweep angle and dropped

@@ -334,10 +334,14 @@ describe('Turntable behavior - slew + convey (the committed behavior source)', (
     expect(second.tags.d).toBe(true)
   })
 
-  it('default (no tags named): slews to the manual deckAngleDeg and holds there (built-in parity)', () => {
+  it('default (no tags named): starts at the manual deckAngleDeg and holds there', () => {
     const t = turntable({ deckAngleDeg: 45, rotationSpeedDeg: 90 }, {})
     let tick = t.step()
-    for (let i = 0; i < 120; i++) tick = t.step() // 90°/s reaches 45° in 0.5 s, well inside 2 s
+    // the run starts where the stopped scene shows the deck: no turn from 0, nothing gripped, conveying at once
+    expect(tick.joint!).toBeCloseTo(45 * D2R, 6)
+    expect(tick.gripped).toBe(false)
+    expect(tick.arc).toBeNull()
+    for (let i = 0; i < 120; i++) tick = t.step()
     expect(tick.joint!).toBeCloseTo(45 * D2R, 6) // parked at the authored angle, not an auto-cycled stop
     // parked = conveying along the rotated deck forward (+X rotated 45°), not the arc-slew field
     expect(tick.arc).toBeNull()
@@ -369,7 +373,11 @@ describe('Turntable behavior - slew + convey (the committed behavior source)', (
   // either wrong adds a step of skew: closing the grip a tick late bakes in one step of rotation, and
   // releasing a tick early drops the load before the final pose is driven onto it.
   it('carries its load: grips one tick before the first move, stays held through the landing tick, then lets go', () => {
-    const t = turntable({ deckAngleDeg: 90, rotationSpeedDeg: 45 }, {})
+    // the deck starts at its authored angle, so the turn is commanded on the angle tag after the first step
+    const tags: Record<string, number | boolean> = { a: 0 }
+    const t = turntable({ angleTag: 'a', rotationSpeedDeg: 45 }, tags)
+    expect(t.step().gripped).toBe(false) // parked at 0: the one step that seeds the tag
+    tags.a = 90
     const arm = t.step()
     expect(arm.gripped).toBe(true) // the grip closes…
     expect(arm.joint!).toBe(0) //     …while the deck is still at its start angle
@@ -381,7 +389,7 @@ describe('Turntable behavior - slew + convey (the committed behavior source)', (
     for (let i = 0; i < 900 && tick.joint! < 90 * D2R - 1e-9; i++) tick = t.step()
     expect(tick.joint!).toBeCloseTo(90 * D2R, 9) // landed on the commanded angle
     expect(tick.gripped).toBe(true) // still held on the landing tick, so that pose reaches the load
-    expect(tick.tags).toEqual({}) // (no tags named in this instance)
+    expect(tick.tags).toEqual({}) // (the angle tag is written once, at the start; no done tag is named)
 
     // it lets go once the deck has arrived - within a tick or two, since a slew that accumulates exactly
     // onto the target takes one extra tick to register the landing

@@ -164,7 +164,7 @@
           "size": [
             4,
             0.005,
-            0.02
+            0.03
           ],
           "sizeParams": [
             {
@@ -177,14 +177,14 @@
         "offset": [
           0,
           -0.0025,
-          -0.782
+          -0.777
         ],
         "offsetParams": [
           {
             "axis": 2,
             "param": "width",
             "scale": -0.5,
-            "add": -0.02
+            "add": -0.015
           }
         ],
         "finish": "frame",
@@ -199,7 +199,7 @@
           "size": [
             4,
             0.005,
-            0.02
+            0.03
           ],
           "sizeParams": [
             {
@@ -212,14 +212,14 @@
         "offset": [
           0,
           -0.0025,
-          0.782
+          0.777
         ],
         "offsetParams": [
           {
             "axis": 2,
             "param": "width",
             "scale": 0.5,
-            "add": 0.02
+            "add": 0.015
           }
         ],
         "finish": "frame",

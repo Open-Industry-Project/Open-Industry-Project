@@ -218,7 +218,7 @@ function railCutsParam(group) {
  * `railCutAt(sign, x)`, the row's c at a rail end, or null (no cut). `railEndBands(x, into, c, yBot)` = where the rail
  * stops and what fills out to the cut: `{ sq, bands }`, `sq` the X the square (instanced) rail stops at and each band
  * `{ pts, y0, y1 }` a plan outline in (x, d) to extrude upright, d measured OUT from the guard line (the rail's wall is
- * d -0.01..0 under it, its top flange 0..0.02). `into` is +1 when the piece lies at larger x. The wall ends on the
+ * d -0.01..0 under it, its top flange -0.01..0.02, over the wall and out). `into` is +1 when the piece lies at larger x. The wall ends on the
  * host's outer wall face (c * d back), the flange on the host flange's outer edge, one flange width further out, so
  * sqrt(1 + c^2) * 0.02 further back.
  */
@@ -232,7 +232,7 @@ function railCutLookup(p) {
 function railEndBands(x, into, c, yBot) {
   var F = 0.02 * Math.sqrt(1 + c * c)
   function at(d, f) { return x + into * (c * d + f) }
-  var uMax = Math.max(-0.01 * c, 0, F, 0.02 * c + F)
+  var uMax = Math.max(-0.01 * c, 0, F - 0.01 * c, 0.02 * c + F)
   var sq = x + into * uMax
   function band(d0, d1, f, y0, y1) {
     var raw = [[sq, d0], [at(d0, f), d0], [at(d1, f), d1], [sq, d1]], pts = []
@@ -242,7 +242,7 @@ function railEndBands(x, into, c, yBot) {
     }
     return pts.length >= 3 ? { pts: pts, y0: y0, y1: y1 } : null
   }
-  var bands = [band(-0.01, 0, 0, yBot, -0.005), band(0, 0.02, F, -0.005, 0)].filter(function (b) { return b })
+  var bands = [band(-0.01, 0, 0, yBot, -0.005), band(-0.01, 0.02, F, -0.005, 0)].filter(function (b) { return b })
   return { sq: sq, bands: bands }
 }
 
@@ -375,6 +375,16 @@ function rollerTemplate(g) {
   for (var k = ROLLER_PROFILE.length - 1; k >= 0; k--) walk.push([ROLLER_PROFILE[k][0], ROLLER_PROFILE[k][1]])
   return g.lathe(walk, { axis: 'z', segments: 18, startAngle: Math.PI / 18 })
 }
+// A TAPERED tube, for a curve: the same profile with every radius scaled from `fIn` at the -Z hub to `fOut` at the +Z
+// hub (fractions of the template radius), so the tube is a cone and its hubs keep their proportions.
+function taperedTemplate(g, fIn, fOut) {
+  var zMax = ROLLER_PROFILE[0][1]
+  function at(rad, z) { return [rad * (fIn + (fOut - fIn) * (z + zMax) / (2 * zMax)), z] }
+  var walk = []
+  for (var i = 0; i < ROLLER_PROFILE.length; i++) walk.push(at(ROLLER_PROFILE[i][0], -ROLLER_PROFILE[i][1]))
+  for (var k = ROLLER_PROFILE.length - 1; k >= 0; k--) walk.push(at(ROLLER_PROFILE[k][0], ROLLER_PROFILE[k][1]))
+  return g.lathe(walk, { axis: 'z', segments: 18, startAngle: Math.PI / 18 })
+}
 // an axle stub: a capped unit cylinder along Z, centred
 function stubTemplate(g) {
   return g.lathe([[0, -0.5], [1, -0.5], [1, 0.5], [0, 0.5]], { axis: 'z', segments: 16 })
@@ -445,6 +455,9 @@ function layoutRollerBands(rollers, bands, fullAxle, radius) {
 //   o.dropSlivers  skip rollers of length <= ROLLER_SLIVER
 //   o.bandMaterial the package material id the bands are drawn in (default 'band')
 //   o.speed  the reported value (ctx.report) that turns the rollers, m/s at the tube surface (default 'speed')
+//   o.taper  { inner, outer }: the tube radius at its -Z and +Z ends, for a curve's rollers (every roller the same
+//            length). `radius` is then the radius at mid length. Each axle tips down toward its thick end by the
+//            cone's half angle, so the top of every tube lies in the conveying plane; the stubs follow the axle
 // A positive speed turns the tubes the way that carries cargo toward +X on a bed whose axles run along Z: about -Z.
 function rollerBed(g, rollers, o) {
   var R = o.radius, y = o.y || 0
@@ -452,20 +465,27 @@ function rollerBed(g, rollers, o) {
   var spin = { axis: [0, 0, -1], radius: R }
   if (o.speed) spin.speed = o.speed
   var bodies = [], stubs = [], drawn = []
+  var taper = o.taper && rollers.length ? o.taper : null
+  // the cone's half angle, which is also how far the axle tips: sin and cos of half of it, for the quaternion
+  var tilt = taper ? Math.atan2(taper.outer - taper.inner, Math.max(0.01, rollers[0].length)) : 0
+  var sh = Math.sin(tilt / 2), ch = Math.cos(tilt / 2), drop = Math.sin(tilt), flat = Math.cos(tilt)
   for (var i = 0; i < rollers.length; i++) {
     var r = rollers[i]
     if (o.dropSlivers && r.length <= ROLLER_SLIVER) continue
     drawn.push(r)
     var q = yawQuat(r.yaw)
+    // yaw, then the tip about the roller's own X: the +Z (thick) end goes down
+    if (taper) q = [q[3] * sh, q[1] * ch, -q[1] * sh, q[3] * ch]
     bodies.push({ position: [r.x, y, r.z], quaternion: q, scale: [sxy, sxy, Math.max(0.01, r.length) / ROLLER_TEMPLATE_BODY] })
     if (o.stub) {
       var ax = Math.sin(r.yaw), az = Math.cos(r.yaw), so = r.length / 2 + o.stub.protrude
       var ss = [o.stub.radius, o.stub.radius, o.stub.length]
-      stubs.push({ position: [r.x + ax * so, y, r.z + az * so], quaternion: q, scale: ss })
-      stubs.push({ position: [r.x - ax * so, y, r.z - az * so], quaternion: q, scale: ss })
+      stubs.push({ position: [r.x + ax * so * flat, y - so * drop, r.z + az * so * flat], quaternion: q, scale: ss })
+      stubs.push({ position: [r.x - ax * so * flat, y + so * drop, r.z - az * so * flat], quaternion: q, scale: ss })
     }
   }
-  var out = [{ desc: rollerTemplate(g), finish: 'roller', instances: bodies, spin: spin }]
+  var tube = taper ? taperedTemplate(g, taper.inner / R, taper.outer / R) : rollerTemplate(g)
+  var out = [{ desc: tube, finish: 'roller', instances: bodies, spin: spin }]
   if (o.stub) out.push({ desc: stubTemplate(g), finish: 'roller', instances: stubs, spin: spin, castShadow: false })
   if (o.bands) {
     var full = typeof o.fullAxle === 'number' ? o.fullAxle : (rollers.length ? rollers[0].length : 0)
@@ -569,17 +589,21 @@ definePart({
     var cls = CLASS[p.rollerClass] || CLASS.light
     var R = cls[0], PITCH = cls[1]
     var RAIL_TOP = -0.005, FB = frameBottom(p), FWT = 0.01, FFW = 0.02, FFT = 0.005, GH = 0.15, GT = 0.005
-    var RAIL_INSET = 0.005, CAP_INSET = 0.01
+    // a full roller ends 2 mm inside each frame wall, as the straight roller's does; an end cut short by a splayed
+    // face stands CAP_INSET back from that face
+    var RAIL_INSET = 0.002, CAP_INSET = 0.01
     function frontX(z) { return L / 2 + tf * z }
     function backX(z) { return -L / 2 + tb * z }
-    // z-span of a roller at local x, clipped to the splayed end faces, inset off the rails.
+    // z-span of a roller at local x, clipped to the end faces, inset off the rails. The tube is R either side of its
+    // axle, so it is the tube's leading edge (x + R) that must stay behind the front face and its trailing edge
+    // (x - R) ahead of the back one: a roller centred on a square end would stand half out of the bed, in the
+    // conveyor butted against it.
     function clipAtX(x) {
       var zMin = -hw + RAIL_INSET, zMax = hw - RAIL_INSET
-      if (Math.abs(tf) > 1e-6) { var zf = (x - L / 2) / tf; if (tf > 0) zMin = Math.max(zMin, zf); else zMax = Math.min(zMax, zf) }
-      else if (x > L / 2) return null
-      if (Math.abs(tb) > 1e-6) { var zb = (x + L / 2) / tb; if (tb > 0) zMax = Math.min(zMax, zb); else zMin = Math.max(zMin, zb) }
-      else if (x < -L / 2) return null
-      zMin += CAP_INSET; zMax -= CAP_INSET
+      if (Math.abs(tf) > 1e-6) { var zf = (x + R - L / 2) / tf + (tf > 0 ? CAP_INSET : -CAP_INSET); if (tf > 0) zMin = Math.max(zMin, zf); else zMax = Math.min(zMax, zf) }
+      else if (x + R > L / 2 + 1e-9) return null
+      if (Math.abs(tb) > 1e-6) { var zb = (x - R + L / 2) / tb + (tb > 0 ? -CAP_INSET : CAP_INSET); if (tb > 0) zMax = Math.min(zMax, zb); else zMin = Math.max(zMin, zb) }
+      else if (x - R < -L / 2 - 1e-9) return null
       return zMax - zMin > 0.02 ? { zMin: zMin, zMax: zMax } : null
     }
 
@@ -600,7 +624,7 @@ definePart({
     // drive bands: an O-ring chaining each roller to the next at the +Z end, alternating two grooves measured in from
     // the unclipped roller end (so a splay-shortened end roller that doesn't reach the grooves carries none). Cord
     // and groove spacing scale with the roller class's radius (the kit's defaults).
-    var bands = { zWall: hw - RAIL_INSET - CAP_INSET }
+    var bands = { zWall: hw - RAIL_INSET }
     // axles at y = -R (the tube tops are the conveying plane); a full roller's stubs sit centred stubOff out from the
     // bed centreline, through the frame wall, and a splay-shortened roller's follow its clipped ends the same way
     var stubOff = hw + (FWT + STUB_PROT - STUB_ANCHOR) / 2, axle = w - 0.004
@@ -621,7 +645,7 @@ definePart({
     // (FB is rounded the way the belt's is, so a spur whose Frame height matches a belt's Frame height shares its rail)
     var railTemplate = g.merge(
       g.sweep([[FB, 0], [FB, 0.01], [-0.005, 0.01], [-0.005, 0]], UNIT_X, { caps: true }),
-      g.sweep([[-0.005, 0.01], [-0.005, 0.03], [0, 0.03], [0, 0.01]], UNIT_X, { caps: true }),
+      g.sweep([[-0.005, 0], [-0.005, 0.03], [0, 0.03], [0, 0]], UNIT_X, { caps: true }),
     )
     var extRows = Array.isArray(p.guardExtents) ? p.guardExtents : []
     var railInsts = []

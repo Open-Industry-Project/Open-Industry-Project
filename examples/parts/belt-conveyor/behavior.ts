@@ -186,7 +186,7 @@ function railCutsParam(group) {
  * `railCutAt(sign, x)`, the row's c at a rail end, or null (no cut). `railEndBands(x, into, c, yBot)` = where the rail
  * stops and what fills out to the cut: `{ sq, bands }`, `sq` the X the square (instanced) rail stops at and each band
  * `{ pts, y0, y1 }` a plan outline in (x, d) to extrude upright, d measured OUT from the guard line (the rail's wall is
- * d -0.01..0 under it, its top flange 0..0.02). `into` is +1 when the piece lies at larger x. The wall ends on the
+ * d -0.01..0 under it, its top flange -0.01..0.02, over the wall and out). `into` is +1 when the piece lies at larger x. The wall ends on the
  * host's outer wall face (c * d back), the flange on the host flange's outer edge, one flange width further out, so
  * sqrt(1 + c^2) * 0.02 further back.
  */
@@ -200,7 +200,7 @@ function railCutLookup(p) {
 function railEndBands(x, into, c, yBot) {
   var F = 0.02 * Math.sqrt(1 + c * c)
   function at(d, f) { return x + into * (c * d + f) }
-  var uMax = Math.max(-0.01 * c, 0, F, 0.02 * c + F)
+  var uMax = Math.max(-0.01 * c, 0, F - 0.01 * c, 0.02 * c + F)
   var sq = x + into * uMax
   function band(d0, d1, f, y0, y1) {
     var raw = [[sq, d0], [at(d0, f), d0], [at(d1, f), d1], [sq, d1]], pts = []
@@ -210,7 +210,7 @@ function railEndBands(x, into, c, yBot) {
     }
     return pts.length >= 3 ? { pts: pts, y0: y0, y1: y1 } : null
   }
-  var bands = [band(-0.01, 0, 0, yBot, -0.005), band(0, 0.02, F, -0.005, 0)].filter(function (b) { return b })
+  var bands = [band(-0.01, 0, 0, yBot, -0.005), band(-0.01, 0.02, F, -0.005, 0)].filter(function (b) { return b })
   return { sq: sq, bands: bands }
 }
 
@@ -564,14 +564,15 @@ definePart({
       flushBend(poly.length - 1)
       return { runs: runs, bends: bends, cum: cum }
     })(framePath)
-    // unit rail template: wall + flange swept 1 m along +X, cross-section z-local (0 = belt edge, +0.03 = flange tip)
+    // unit rail template: wall + flange swept 1 m along +X, cross-section z-local (0 = belt edge, +0.03 = flange tip);
+    // the flange covers the wall's top too (z 0..0.03): a flange that began at the wall's outer face shared that plane with the guard sheet standing in it, and the two flickered seen from the bed
     var UNIT_X = [[0, 0, 0], [1, 0, 0]]
     // CAPS: every piece's ends are closed. A straight piece that continues into a bend hides its cap inside the
     // joint; one that stops (a drum end, an opening edge, a retracted junction) would otherwise show a hollow tube.
     var CAPS = { caps: true }
     var railTemplate = g.merge(
       g.sweep([[FB, 0], [FB, 0.01], [-0.005, 0.01], [-0.005, 0]], UNIT_X, CAPS),
-      g.sweep([[-0.005, 0.01], [-0.005, 0.03], [0, 0.03], [0, 0.01]], UNIT_X, CAPS),
+      g.sweep([[-0.005, 0], [-0.005, 0.03], [0, 0.03], [0, 0]], UNIT_X, CAPS),
     )
     // a straight piece from (ax,ay)..(bx,by) at side 'sign': scale.x = length, tilt = Z-rotation. The −Z side
     // is the same prism RUN BACKWARDS (anchored at the far end, yawed 180° so local +z lands on −z), NOT a
@@ -642,7 +643,7 @@ definePart({
           if (bpoly.length < 2) continue
           var z0 = bsg * hw, z1 = bsg * (hw + 0.01), z2 = bsg * (hw + 0.03)
           bendRails.push(g.sweep([[FB, z0], [FB, z1], [-0.005, z1], [-0.005, z0]], bpoly, CAPS))
-          bendRails.push(g.sweep([[-0.005, z1], [-0.005, z2], [0, z2], [0, z1]], bpoly, CAPS))
+          bendRails.push(g.sweep([[-0.005, z0], [-0.005, z2], [0, z2], [0, z0]], bpoly, CAPS))
         }
       }
       if (bendRails.length) frameBends = { desc: g.merge.apply(g, bendRails), finish: 'frame' }

@@ -7,7 +7,8 @@
     "surface": "roller",
     "speedParam": "speed",
     "frictionParam": "friction",
-    "reverseParam": "reverse"
+    "reverseParam": "reverse",
+    "endRollerInset": 0.0375
   },
   "geometry": {
     "kind": "drawn",

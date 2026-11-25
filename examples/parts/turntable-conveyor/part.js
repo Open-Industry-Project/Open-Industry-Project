@@ -524,6 +524,10 @@ definePart({
     } else {
       target = ctx.params.deckAngleDeg
     }
+    // A run starts with the deck where it was authored, which is where the stopped scene shows it. It turns only when
+    // the target moves after that: started from 0, a deck set to 90 spent the first seconds of every run turning to
+    // where it already stood, conveying nothing meanwhile.
+    if (!seeded) angle = wrap180(ctx.params.deckAngleDeg)
     seeded = true
     // shortest-path slew: wrap the delta to (−180, 180] so 350° from 0 takes the −10° road
     const topRate = ctx.params.rotationSpeedDeg

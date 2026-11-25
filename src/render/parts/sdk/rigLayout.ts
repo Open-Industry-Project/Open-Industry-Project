@@ -204,7 +204,9 @@ export function layoutGuardSplit(gs: GuardSplitLink, params: RigParams, linkByNa
   const out = linkZ < 0 ? -1 : 1 // outward is away from the bed centreline
   const d0 = cuts ? Math.abs(linkZ) - sz[2] / 2 - cuts.inner : 0
   const d1 = d0 + sz[2]
-  const flangeOffset = (c: number) => (gs.frame && d0 >= -1e-4 ? railFlangeOffset(c) : 0) // the top flange band
+  // the top flange is the rail band that reaches out past the guard line; the wall stops at it. A flange may start
+  // at the line or at the wall's inner face, over the wall's top
+  const flangeOffset = (c: number) => (gs.frame && d1 > 1e-4 ? railFlangeOffset(c) : 0)
   const pull = (c: number | null) => (c === null ? 0 : Math.max(c * d0, c * d1) + flangeOffset(c))
   const wedgeAt: { x: number; hi: boolean; c: number }[] = []
   for (let i = 0; i < segs.length; i++) {

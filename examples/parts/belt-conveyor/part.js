@@ -292,14 +292,15 @@ definePart({
       flushBend(poly.length - 1)
       return { runs: runs, bends: bends, cum: cum }
     })(framePath)
-    // unit rail template: wall + flange swept 1 m along +X, cross-section z-local (0 = belt edge, +0.03 = flange tip)
+    // unit rail template: wall + flange swept 1 m along +X, cross-section z-local (0 = belt edge, +0.03 = flange tip);
+    // the flange covers the wall's top too (z 0..0.03): a flange that began at the wall's outer face shared that plane with the guard sheet standing in it, and the two flickered seen from the bed
     var UNIT_X = [[0, 0, 0], [1, 0, 0]]
     // CAPS: every piece's ends are closed. A straight piece that continues into a bend hides its cap inside the
     // joint; one that stops (a drum end, an opening edge, a retracted junction) would otherwise show a hollow tube.
     var CAPS = { caps: true }
     var railTemplate = g.merge(
       g.sweep([[FB, 0], [FB, 0.01], [-0.005, 0.01], [-0.005, 0]], UNIT_X, CAPS),
-      g.sweep([[-0.005, 0.01], [-0.005, 0.03], [0, 0.03], [0, 0.01]], UNIT_X, CAPS),
+      g.sweep([[-0.005, 0], [-0.005, 0.03], [0, 0.03], [0, 0]], UNIT_X, CAPS),
     )
     // a straight piece from (ax,ay)..(bx,by) at side 'sign': scale.x = length, tilt = Z-rotation. The −Z side
     // is the same prism RUN BACKWARDS (anchored at the far end, yawed 180° so local +z lands on −z), NOT a
@@ -370,7 +371,7 @@ definePart({
           if (bpoly.length < 2) continue
           var z0 = bsg * hw, z1 = bsg * (hw + 0.01), z2 = bsg * (hw + 0.03)
           bendRails.push(g.sweep([[FB, z0], [FB, z1], [-0.005, z1], [-0.005, z0]], bpoly, CAPS))
-          bendRails.push(g.sweep([[-0.005, z1], [-0.005, z2], [0, z2], [0, z1]], bpoly, CAPS))
+          bendRails.push(g.sweep([[-0.005, z0], [-0.005, z2], [0, z2], [0, z0]], bpoly, CAPS))
         }
       }
       if (bendRails.length) frameBends = { desc: g.merge.apply(g, bendRails), finish: 'frame' }

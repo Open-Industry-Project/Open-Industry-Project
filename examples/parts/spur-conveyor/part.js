@@ -246,7 +246,7 @@ definePart({
     // capped like the belt's, so the ends don't show as hollow tubes AND the template stays byte-identical to it
     var railTemplate = g.merge(
       g.sweep([[FB, 0], [FB, 0.01], [-0.005, 0.01], [-0.005, 0]], UNIT_X, { caps: true }),
-      g.sweep([[-0.005, 0.01], [-0.005, 0.03], [0, 0.03], [0, 0.01]], UNIT_X, { caps: true }),
+      g.sweep([[-0.005, 0], [-0.005, 0.03], [0, 0.03], [0, 0]], UNIT_X, { caps: true }),
     )
     var extRows = Array.isArray(p.guardExtents) ? p.guardExtents : []
     var railInsts = []

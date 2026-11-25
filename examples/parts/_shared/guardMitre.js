@@ -28,7 +28,7 @@ export function railCutsParam(group) {
  * `railCutAt(sign, x)`, the row's c at a rail end, or null (no cut). `railEndBands(x, into, c, yBot)` = where the rail
  * stops and what fills out to the cut: `{ sq, bands }`, `sq` the X the square (instanced) rail stops at and each band
  * `{ pts, y0, y1 }` a plan outline in (x, d) to extrude upright, d measured OUT from the guard line (the rail's wall is
- * d -0.01..0 under it, its top flange 0..0.02). `into` is +1 when the piece lies at larger x. The wall ends on the
+ * d -0.01..0 under it, its top flange -0.01..0.02, over the wall and out). `into` is +1 when the piece lies at larger x. The wall ends on the
  * host's outer wall face (c * d back), the flange on the host flange's outer edge, one flange width further out, so
  * sqrt(1 + c^2) * 0.02 further back.
  */
@@ -42,7 +42,7 @@ export function railCutLookup(p) {
 export function railEndBands(x, into, c, yBot) {
   var F = 0.02 * Math.sqrt(1 + c * c)
   function at(d, f) { return x + into * (c * d + f) }
-  var uMax = Math.max(-0.01 * c, 0, F, 0.02 * c + F)
+  var uMax = Math.max(-0.01 * c, 0, F - 0.01 * c, 0.02 * c + F)
   var sq = x + into * uMax
   function band(d0, d1, f, y0, y1) {
     var raw = [[sq, d0], [at(d0, f), d0], [at(d1, f), d1], [sq, d1]], pts = []
@@ -52,7 +52,7 @@ export function railEndBands(x, into, c, yBot) {
     }
     return pts.length >= 3 ? { pts: pts, y0: y0, y1: y1 } : null
   }
-  var bands = [band(-0.01, 0, 0, yBot, -0.005), band(0, 0.02, F, -0.005, 0)].filter(function (b) { return b })
+  var bands = [band(-0.01, 0, 0, yBot, -0.005), band(-0.01, 0.02, F, -0.005, 0)].filter(function (b) { return b })
   return { sq: sq, bands: bands }
 }
 

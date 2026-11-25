@@ -36,6 +36,16 @@ function rollerTemplate(g) {
   for (var k = ROLLER_PROFILE.length - 1; k >= 0; k--) walk.push([ROLLER_PROFILE[k][0], ROLLER_PROFILE[k][1]])
   return g.lathe(walk, { axis: 'z', segments: 18, startAngle: Math.PI / 18 })
 }
+// A TAPERED tube, for a curve: the same profile with every radius scaled from `fIn` at the -Z hub to `fOut` at the +Z
+// hub (fractions of the template radius), so the tube is a cone and its hubs keep their proportions.
+function taperedTemplate(g, fIn, fOut) {
+  var zMax = ROLLER_PROFILE[0][1]
+  function at(rad, z) { return [rad * (fIn + (fOut - fIn) * (z + zMax) / (2 * zMax)), z] }
+  var walk = []
+  for (var i = 0; i < ROLLER_PROFILE.length; i++) walk.push(at(ROLLER_PROFILE[i][0], -ROLLER_PROFILE[i][1]))
+  for (var k = ROLLER_PROFILE.length - 1; k >= 0; k--) walk.push(at(ROLLER_PROFILE[k][0], ROLLER_PROFILE[k][1]))
+  return g.lathe(walk, { axis: 'z', segments: 18, startAngle: Math.PI / 18 })
+}
 // an axle stub: a capped unit cylinder along Z, centred
 function stubTemplate(g) {
   return g.lathe([[0, -0.5], [1, -0.5], [1, 0.5], [0, 0.5]], { axis: 'z', segments: 16 })
@@ -106,6 +116,9 @@ function layoutRollerBands(rollers, bands, fullAxle, radius) {
 //   o.dropSlivers  skip rollers of length <= ROLLER_SLIVER
 //   o.bandMaterial the package material id the bands are drawn in (default 'band')
 //   o.speed  the reported value (ctx.report) that turns the rollers, m/s at the tube surface (default 'speed')
+//   o.taper  { inner, outer }: the tube radius at its -Z and +Z ends, for a curve's rollers (every roller the same
+//            length). `radius` is then the radius at mid length. Each axle tips down toward its thick end by the
+//            cone's half angle, so the top of every tube lies in the conveying plane; the stubs follow the axle
 // A positive speed turns the tubes the way that carries cargo toward +X on a bed whose axles run along Z: about -Z.
 export function rollerBed(g, rollers, o) {
   var R = o.radius, y = o.y || 0
@@ -113,20 +126,27 @@ export function rollerBed(g, rollers, o) {
   var spin = { axis: [0, 0, -1], radius: R }
   if (o.speed) spin.speed = o.speed
   var bodies = [], stubs = [], drawn = []
+  var taper = o.taper && rollers.length ? o.taper : null
+  // the cone's half angle, which is also how far the axle tips: sin and cos of half of it, for the quaternion
+  var tilt = taper ? Math.atan2(taper.outer - taper.inner, Math.max(0.01, rollers[0].length)) : 0
+  var sh = Math.sin(tilt / 2), ch = Math.cos(tilt / 2), drop = Math.sin(tilt), flat = Math.cos(tilt)
   for (var i = 0; i < rollers.length; i++) {
     var r = rollers[i]
     if (o.dropSlivers && r.length <= ROLLER_SLIVER) continue
     drawn.push(r)
     var q = yawQuat(r.yaw)
+    // yaw, then the tip about the roller's own X: the +Z (thick) end goes down
+    if (taper) q = [q[3] * sh, q[1] * ch, -q[1] * sh, q[3] * ch]
     bodies.push({ position: [r.x, y, r.z], quaternion: q, scale: [sxy, sxy, Math.max(0.01, r.length) / ROLLER_TEMPLATE_BODY] })
     if (o.stub) {
       var ax = Math.sin(r.yaw), az = Math.cos(r.yaw), so = r.length / 2 + o.stub.protrude
       var ss = [o.stub.radius, o.stub.radius, o.stub.length]
-      stubs.push({ position: [r.x + ax * so, y, r.z + az * so], quaternion: q, scale: ss })
-      stubs.push({ position: [r.x - ax * so, y, r.z - az * so], quaternion: q, scale: ss })
+      stubs.push({ position: [r.x + ax * so * flat, y - so * drop, r.z + az * so * flat], quaternion: q, scale: ss })
+      stubs.push({ position: [r.x - ax * so * flat, y + so * drop, r.z - az * so * flat], quaternion: q, scale: ss })
     }
   }
-  var out = [{ desc: rollerTemplate(g), finish: 'roller', instances: bodies, spin: spin }]
+  var tube = taper ? taperedTemplate(g, taper.inner / R, taper.outer / R) : rollerTemplate(g)
+  var out = [{ desc: tube, finish: 'roller', instances: bodies, spin: spin }]
   if (o.stub) out.push({ desc: stubTemplate(g), finish: 'roller', instances: stubs, spin: spin, castShadow: false })
   if (o.bands) {
     var full = typeof o.fullAxle === 'number' ? o.fullAxle : (rollers.length ? rollers[0].length : 0)

@@ -104,11 +104,14 @@ definePart({
         // side frames - an L-rail: a vertical wall (frameHeight, 0.17 m by default) + an outward top flange lip, at ±width/2.
         { name: 'wallL', shape: { kind: 'box', size: [p.length, p.frameHeight, WALL] }, offset: [0, wallY, zAt(-1, WALL / 2)], finish: 'frame', sideRail: 'left', bed: true },
         { name: 'wallR', shape: { kind: 'box', size: [p.length, p.frameHeight, WALL] }, offset: [0, wallY, zAt(1, WALL / 2)], finish: 'frame', sideRail: 'right', bed: true },
+        // The flange runs from the wall's INNER face outward, over the wall's top: the guard sheet stands inside it. A
+        // flange that began at the wall's outer face shared that plane with the guard, and the two flickered seen
+        // from the bed.
         // collision: 'none': the flange top sits flush with the conveying plane, so a colliding flange is a phantom curb
         // that wedge-stops cargo squared sideways (skew / merges). The wall body below (top 5 mm under the plane)
         // still frames the bed side; the rim is render-only.
-        { name: 'flangeL', shape: { kind: 'box', size: [p.length, FLT, FLW] }, offset: [0, RAIL_TOP + FLT / 2, zAt(-1, WALL + FLW / 2)], finish: 'frame', sideRail: 'left', bed: true, collision: 'none' },
-        { name: 'flangeR', shape: { kind: 'box', size: [p.length, FLT, FLW] }, offset: [0, RAIL_TOP + FLT / 2, zAt(1, WALL + FLW / 2)], finish: 'frame', sideRail: 'right', bed: true, collision: 'none' },
+        { name: 'flangeL', shape: { kind: 'box', size: [p.length, FLT, WALL + FLW] }, offset: [0, RAIL_TOP + FLT / 2, zAt(-1, (WALL + FLW) / 2)], finish: 'frame', sideRail: 'left', bed: true, collision: 'none' },
+        { name: 'flangeR', shape: { kind: 'box', size: [p.length, FLT, WALL + FLW] }, offset: [0, RAIL_TOP + FLT / 2, zAt(1, (WALL + FLW) / 2)], finish: 'frame', sideRail: 'right', bed: true, collision: 'none' },
         // side guards - thin light-steel walls rising from just below the rail top to GUARD_H, just outside the wall.
         // A boolean showParam drops the wall's render AND collision (a real opening), so cargo can be diverted off / loaded on.
         { name: 'guardL', shape: { kind: 'box', size: [p.length, GUARD_H + FLT, GUARD_T] }, offset: [0, (GUARD_H - FLT) / 2, zAt(-1, WALL + GUARD_T / 2)], finish: 'guard', sideGuard: 'left', showParam: 'leftGuard' },

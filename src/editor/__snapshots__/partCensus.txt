@@ -140,8 +140,8 @@ lamps [] animates=true
   drawn[1] {collision:static,look:guard}
   drawn[2] {look:leg}
   drawn[3] {look:bolt}
-  drawn[4] {instances:35.0000,look:roller,spins:true}
-  drawn[5] {instances:70.0000,look:roller,noShadow:true,spins:true}
+  drawn[4] {instances:34.0000,look:roller,spins:true}
+  drawn[5] {instances:68.0000,look:roller,noShadow:true,spins:true}
 
 ## oip.despawner (rig)
 class {}

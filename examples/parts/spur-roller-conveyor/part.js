@@ -91,17 +91,21 @@ definePart({
     var cls = CLASS[p.rollerClass] || CLASS.light
     var R = cls[0], PITCH = cls[1]
     var RAIL_TOP = -0.005, FB = frameBottom(p), FWT = 0.01, FFW = 0.02, FFT = 0.005, GH = 0.15, GT = 0.005
-    var RAIL_INSET = 0.005, CAP_INSET = 0.01
+    // a full roller ends 2 mm inside each frame wall, as the straight roller's does; an end cut short by a splayed
+    // face stands CAP_INSET back from that face
+    var RAIL_INSET = 0.002, CAP_INSET = 0.01
     function frontX(z) { return L / 2 + tf * z }
     function backX(z) { return -L / 2 + tb * z }
-    // z-span of a roller at local x, clipped to the splayed end faces, inset off the rails.
+    // z-span of a roller at local x, clipped to the end faces, inset off the rails. The tube is R either side of its
+    // axle, so it is the tube's leading edge (x + R) that must stay behind the front face and its trailing edge
+    // (x - R) ahead of the back one: a roller centred on a square end would stand half out of the bed, in the
+    // conveyor butted against it.
     function clipAtX(x) {
       var zMin = -hw + RAIL_INSET, zMax = hw - RAIL_INSET
-      if (Math.abs(tf) > 1e-6) { var zf = (x - L / 2) / tf; if (tf > 0) zMin = Math.max(zMin, zf); else zMax = Math.min(zMax, zf) }
-      else if (x > L / 2) return null
-      if (Math.abs(tb) > 1e-6) { var zb = (x + L / 2) / tb; if (tb > 0) zMax = Math.min(zMax, zb); else zMin = Math.max(zMin, zb) }
-      else if (x < -L / 2) return null
-      zMin += CAP_INSET; zMax -= CAP_INSET
+      if (Math.abs(tf) > 1e-6) { var zf = (x + R - L / 2) / tf + (tf > 0 ? CAP_INSET : -CAP_INSET); if (tf > 0) zMin = Math.max(zMin, zf); else zMax = Math.min(zMax, zf) }
+      else if (x + R > L / 2 + 1e-9) return null
+      if (Math.abs(tb) > 1e-6) { var zb = (x - R + L / 2) / tb + (tb > 0 ? -CAP_INSET : CAP_INSET); if (tb > 0) zMax = Math.min(zMax, zb); else zMin = Math.max(zMin, zb) }
+      else if (x - R < -L / 2 - 1e-9) return null
       return zMax - zMin > 0.02 ? { zMin: zMin, zMax: zMax } : null
     }
 
@@ -122,7 +126,7 @@ definePart({
     // drive bands: an O-ring chaining each roller to the next at the +Z end, alternating two grooves measured in from
     // the unclipped roller end (so a splay-shortened end roller that doesn't reach the grooves carries none). Cord
     // and groove spacing scale with the roller class's radius (the kit's defaults).
-    var bands = { zWall: hw - RAIL_INSET - CAP_INSET }
+    var bands = { zWall: hw - RAIL_INSET }
     // axles at y = -R (the tube tops are the conveying plane); a full roller's stubs sit centred stubOff out from the
     // bed centreline, through the frame wall, and a splay-shortened roller's follow its clipped ends the same way
     var stubOff = hw + (FWT + STUB_PROT - STUB_ANCHOR) / 2, axle = w - 0.004
@@ -143,7 +147,7 @@ definePart({
     // (FB is rounded the way the belt's is, so a spur whose Frame height matches a belt's Frame height shares its rail)
     var railTemplate = g.merge(
       g.sweep([[FB, 0], [FB, 0.01], [-0.005, 0.01], [-0.005, 0]], UNIT_X, { caps: true }),
-      g.sweep([[-0.005, 0.01], [-0.005, 0.03], [0, 0.03], [0, 0.01]], UNIT_X, { caps: true }),
+      g.sweep([[-0.005, 0], [-0.005, 0.03], [0, 0.03], [0, 0]], UNIT_X, { caps: true }),
     )
     var extRows = Array.isArray(p.guardExtents) ? p.guardExtents : []
     var railInsts = []

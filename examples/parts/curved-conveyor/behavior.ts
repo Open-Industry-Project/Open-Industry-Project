@@ -370,7 +370,8 @@ definePart({
     function sideRail(sign) {
       var z0 = sign * hw, z1 = sign * (hw + 0.01), z2 = sign * (hw + 0.03)
       var wall = g.sweep([[FB, z0], [FB, z1], [-0.005, z1], [-0.005, z0]], path, { caps: true })
-      var flange = g.sweep([[-0.005, z1], [-0.005, z2], [0, z2], [0, z1]], path, { caps: true })
+      // from the wall's inner face out, over its top: the guard sheet stands inside the flange, sharing no face with it
+      var flange = g.sweep([[-0.005, z0], [-0.005, z2], [0, z2], [0, z0]], path, { caps: true })
       return g.merge(wall, flange)
     }
     var frame = { desc: g.merge(sideRail(-1), sideRail(1)), finish: 'frame' }
