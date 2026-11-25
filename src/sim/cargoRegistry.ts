@@ -5,14 +5,19 @@
 import type Jolt from 'jolt-physics'
 import { CARGO_CAP_HEAVY, CARGO_CAP_SEPARATE_CONTACTS, CARGO_KIND_PALLET, CARGO_KIND_TOTE, capsOfKind, cargoKindProduct } from '../core/frame'
 import type { CargoShapeRef, FrameDressing } from '../core/frame'
+import { composePose, relativePose } from '../core/cargoAssembly'
 import type { ParamValue } from '../core/parts/partApi'
+import type { CargoMarkValue } from '../core/parts/partPackage'
 import type { WrapBody } from '../core/cargoWrap'
 import { qApply, qConjugate, qMul } from '../core/rig/rigPose'
 import type { Quat, Vec3 } from '../core/rig/rigPose'
 import { buildPalletShape, buildPartCargoShape, buildToteShape, destroyBody, makeCargoBody } from './bodyFactory'
 import type { CargoPiece } from '../core/cargoBody'
+import { registryRevision } from '../core/parts/partRegistry'
+import { anyAssembly, assemblyMarkNames, cargoLayer, seatedCollides } from './assemblyBodies'
 import type { BodyHolds } from './bodyHolds'
 import { composeUnitRows, wrapBodies } from './cargoLoads'
+import { LAYER_MOVING } from './layers'
 import { bodyKey } from './worldTypes'
 import type { JoltModule, LiveBox, PartGroup, StepClock, UnitLoad } from './worldTypes'
 
@@ -62,6 +67,10 @@ export class CargoRegistry {
   readonly shapeRefs = new Map<string, CargoShapeRef>()
   /** set by removeAll: a disposing world lets go of each unit's body with its last piece instead of splitting it */
   private disposing = false
+  /** some body has been put on an assembly layer (relayer), so one may still be on it when no part is an assembly */
+  private layered = false
+  /** the part registry's revision the bodies' layers were last read at (beginStep) */
+  private layerRev = registryRevision()
 
   // Cargo rows by floor cell, so a zone count or beam run (per behavior per tick) need not scan every row. A scene
   // with hundreds of cargo rows (a stocked rack line, unit loads at a dock) would otherwise cost rows x queries.
@@ -128,7 +137,18 @@ export class CargoRegistry {
     const id = this.nextBoxId++
     this.boxesRev++
     this.boxes.push({ id, body, key: bodyKey(body), hx, hy, hz, kind, partId, color, spawnTime: this.clock.step / this.hz, mass, friction, unit: null, local: null, marks: null, attrTypes: null, ownerId: null, product: own?.product ?? cargoKindProduct(kind), ...(own ? { shapeKey: own.key } : {}), caps })
+    this.relayer(this.boxes[this.boxes.length - 1]!)
     return id
+  }
+
+  /** Put the body `box` is in on the object layer its load and its holder call for (assemblyBodies.ts cargoLayer):
+   *  called for every cargo body made, and when a hold on one begins or ends. Nothing to do in a run with no assembly. */
+  relayer(box: LiveBox): void {
+    if (!this.layered && !anyAssembly()) return
+    const layer = cargoLayer(box, this.holds.holders.has(box.id))
+    if (layer !== LAYER_MOVING) this.layered = true
+    const id = box.body.GetID()
+    if (this.bodyInterface.GetObjectLayer(id) !== layer) this.bodyInterface.SetObjectLayer(id, layer)
   }
 
   /** Take a reference for the cache on a shape it is about to share. Jolt frees a shape with the last body that
@@ -175,7 +195,8 @@ export class CargoRegistry {
     return shape
   }
 
-  removeBox(index: number): void {
+  /** `spent`: the body goes because its product became one body, so its part is not built again this run */
+  removeBox(index: number, spent = false): void {
     const box = this.boxes[index]
     if (!box) return
     // a piece of a unit load leaves it first: taken apart into loose pieces (a disposing world just lets go of the
@@ -193,6 +214,8 @@ export class CargoRegistry {
       const group = this.partGroups.get(box.partId)
       const at = group?.boxIds.indexOf(box.id) ?? -1
       if (group && at >= 0) group.boxIds.splice(at, 1)
+      // its last body gone into a finished product, the part is not built again by an edit of the running scene
+      if (spent && group && group.boxIds.length === 0 && !this.disposing) group.spent = true
     }
     if (this.disposing && box.local) return // the unit's body went with its last piece (detachFromUnit)
     destroyBody(this.bodyInterface, box.body)
@@ -263,6 +286,7 @@ export class CargoRegistry {
         if (own) {
           piece.body = own
           piece.key = bodyKey(own)
+          this.relayer(piece)
         }
       }
       this.boxesRev++
@@ -278,14 +302,252 @@ export class CargoRegistry {
       piece.local = locals[k]!
     }
     this.units.add(unit)
+    this.relayer(anchor)
     this.boxesRev++
     return unit
   }
 
   /**
+   * Put the piece at `pieceRow` in slot `seat` of the assembly base at `baseRow`: at `local` in the base's frame, one
+   * rigid body with the base's load (reassemble). The piece comes with its own load when it anchors one (a product
+   * set in a fixture with what is assembled on it): every piece of it comes on, each where it stood on the piece. The
+   * base may itself be seated in a load (a product in a fixture taking its next component); the load's anchor stays
+   * the anchor. Null, and nothing changed, when the piece is held or rides in a load it does not anchor, or when the
+   * base rides in a load it is neither the anchor of nor seated in.
+   */
+  seatRow(baseRow: number, pieceRow: number, seat: string, local: { p: Vec3; q: Quat }): UnitLoad | null {
+    const base = this.boxes[baseRow]
+    const piece = this.boxes[pieceRow]
+    if (!base || !piece || piece === base) return null
+    const old = base.unit
+    const anchor = old ? old.members[0]! : base
+    if (old && anchor !== base && base.seat === undefined) return null
+    if (piece.unit && (piece.unit === old || piece.unit.members[0] !== piece)) return null
+    const coming = piece.unit ? piece.unit.members : [piece]
+    if (coming.some((m) => this.holds.holders.has(m.id))) return null
+    const keep = new Map<LiveBox, { p: Vec3; q: Quat }>()
+    for (const m of old?.members ?? []) if (m !== anchor && m.local) keep.set(m, m.local)
+    const onAnchor = base === anchor || !base.local ? local : composePose(base.local, local)
+    for (const m of coming) keep.set(m, m === piece || !m.local ? onAnchor : composePose(onAnchor, m.local))
+    // in its slot before the body is built: which pieces collide is read off the seats (assemblyBodies.ts)
+    piece.seat = seat
+    piece.seatOn = base.id
+    if (!this.reassemble(anchor, keep)) {
+      delete piece.seat
+      delete piece.seatOn
+      return null
+    }
+    return anchor.unit
+  }
+
+  /**
+   * Put the loose body at `row` at a pose and give it a velocity: a piece set exactly in its place on a loose assembly
+   * (CargoFlow.snapAssemblies), moving as its base does so it is not left behind or thrown.
+   */
+  putRow(row: number, at: Vec3, turn: Quat, velocity: Vec3): void {
+    const box = this.boxes[row]
+    if (!box || box.unit) return
+    const J = this.J
+    const pos = new J.RVec3(at[0], at[1], at[2])
+    const rot = new J.Quat(turn[0], turn[1], turn[2], turn[3])
+    this.placeBody(box.body.GetID(), pos, rot)
+    J.destroy(pos)
+    J.destroy(rot)
+    this.setBodyVelocity(box.body, velocity, [0, 0, 0])
+  }
+
+  /** the linear velocity of the body at `row` (m/s) */
+  rowVelocity(row: number): Vec3 {
+    const v = this.boxes[row]?.body.GetLinearVelocity()
+    return v ? [v.GetX(), v.GetY(), v.GetZ()] : [0, 0, 0]
+  }
+
+  /**
+   * Take pieces out of the load they are seated in (a hand lifting one out): each gets its own body back where it
+   * sits, and the load keeps the rest, or its anchor stands alone again. False when `of` is in no load.
+   */
+  unseat(of: LiveBox, pieces: readonly LiveBox[]): boolean {
+    const old = of.unit
+    if (!old) return false
+    const anchor = old.members[0]!
+    const gone = new Set(pieces)
+    if (gone.has(anchor)) return false
+    const keep = new Map<LiveBox, { p: Vec3; q: Quat }>()
+    for (const m of old.members) if (m !== anchor && !gone.has(m) && m.local) keep.set(m, m.local)
+    return this.reassemble(anchor, keep)
+  }
+
+  /**
+   * Take `root` out of the load it is seated in together with `riders`, the pieces seated on it (a product lifted
+   * out of its fixture with everything assembled on it): they leave as one load of their own, `root` its anchor,
+   * each rider where it was on it and still in its slot. The load they leave keeps the rest. The new load starts with
+   * a copy of the old one's marks. False, and nothing changed, when `root` is in no load or anchors it.
+   */
+  liftOut(root: LiveBox, riders: readonly LiveBox[]): boolean {
+    const old = root.unit
+    if (!old || old.members[0] === root || !root.local) return false
+    const marks = { ...old.marks }
+    const from = root.local
+    const seats = riders.map((m) => ({ m, seat: m.seat, seatOn: m.seatOn, local: m.local ? relativePose(from, m.local) : null }))
+    if (!this.unseat(root, [root, ...riders])) return false
+    const keep = new Map<LiveBox, { p: Vec3; q: Quat }>()
+    for (const s of seats) if (s.local) keep.set(s.m, s.local)
+    // each rider back in its slot before the load is built: which of them collide is read off the seats
+    const seated = (on: boolean): void => {
+      for (const s of seats) {
+        if (on && s.local && s.seat !== undefined) s.m.seat = s.seat
+        else delete s.m.seat
+        if (on && s.local && s.seatOn !== undefined) s.m.seatOn = s.seatOn
+        else delete s.m.seatOn
+      }
+    }
+    if (keep.size > 0) {
+      seated(true)
+      if (!this.reassemble(root, keep)) seated(false)
+    }
+    if (root.unit) Object.assign(root.unit.marks, marks)
+    else if (Object.keys(marks).length) root.marks = { ...(root.marks ?? {}), ...marks }
+    return true
+  }
+
+  /**
+   * Rebuild the body of an assembly base as the base and exactly the pieces of `keep`, each at its given place in the
+   * base's frame. A piece of the base's load that `keep` leaves out gets its own body back where it sits; a piece of
+   * `keep` that had its own body gives it up. The body is built here, not by joinRows and splitUnit, for three
+   * reasons. A seated piece goes where its slot is, not where it stands. The pieces already seated keep their exact
+   * places and the load its marks, where a split and a join would measure them again. And a base something holds
+   * stays held (a fixture clamped on a carrier, a product being dragged): the new body takes the hold over
+   * (BodyHolds.rehold), where joinRows refuses a held piece and a split makes the holder let go.
+   *
+   * A piece seated on a product that is not whole yet is in the load without a collider (assemblyBodies.ts
+   * seatedCollides), read off the seats as they are when this is called. Its mass counts all the same.
+   *
+   * False, and nothing changed, when Jolt cannot build the shape.
+   */
+  private reassemble(base: LiveBox, keep: ReadonlyMap<LiveBox, { p: Vec3; q: Quat }>): boolean {
+    const J = this.J
+    const old = base.unit
+    const members = [base, ...keep.keys()]
+    const own: { p: Vec3; q: Quat } = { p: [0, 0, 0], q: [0, 0, 0, 1] }
+    const locals = members.map((m) => (m === base ? own : keep.get(m)!))
+    const dropped = (old?.members ?? []).filter((m) => m !== base && !keep.has(m))
+    let shape: Jolt.Shape | null = null
+    let mass = 0
+    if (members.length > 1) {
+      const solid = members.map((m) => seatedCollides(m, base, members))
+      for (const m of members) mass += m.mass
+      if (solid.filter(Boolean).length === 1) {
+        // the base alone collides: its own shape is the load's
+        shape = this.cargoShape(base.kind, base.hx, base.hy, base.hz, base.shapeKey)
+      } else {
+        const settings = new J.StaticCompoundShapeSettings()
+        for (let k = 0; k < members.length; k++) {
+          if (!solid[k]) continue
+          const m = members[k]!
+          const l = locals[k]!
+          const pos = new J.Vec3(l.p[0], l.p[1], l.p[2])
+          const rot = new J.Quat(l.q[0], l.q[1], l.q[2], l.q[3])
+          settings.AddShapeShape(pos, rot, this.cargoShape(m.kind, m.hx, m.hy, m.hz, m.shapeKey), 0)
+          J.destroy(pos)
+          J.destroy(rot)
+        }
+        const result = settings.Create()
+        if (result.HasError()) {
+          J.destroy(settings)
+          return false
+        }
+        shape = result.Get()
+        J.destroy(settings)
+      }
+      shape.AddRef() // kept across the old bodies' removal, released once the new body has it
+    }
+    // the base's body as it is now, not as the step's snapshot has it: a gripper may have moved it this step
+    const bp = base.body.GetPosition()
+    const bq = base.body.GetRotation()
+    const at: Vec3 = [bp.GetX(), bp.GetY(), bp.GetZ()]
+    const turn: Quat = [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()]
+    const lv = base.body.GetLinearVelocity()
+    const vel: Vec3 = [lv.GetX(), lv.GetY(), lv.GetZ()]
+    const av = base.body.GetAngularVelocity()
+    const spin: Vec3 = [av.GetX(), av.GetY(), av.GetZ()]
+    const droppedAt = dropped.map((m) => m.local ?? own)
+    // the old bodies go first, or the new ones would be made overlapping them: the load's (or the bare base's), and
+    // the own body of each piece coming on
+    // (a piece that comes on with a load of its own brings that load's body, and its marks)
+    const going = new Set<Jolt.Body>([base.body])
+    const joining = new Set<UnitLoad>()
+    for (const m of keep.keys()) {
+      if (m.unit && m.unit !== old) joining.add(m.unit)
+      if (!old || m.unit !== old) going.add(m.body)
+    }
+    for (const b of going) destroyBody(this.bodyInterface, b)
+    if (old) this.units.delete(old)
+    const marks: Record<string, CargoMarkValue> = old ? old.marks : {}
+    for (const u of joining) {
+      this.units.delete(u)
+      Object.assign(marks, u.marks)
+    }
+    // Seated pieces sit inside one another (a housing in its fixture's pocket), so some sub-shape always hovers just
+    // over what the product stands on. Merged manifolds would read the product as barely touching and sink it, as
+    // they did a tote (bodyFactory makeCargoBody), so an assembled load keeps its contacts apart.
+    const body = shape
+      ? makeCargoBody(J, this.bodyInterface, this.axisY, shape, at[0], at[1], at[2], turn, mass, base.friction, true, true)
+      : makeCargoBody(J, this.bodyInterface, this.axisY, this.cargoShape(base.kind, base.hx, base.hy, base.hz, base.shapeKey), at[0], at[1], at[2], turn, base.mass, base.friction, (base.caps & CARGO_CAP_HEAVY) !== 0, (base.caps & CARGO_CAP_SEPARATE_CONTACTS) !== 0)
+    shape?.Release()
+    // Jolt's body table cannot be full here when a piece came on (two bodies left for one). Taking pieces off needs
+    // more bodies than it frees, so on a full table a piece that gets none is put back loose below, as splitUnit does.
+    const unit: UnitLoad | null = body && shape ? { body, key: bodyKey(body), members, marks } : null
+    if (unit && old?.attrTypes) unit.attrTypes = old.attrTypes
+    if (unit && old?.partId !== undefined) unit.partId = old.partId
+    const loose = unit ? dropped : [...new Set([...dropped, ...keep.keys()])]
+    const looseAt = unit ? droppedAt : loose.map((m) => keep.get(m) ?? m.local ?? own)
+    if (unit) {
+      for (let k = 0; k < members.length; k++) {
+        const m = members[k]!
+        m.body = unit.body
+        m.key = unit.key
+        m.unit = unit
+        m.local = locals[k]!
+      }
+      this.units.add(unit)
+    } else {
+      base.unit = null
+      base.local = null
+      if (old && Object.keys(old.marks).length) base.marks = { ...(base.marks ?? {}), ...old.marks }
+      if (body) {
+        base.body = body
+        base.key = bodyKey(body)
+      }
+    }
+    if (body) this.setBodyVelocity(body, vel, spin)
+    for (let k = 0; k < loose.length; k++) {
+      const m = loose[k]!
+      const l = looseAt[k]!
+      m.unit = null
+      m.local = null
+      delete m.seat
+      delete m.seatOn
+      this.holds.forget(m.id)
+      const d = qApply(turn, l.p)
+      const mine = makeCargoBody(J, this.bodyInterface, this.axisY, this.cargoShape(m.kind, m.hx, m.hy, m.hz, m.shapeKey), at[0] + d[0], at[1] + d[1], at[2] + d[2], qMul(turn, l.q), m.mass, m.friction, (m.caps & CARGO_CAP_HEAVY) !== 0, (m.caps & CARGO_CAP_SEPARATE_CONTACTS) !== 0)
+      if (!mine) continue
+      m.body = mine
+      m.key = bodyKey(mine)
+      this.relayer(m)
+      this.setBodyVelocity(mine, vel, [0, 0, 0])
+    }
+    this.holds.rehold(base, unit ? [...keep.keys()] : [])
+    if (body) this.relayer(base)
+    this.boxesRev++
+    return true
+  }
+
+  /**
    * Take a unit load apart (a piece removed from it, a hand taking hold of one): every piece gets its own body back,
    * where it stands and at the unit's speed. The unit's marks are left on each piece,
-   * so a split load is still known to have been wrapped; a machine that cuts the film marks it otherwise.
+   * so a split load is still known to have been wrapped; a machine that cuts the film marks it otherwise. The marks
+   * an assembly in the load kept on it are not: they say what is on a base, and each base that is left reads its own
+   * slots again (CargoFlow.snapAssemblies).
    */
   splitUnit(unit: UnitLoad): void {
     if (!this.units.has(unit)) return
@@ -295,6 +557,8 @@ export class CargoRegistry {
     const lv = unit.body.GetLinearVelocity()
     const vel: Vec3 = [lv.GetX(), lv.GetY(), lv.GetZ()]
     const poses = unit.members.map((m) => bodies[rowOf.get(m.id) ?? -1])
+    const assembly = assemblyMarkNames(unit.members)
+    const left = Object.fromEntries(Object.entries(unit.marks).filter(([k]) => !assembly.has(k)))
     // the unit goes before the pieces are added, or each would be created inside it
     this.units.delete(unit)
     destroyBody(this.bodyInterface, unit.body)
@@ -303,12 +567,15 @@ export class CargoRegistry {
       const pose = poses[k]
       m.unit = null
       m.local = null
-      if (Object.keys(unit.marks).length) m.marks = { ...(m.marks ?? {}), ...unit.marks }
+      delete m.seat
+      delete m.seatOn
+      if (Object.keys(left).length) m.marks = { ...(m.marks ?? {}), ...left }
       if (!pose) continue
       const own = makeCargoBody(this.J, this.bodyInterface, this.axisY, this.cargoShape(m.kind, m.hx, m.hy, m.hz, m.shapeKey), pose.pos[0], pose.pos[1], pose.pos[2], pose.quat, m.mass, m.friction, (m.caps & CARGO_CAP_HEAVY) !== 0, (m.caps & CARGO_CAP_SEPARATE_CONTACTS) !== 0)
       if (!own) continue
       m.body = own
       m.key = bodyKey(own)
+      this.relayer(m)
       this.setBodyVelocity(own, vel, [0, 0, 0])
     }
     this.boxesRev++
@@ -360,6 +627,18 @@ export class CargoRegistry {
   /** SimWorld.step brackets the step with these, so placeBody knows which side of one a write is on */
   beginStep(): void {
     this.stepping = true
+    // a part made an assembly, or no longer one, while the run goes on: every body's layer is read again
+    if (this.layerRev !== registryRevision()) {
+      this.layerRev = registryRevision()
+      if (this.layered || anyAssembly()) {
+        const seen = new Set<number>()
+        for (const box of this.boxes) {
+          if (seen.has(box.key)) continue
+          seen.add(box.key)
+          this.relayer(box)
+        }
+      }
+    }
   }
 
   endStep(): void {

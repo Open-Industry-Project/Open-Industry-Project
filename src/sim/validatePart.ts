@@ -186,6 +186,7 @@ export function validatePart(manifest: PackageManifest, behaviorSource: string):
   if (manifest.conveyor !== undefined) pkg.conveyor = manifest.conveyor // what kind of conveyor it is (declared, not inferred)
   if (manifest.commsParam !== undefined) pkg.commsParam = manifest.commsParam // the param that switches its PLC link
   if (manifest.holds !== undefined) pkg.holds = manifest.holds // the cargo it stores on its grippers
+  if (manifest.assembly !== undefined) pkg.assembly = manifest.assembly // the components that snap onto it
   // cargo with its own body (core/cargoBody.ts): checked at default params, where the author can act on it. A stored
   // part is never dropped for these, so they are here and not in validatePartPackage.
   if (manifest.cargo !== undefined) {

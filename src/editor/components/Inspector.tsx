@@ -27,6 +27,7 @@ import { buildSceneTagIndex, firstTagKey } from './inspector/paramLogic'
 import type { SceneTagIndex } from './inspector/paramLogic'
 import { HoldsSection } from './inspector/holds'
 import { PartActions, PartInfoFields, PartStatus } from './inspector/rig'
+import { AssemblySection } from './inspector/assembly'
 import { importRigNodePanel, preloadRigNodePanel } from './inspector/rigNodeChunk'
 import { InspectorHeader } from './inspector/header'
 import { partCreditLine } from '../parts/partCredit'
@@ -517,6 +518,9 @@ function InspectorBody({ store, state, controller, packageThumbnails }: Inspecto
       )}
       {definitionCopy && (
         <PartInfoFields packageId={(part as SdkPart).packageId} builtIn={state.bundledPackages.some((b) => b.id === (part as SdkPart).packageId)} controller={controller} />
+      )}
+      {definitionCopy && (
+        <AssemblySection packageId={(part as SdkPart).packageId} builtIn={state.bundledPackages.some((b) => b.id === (part as SdkPart).packageId)} controller={controller} />
       )}
       {!multi && !definitionCopy && (
         <TextField

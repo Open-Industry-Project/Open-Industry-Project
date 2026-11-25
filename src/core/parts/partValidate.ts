@@ -47,6 +47,7 @@ export function validatePartPackage(pkg: unknown): PackageProblem[] {
   validateUnit(p, problems)
   validateHolds(p, problems)
   validateCargoDecl(p as Record<string, unknown> | undefined, problems)
+  validateAssembly(p as Record<string, unknown> | undefined, problems)
   const origin = (p as { origin?: unknown } | undefined)?.origin
   need(
     origin === undefined || (!!origin && typeof origin === 'object' && !Array.isArray(origin) && Object.values(origin).every((v) => typeof v === 'string' && v !== '')),
@@ -130,6 +131,78 @@ function validateHolds(p: Partial<PartPackage> | null | undefined, problems: Pac
         if (typeof v !== 'string' || !Object.hasOwn(own, v)) problems.push({ field: `holds.params.${k}`, message: `must name a param of this part (got ${JSON.stringify(v)})` })
       }
   }
+}
+
+/**
+ * A part's `assembly` declaration ({@link AssemblyDecl}): only on cargo, each slot with a unique name, a part, a
+ * finite place, and an order (`after`) that names other slots and never comes back to itself. Whether each slot's
+ * part exists is the project's check: a part is valid on its own.
+ */
+function validateAssembly(p: Record<string, unknown> | undefined, problems: PackageProblem[]): void {
+  const a = p?.assembly as { slots?: unknown; mode?: unknown; product?: unknown; becomes?: unknown } | undefined
+  if (a === undefined) return
+  if (!a || typeof a !== 'object' || !Array.isArray(a.slots)) {
+    problems.push({ field: 'assembly', message: 'assembly must be an object: { slots: [{ name, part, at, quat?, tolerance?, after?, reach?, maxTurn? }] }' })
+    return
+  }
+  const geo = p?.geometry as { kind?: unknown } | undefined
+  if (geo?.kind !== 'cargo' && !(geo?.kind === 'rig' && p?.cargo !== undefined)) problems.push({ field: 'assembly', message: 'an assembly is declared on a cargo part: the base its components snap onto' })
+  if (a.mode !== undefined && a.mode !== 'fixed' && a.mode !== 'loose') problems.push({ field: 'assembly.mode', message: "mode must be 'fixed' or 'loose'" })
+  const finite = (v: unknown, n: number): boolean => Array.isArray(v) && v.length === n && v.every((x) => typeof x === 'number' && Number.isFinite(x))
+  // a turn is a unit quaternion: one of another length would scale the pose it is applied to, and a zero one has none
+  const turn = (v: unknown): boolean => finite(v, 4) && Math.abs(Math.hypot(...(v as number[])) - 1) < 1e-3
+  const names = new Set<string>()
+  const after = new Map<string, string[]>()
+  a.slots.forEach((s: unknown, i: number) => {
+    const at = `assembly.slots[${i}]`
+    const x = s as { name?: unknown; part?: unknown; at?: unknown; quat?: unknown; tolerance?: unknown; after?: unknown; reach?: unknown; maxTurn?: unknown; hold?: unknown } | null
+    if (!x || typeof x !== 'object') {
+      problems.push({ field: at, message: 'a slot is an object: { name, part, at }' })
+      return
+    }
+    if (typeof x.name !== 'string' || !x.name) problems.push({ field: `${at}.name`, message: 'a slot needs a name' })
+    else if (x.name === 'assembled' || x.name === 'occupied') problems.push({ field: `${at}.name`, message: `"${x.name}" is a mark the assembly sets itself, so no slot can be named that` })
+    else if (names.has(x.name)) problems.push({ field: `${at}.name`, message: `two slots are named "${x.name}"` })
+    else names.add(x.name)
+    if (typeof x.part !== 'string' || !x.part) problems.push({ field: `${at}.part`, message: 'a slot names the cargo part that goes in it, by package id' })
+    if (!finite(x.at, 3)) problems.push({ field: `${at}.at`, message: "at must be [x, y, z] (m), the piece's centre in the base's frame" })
+    if (x.quat !== undefined && !turn(x.quat)) problems.push({ field: `${at}.quat`, message: 'quat must be a unit quaternion [x, y, z, w]' })
+    if (x.tolerance !== undefined && !(typeof x.tolerance === 'number' && Number.isFinite(x.tolerance) && x.tolerance >= 0)) problems.push({ field: `${at}.tolerance`, message: 'tolerance must be a number >= 0 (m)' })
+    if (x.reach !== undefined && !(typeof x.reach === 'number' && Number.isFinite(x.reach) && x.reach > 0)) problems.push({ field: `${at}.reach`, message: 'reach must be a number > 0 (m)' })
+    if (x.maxTurn !== undefined && !(typeof x.maxTurn === 'number' && Number.isFinite(x.maxTurn) && x.maxTurn >= 0 && x.maxTurn <= 180)) problems.push({ field: `${at}.maxTurn`, message: 'maxTurn must be a number from 0 to 180 (degrees)' })
+    if (x.hold !== undefined && typeof x.hold !== 'boolean') problems.push({ field: `${at}.hold`, message: 'hold must be true or false' })
+    if (x.after !== undefined) {
+      if (!Array.isArray(x.after) || !x.after.every((n) => typeof n === 'string')) problems.push({ field: `${at}.after`, message: 'after must list slot names' })
+      else if (typeof x.name === 'string') after.set(x.name, x.after as string[])
+    }
+  })
+  for (const [name, list] of after) for (const n of list) if (!names.has(n) || n === name) problems.push({ field: 'assembly.slots', message: `slot "${name}" comes after "${n}", which is not another slot` })
+  if (a.product !== undefined) {
+    if (typeof a.product !== 'string' || !a.product.trim()) problems.push({ field: 'assembly.product', message: 'product must be a name: the mark the finished product carries' })
+    else if (a.product === 'assembled' || a.product === 'occupied' || names.has(a.product)) problems.push({ field: 'assembly.product', message: `the product cannot be named "${a.product}": a slot or a mark of the assembly already is` })
+  }
+  if (a.becomes !== undefined) {
+    const b = a.becomes as { part?: unknown; at?: unknown; quat?: unknown } | null
+    if (!b || typeof b !== 'object' || typeof b.part !== 'string' || !b.part) problems.push({ field: 'assembly.becomes', message: 'becomes must be an object: { part, at?, quat? }, part being the package id of a cargo part' })
+    else {
+      if (b.part === p?.id) problems.push({ field: 'assembly.becomes.part', message: 'a product cannot become its own base' })
+      if (b.at !== undefined && !finite(b.at, 3)) problems.push({ field: 'assembly.becomes.at', message: "at must be [x, y, z] (m), the body's centre in the base's frame" })
+      if (b.quat !== undefined && !turn(b.quat)) problems.push({ field: 'assembly.becomes.quat', message: 'quat must be a unit quaternion [x, y, z, w]' })
+    }
+    if (a.mode === 'loose') problems.push({ field: 'assembly.becomes', message: 'only a fixed assembly can become one body: the pieces of a loose one are never joined' })
+  }
+  // an order that comes back to itself would leave its slots open for ever
+  const state = new Map<string, 1 | 2>()
+  const loops = (n: string): boolean => {
+    if (state.get(n) === 2) return false
+    if (state.get(n) === 1) return true
+    state.set(n, 1)
+    // (a slot that comes after itself is reported above, as naming no other slot)
+    const hit = (after.get(n) ?? []).some((m) => m !== n && names.has(m) && loops(m))
+    state.set(n, 2)
+    return hit
+  }
+  if ([...names].some(loops)) problems.push({ field: 'assembly.slots', message: "the slots' after lists form a loop, so none of them could ever be filled" })
 }
 
 /** A unit-load declaration names its own params and materials; each must exist and be of the kind it is used as. */

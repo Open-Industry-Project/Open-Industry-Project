@@ -95,6 +95,95 @@ they do. Because the engine names none of them, any of them can move to a librar
 What still names them, in src/core/parts/partIdCoupling.test.ts: a kind-only spawn's product (`kindSpawnRef`) and a stored
 unit load that names no pieces (`unitPiecesOf`), both for stored part versions.
 
+## Assemblies
+
+A product put together from cargo, one piece a station. A cargo part declares `assembly` in its manifest
+(`AssemblyDecl` in core/parts/partPackage.ts) and is then the base: the fixture, or the lower housing.
+
+```json
+"assembly": {
+  "slots": [
+    { "name": "bottom", "part": "phone.bottom", "at": [0, 0.007, 0] },
+    { "name": "pcb", "part": "phone.pcb", "at": [0.0007, 0.0119, 0], "after": ["bottom"] },
+    { "name": "top", "part": "phone.top", "at": [0, 0.0151, 0], "after": ["pcb"], "maxTurn": 20 }
+  ]
+}
+```
+
+- **A slot** is one component's place: the cargo `part` that goes there, where its centre sits in the base's frame
+  (`at`, and `quat` when it is turned), and optionally the slots it comes `after`.
+- **Reaching a slot** (core/cargoAssembly.ts `reachesSlot`): the piece's world-axis bounding box overlaps the slot's,
+  which is the piece's box at its assembled pose grown by `tolerance` (3 mm unless the slot says). Overlap alone
+  catches a long piece from most of its length away and any way round. `reach` limits how far its centre may be
+  from its place, and `maxTurn` how far it may be turned.
+- **The snap** (sim/cargoFlow.ts `snapAssemblies`, once a step after the grippers): the piece is put exactly in the
+  slot and becomes one rigid body with the base and everything on it, a unit load with the base as its anchor
+  (sim/cargoRegistry.ts `seatRow`). A piece something holds is left alone, so one in a gripper snaps when the gripper
+  opens. A base something holds takes pieces all the same and stays held.
+- **`mode`** says what holds a placed piece. `fixed` (the default) is the join above. `loose` only puts the piece in its
+  place, once: it stays its own body, held by gravity and friction, so a product moved too hard comes apart. Its slot
+  is filled while it is still in its place and opens when it has left. Colliders are bounding boxes, so loose pieces
+  that nest in the model (a housing in a pocket) push each other a few millimetres out of place.
+- **A fixture** is a second kind of slot, `"hold": true`. It locates a part and keeps it there, always rigidly, but
+  what it holds stays a thing of its own. So the product's base is one of its own pieces (the lower housing, with a
+  slot per component), and the carrier it is built in has one hold slot for that base:
+
+  ```json
+  "assembly": { "slots": [{ "name": "nest", "part": "phone.bottom", "at": [0, 0.007, 0], "hold": true }] }
+  ```
+
+  The base takes its components while it is held. Taking the base out takes the product as built and leaves the
+  fixture (sim/cargoFlow.ts `liftSeated`), and the product can be set down in any other fixture with a hold slot
+  for the same part. A gripper that closes on the product alone lifts it out; one that also closes on the fixture
+  takes both (`gripTargets`). A fixture can have several hold slots, for any parts.
+- **What collides** (sim/assemblyBodies.ts). Cargo collides as its bounding pieces, so pieces that nest overlap each
+  other's boxes. Two rules keep that from pushing a product about. A piece seated on a product that is not whole yet
+  is in the load without a collider (`seatedCollides`): the load collides as its anchor, the fixture or the bare
+  base, and gets every piece's collider back when the last one is on, or loses them again when one is lifted off.
+  And a piece of an assembly that something holds is on an object layer of its own (`LAYER_HELD_PIECE`) that does
+  not collide with a load that takes pieces (`LAYER_ASSEMBLY`) or with another held piece, so a gripper can carry it into a pocket. Let go, it
+  is taken into its slot, or is plain cargo again and is pushed out of what it overlaps. Both are for pieces that
+  are joined; a loose assembly's pieces collide as ever.
+- **Moved by hand** (a drag, a pin, the pilot): taken by its base a fixed product stays whole; a held part comes out
+  with what is on it; a component with nothing on it comes off alone (sim/cargoFlow.ts `takeOut`).
+- **State** is on marks. A product carries each slot's `name` while its piece is on, and `assembled` once every
+  component is. With `"product": "phone"` it also carries `phone` then, so a line of several products can sort
+  them. A fixture carries each hold slot's name while it is filled, and `occupied` while any is. A load has one set
+  of marks, so a product in its fixture reads as both. When the product is lifted out the marks go with it, and the
+  fixture is left with what it had empty. A machine reads them like any mark (`ctx.marked`, a beam hit's `marks`),
+  and a photoeye with **Only marked targets** set to one gives a PLC a BOOL for it with no part code.
+- **`becomes`** swaps a finished product for one body: `"becomes": { "part": "phone.finished", "at": [0, 0.003, 0] }`.
+  The step the last piece goes on a fixed assembly, the base and its pieces are removed and one body of that part
+  stands where they were (`at`: its centre in the base's frame), with the product's marks, and in the same fixture
+  slot if the product was held (`finishProduct`). A hold slot for a part also takes what that part's product has
+  become. It is one-way, and what it saves is drawing: a fixed product is already one physics body. The pieces'
+  parts stay in the scene and are back on the next run; for the rest of this one they are gone, and an edit of the
+  running scene does not build them again (`PartGroup.spent`).
+- **Import part > A product assembly…** makes the parts from one `.glb` (core/parts/productImport.ts): each named
+  object becomes a cargo part drawing its own node about its box's centre, with a hidden box collider, and the base
+  gets a slot per piece from where the model has it. **The first piece is a fixture** makes it a carrier with a hold
+  slot and the second piece the product's base. **Finished product** takes a second, simpler model of the whole
+  product and sets `becomes` to it; exported from the same file, it stands exactly where the pieces did. A piece can
+  be renamed in the dialog: its name is its part's, and as an id segment its slot's, so also the mark that says it
+  is on. Importing a product again under the same name replaces its parts under their ids and places no piece the
+  scene already has. The Part
+  Editor's **Assembly** section edits the declaration afterwards, and turns any cargo part into a base or a fixture.
+
+Three limits to know:
+
+- A product being built collides as its fixture or its base alone, so a piece that stands proud of that passes
+  through a guard or a stop until the product is whole. A held piece passes through every load that takes pieces,
+  not only the one it is for.
+- A product seated in a fixture that something holds (a pinned fixture, one in a gripper) is the holder's too, so a
+  gripper cannot take it out. A hand can (a drag, a pin, the pilot).
+- A load has one set of marks. A fixture with several hold slots reads every product in it as one, and marks that
+  are not the assembly's own go with whichever is lifted out first.
+
+Not in it yet: fastening as its own step (a screw or a weld that fixes a loose piece), an import that maps a
+fixture's pieces onto parts the project already has (a kit tray for a product imported earlier), taking one piece
+off again by a machine, hold slots on a machine (a station's nest, a mover's plate), and colliders finer than each
+piece's bounding box.
+
 ## Limits
 
 - **Rollers.** A roller conveyor's deck is one kinematic surface, not individual rollers, so a drum rides it as on a

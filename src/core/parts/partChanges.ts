@@ -49,7 +49,7 @@ export function partChanges(from: PartPackage, to: PartPackage): PartChange[] {
   paramChanges(from.params ?? {}, to.params ?? {}, add)
 
   if (from.behavior !== to.behavior) add('behavior', 'script', 'The part\'s script changed.')
-  for (const field of ['interactive', 'useParam', 'commsParam', 'holds', 'unit'] as const) {
+  for (const field of ['interactive', 'useParam', 'commsParam', 'holds', 'unit', 'assembly'] as const) {
     if (same(from[field], to[field])) continue
     // a switch dropped: every tag a placed copy names connects, including on a copy whose switch was off
     if (field === 'commsParam' && to.commsParam === undefined) add('breaking', field, 'The part has no comms switch now: each tag field that names a tag is connected. A placed copy whose switch was off connects the tags it names.')
@@ -82,6 +82,7 @@ const FIELD_TEXT = {
   commsParam: 'Which setting switches the part\'s PLC link',
   holds: 'What the part stores',
   unit: 'The unit load the part makes',
+  assembly: 'The product assembled on the part',
 } as const
 
 type Add = (impact: ChangeImpact, subject: string, text: string, key?: string) => void

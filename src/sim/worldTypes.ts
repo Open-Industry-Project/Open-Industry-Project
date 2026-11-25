@@ -77,6 +77,13 @@ export interface LiveBox {
   shapeKey?: string
   /** CARGO_CAP_* bits (core/frame.ts cargoCapsOf): what it is to the machines around it, read instead of its kind */
   caps: number
+  /** the slot of an assembly this piece fills (partPackage.ts AssemblyDecl), absent otherwise. On a fixed assembly,
+   *  and in a fixture's hold slot, it is joined to the base's load, and this is cleared when it is taken out or the
+   *  load apart. On a loose one it is its own body. */
+  seat?: string
+  /** the frame id of the base whose slot `seat` is. The base is in the same load (not always its anchor: a
+   *  product's base sits in its fixture's load), or for a loose assembly is another body (CargoFlow.snapAssemblies). */
+  seatOn?: number
 }
 
 /**
@@ -126,6 +133,9 @@ export interface PartGroup {
   bodies: Jolt.Body[]
   conveyorKeys: number[]
   boxIds: number[]
+  /** a cargo part whose body went when its product became one body (AssemblyDecl.becomes): it is gone for the rest
+   *  of the run, and a live edit does not build it again (updateScene) */
+  spent?: boolean
   /** the behaviors and rigs this part's build attached. A clustered deck's owner attaches every member's behavior,
    *  so they are filed under the owner, which every member's edit rebuilds (deckClusterKey). */
   behaviors?: BehaviorRecord[]

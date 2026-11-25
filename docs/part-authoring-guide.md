@@ -1413,6 +1413,11 @@ inside its footprint.
 - **Product attributes**: a param flagged `attribute: true` on a cargo part (or a unit load) is authored and saved
   like any param, starts the run as that mark, is type-checked when a machine marks it, and reads out live in
   the Inspector.
+- **Assemblies**: a cargo part whose manifest declares `assembly: { slots }` is the base of a product. A loose piece
+  of a slot's part that reaches the slot snaps exactly into it and rides with the base as one body, and the base's
+  marks say which slots are filled. A slot with `hold: true` is a fixture's: what it holds can be lifted out again
+  with everything assembled on it. `becomes` swaps a finished product for one body
+  ([cargo-bodies.md](cargo-bodies.md#assemblies)).
 - **Unit loads**: `definePart({ unit: { joinWhen?, dress? } })` makes the part a unit-load product type. Its scene
   children are the load (nothing inferred), it selects as one, and it starts a run joined and dressed as its
   params say ([unit-load](../examples/parts/unit-load/)). With nothing filed under it, a unit load with a

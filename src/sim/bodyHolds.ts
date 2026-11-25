@@ -29,7 +29,8 @@ export class BodyHolds {
   private readonly pilotHeld = new Map<string, { x: number; y: number; z: number; yaw: number }>()
 
   /** `boxes` and `partGroups` are the world's live cargo list and part groups, read (never written) here; `placeBody`
-   *  is how a hold sets a body's pose (CargoRegistry.placeBody) */
+   *  is how a hold sets a body's pose (CargoRegistry.placeBody); `relayer` puts a body on the object layer its holder
+   *  calls for, when a hold begins or ends (CargoRegistry.relayer) */
   constructor(
     private readonly J: JoltModule,
     private readonly bodyInterface: Jolt.BodyInterface,
@@ -38,6 +39,7 @@ export class BodyHolds {
     private readonly boxes: readonly LiveBox[],
     private readonly partGroups: ReadonlyMap<string, PartGroup>,
     private readonly placeBody: PlaceBody,
+    private readonly relayer: (box: LiveBox) => void,
   ) {}
 
   /** cargo the walking pilot is carrying: in a person's hands, not on the line. Zones never count or despawn it,
@@ -57,6 +59,13 @@ export class BodyHolds {
     const pieces = box.unit ? box.unit.members : [box]
     for (const p of pieces) this.letGo(p.id)
     for (const p of pieces) this.holders.set(p.id, holder)
+    this.setUp(box, holder)
+  }
+
+  /** set the body `box` is in up for its holder: on the layer a held body is on, kinematic and at rest for a gripper
+   *  or a pin, dynamic with gravity off for the pilot */
+  private setUp(box: LiveBox, holder: BodyHolder): void {
+    this.relayer(box)
     const J = this.J
     const id = box.body.GetID()
     if (holder.kind === 'pilot') {
@@ -68,6 +77,19 @@ export class BodyHolds {
     this.bodyInterface.SetMotionType(id, J.EMotionType_Kinematic, J.EActivation_Activate)
     this.bodyInterface.SetLinearAndAngularVelocity(id, zero, zero)
     J.destroy(zero)
+  }
+
+  /**
+   * `box`'s body was rebuilt while it is held, with `added` now part of it (a piece seated on a held assembly base,
+   * CargoRegistry.seatRow): the hold carries on. The new pieces are the same holder's, and the new body is set up as
+   * claim() sets one up. The holder's own record of what it carries names `box`, which is still there, so a gripper
+   * keeps posing it. No-op for a body nothing holds.
+   */
+  rehold(box: LiveBox, added: readonly LiveBox[]): void {
+    const holder = this.holders.get(box.id)
+    if (!holder) return
+    for (const p of added) this.holders.set(p.id, holder)
+    this.setUp(box, holder)
   }
 
   /** Whoever holds body `boxId` lets go of it, by its own rule: a rig gripper lets go of its whole load
@@ -123,6 +145,7 @@ export class BodyHolds {
       for (const p of box.unit.members) if (this.holders.get(p.id) === h) this.holders.delete(p.id)
     } else this.holders.delete(boxId)
     if (!box) return
+    this.relayer(box)
     const J = this.J
     const id = box.body.GetID()
     const zero = new J.Vec3(0, 0, 0)

@@ -568,7 +568,10 @@ export class EditorController {
     if (pe) this.store.exitPartFocus() // switch sessions: close the current one (drops its scene) first
     if (!this.store.enterPackageEdit(packageId)) return false
     const partId = this.store.getState().packageEdit?.partId
-    if (partId) this.store.selectRigNode(partId, 'body')
+    // a product base or a fixture opens on the part itself, where its assembly is edited (inspector/assembly.tsx);
+    // any other part opens on its root node, where its geometry is
+    if (partId && getPackage(packageId)?.assembly) this.store.select(partId)
+    else if (partId) this.store.selectRigNode(partId, 'body')
     return true
   }
 

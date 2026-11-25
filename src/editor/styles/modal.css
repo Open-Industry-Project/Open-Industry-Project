@@ -258,6 +258,114 @@
   justify-content: flex-end;
 }
 
+/* a product model read as an assembly (components/ProductImportDialog.tsx): its pieces, base first, in build order */
+.author-dialog.product-import {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.product-import .name-dialog-row {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.product-import-heading {
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.product-import-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+  max-height: 32vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.product-import-row {
+  display: grid;
+  grid-template-columns: auto 64px 1fr 132px auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+}
+
+.product-import-row.is-off .product-import-node,
+.product-import-row.is-off .product-import-size {
+  opacity: 0.5;
+}
+
+/* what a piece is in the product: said in words, with the fixture and the base set apart from the steps */
+.product-import-role {
+  font-size: 11px;
+  text-align: center;
+  padding: 1px 0;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+}
+
+.product-import-role.is-fixture,
+.product-import-role.is-base {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.product-import-role.is-off {
+  border-color: transparent;
+}
+
+.product-import-node {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* a piece's name, which can be changed from the model's */
+.product-import-row .product-import-name {
+  min-width: 0;
+  font: inherit;
+  padding: 2px 6px;
+}
+
+.product-import-size,
+.product-import-note,
+.product-import-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.product-import-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.product-import-hint {
+  margin: -2px 0 2px 24px;
+}
+
+.product-import-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.product-import-file + .product-import-hint {
+  margin-left: 0;
+}
+
+.product-import-note {
+  margin-right: auto;
+  align-self: center;
+}
+
 /* the one-field naming dialog (components/NameDialog.tsx): window.prompt throws in the Electron shell */
 .name-dialog {
   width: min(360px, 100%);

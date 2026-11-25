@@ -65,7 +65,7 @@ import { advanceTravel, newTravelCount, writeTravel } from './travelCount'
 import { driveDeckEntries } from './deckDrive'
 import { SimFlowFacts } from './flowFacts'
 import { buildFrame } from './frameBuild'
-import { LAYER_MOVING, LAYER_NON_MOVING, NUM_BROAD_PHASE_LAYERS, NUM_OBJECT_LAYERS } from './layers'
+import { LAYER_ASSEMBLY, LAYER_HELD_PIECE, LAYER_MOVING, LAYER_NON_MOVING, NUM_BROAD_PHASE_LAYERS, NUM_OBJECT_LAYERS } from './layers'
 import { BodyTableFull, PartBodies } from './partBodies'
 import { PilotCapsule } from './pilotCapsule'
 import { buildRigBodies, linkMovesAtRuntime } from './rigBuild'
@@ -244,11 +244,20 @@ export class SimWorld implements SimCore<BoxFrame> {
     const objectFilter = new J.ObjectLayerPairFilterTable(NUM_OBJECT_LAYERS)
     objectFilter.EnableCollision(LAYER_NON_MOVING, LAYER_MOVING)
     objectFilter.EnableCollision(LAYER_MOVING, LAYER_MOVING)
+    // the two assembly layers are moving cargo that collides as LAYER_MOVING does, but that a held piece passes
+    // through a load that takes pieces, and through another held piece (assemblyBodies.ts)
+    for (const layer of [LAYER_ASSEMBLY, LAYER_HELD_PIECE]) {
+      objectFilter.EnableCollision(LAYER_NON_MOVING, layer)
+      objectFilter.EnableCollision(LAYER_MOVING, layer)
+    }
+    objectFilter.EnableCollision(LAYER_ASSEMBLY, LAYER_ASSEMBLY)
     const bpInterface = new J.BroadPhaseLayerInterfaceTable(NUM_OBJECT_LAYERS, NUM_BROAD_PHASE_LAYERS)
     const bpNonMoving = new J.BroadPhaseLayer(LAYER_NON_MOVING)
     const bpMoving = new J.BroadPhaseLayer(LAYER_MOVING)
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_NON_MOVING, bpNonMoving)
     bpInterface.MapObjectToBroadPhaseLayer(LAYER_MOVING, bpMoving)
+    bpInterface.MapObjectToBroadPhaseLayer(LAYER_ASSEMBLY, bpMoving)
+    bpInterface.MapObjectToBroadPhaseLayer(LAYER_HELD_PIECE, bpMoving)
     J.destroy(bpNonMoving)
     J.destroy(bpMoving)
     settings.mObjectLayerPairFilter = objectFilter
@@ -294,13 +303,14 @@ export class SimWorld implements SimCore<BoxFrame> {
     // the order of their dependencies. The cargo list is the registry's to fill; the holds, sensors, rigs and flow
     // read it, and so does everything here (`boxes`).
     const boxes: LiveBox[] = []
-    this.holds = new BodyHolds(J, this.bodyInterface, this.axisY, this.kin, boxes, this.partGroups, (id, pos, rot) => this.cargo.placeBody(id, pos, rot))
+    this.holds = new BodyHolds(J, this.bodyInterface, this.axisY, this.kin, boxes, this.partGroups, (id, pos, rot) => this.cargo.placeBody(id, pos, rot), (box) => this.cargo.relayer(box))
     this.pilot = new PilotCapsule(J, this.bodyInterface, this.axisY, this.kin)
     this.cargo = new CargoRegistry(J, this.system, this.bodyInterface, this.axisY, this.clock, this.hz, boxes, this.holds, this.partGroups)
     this.sensors = new SensorRegistry(this.cargo, boxes, this.holds, this.pilot, this.clock, this.hz)
     this.loadCells = new LoadCells(J, this.system, this.bodyInterface, this.cargo, boxes, this.holds, this.dt)
     this.rigDriver = new RigDriver(this.bodyInterface, this.kin, this.dt, boxes, this.cargo, this.holds, this.sensors, this.rigMsByPart)
     this.flow = new CargoFlow(this.cargo, boxes, this.holds, this.sensors, this.rigDriver.rigs, this.partGroups, this.cargo.dressings, this.clock, this.hz)
+    this.rigDriver.gripTargets = (picked) => this.flow.gripTargets(picked)
     this.flowFacts = opts.flowFacts === false ? null : new SimFlowFacts(scene.parts, this.cargo, boxes, this.holds, this.sensors, this.bus, this.clock, this.hz)
     this.boxes = boxes
     this.units = this.cargo.units
@@ -421,6 +431,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     this.holds.drive()
     this.pilot.drive(this.dt)
     this.rigDriver.drive(this.perfParts)
+    this.flow.snapAssemblies() // after the grippers: a piece one let go of this step is loose now
     const t3 = performance.now()
     for (const b of this.called) this.facets.syncPart(b) // only a called part drove an entry; the solver reads the table next
     const t4 = performance.now()
@@ -1480,6 +1491,10 @@ export class SimWorld implements SimCore<BoxFrame> {
         // transform is owned by physics; never rebuild it from the (stale) authored
         // pose mid-run, or an edit elsewhere would teleport a box that's mid-flight
         continue
+      } else if (group.spent) {
+        // a piece whose product became one body stays gone until the next run: built again from its part, it would
+        // stand in the line a second time
+        continue
       } else {
         const sigKey = simResolvedKey(part.id, ctx)
         const sigRev = partPackageRev(part)
@@ -1537,6 +1552,15 @@ export class SimWorld implements SimCore<BoxFrame> {
   }
 
   /**
+   * A hand (a drag, a pin, the pilot, a bare grab) takes hold of `box`: what that does to the load it is joined in.
+   * An assembled product (CargoFlow.snapAssemblies) is handled as the thing it is: taken by its base it stays whole,
+   * and a seated piece comes off alone, the rest staying on the base. Any other load comes apart, piece by piece.
+   */
+  private takeOut(box: LiveBox): void {
+    this.flow.takeOut(box)
+  }
+
+  /**
    * Teleport a cargo part's live body (gizmo grab while running). Position only by
    * default so a moved box keeps its tumble; pass a rotation quaternion to also set
    * its full orientation (the editor composes it from the part's YXZ rotations, so
@@ -1553,7 +1577,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     for (const boxId of group.boxIds) {
       const box = this.boxes.find((b) => b.id === boxId)
       if (!box) continue
-      if (box.unit) this.cargo.splitUnit(box.unit) // a hand moving one piece takes the load apart
+      this.takeOut(box) // a hand moving one piece takes it out of its load
       const id = box.body.GetID()
       if (rotation === null) {
         this.cargo.placeBody(id, pos, null)
@@ -1584,7 +1608,7 @@ export class SimWorld implements SimCore<BoxFrame> {
       const box = this.boxes.find((b) => b.id === boxId)
       if (!box) continue
       const pinned = this.holders.get(boxId)?.kind === 'pin'
-      if (frozen && !pinned && box.unit) this.cargo.splitUnit(box.unit) // pinning one piece takes the load apart
+      if (frozen && !pinned) this.takeOut(box) // pinning one piece takes it out of its load
       if (frozen && !pinned) this.holds.claim(box, { kind: 'pin' })
       else if (!frozen && pinned) this.holds.drop(boxId)
     }
@@ -1631,7 +1655,7 @@ export class SimWorld implements SimCore<BoxFrame> {
     }
     for (const boxId of [...group.boxIds]) {
       const box = this.boxes.find((b) => b.id === boxId)
-      if (box?.unit) this.cargo.splitUnit(box.unit) // picking one piece up takes the load apart
+      if (box) this.takeOut(box) // picking one piece up takes it out of its load
       if (box && this.holders.get(boxId)?.kind !== 'pilot') this.holds.claim(box, { kind: 'pilot', partId })
     }
     // seed the target at the body's current pose so it doesn't lurch before the
@@ -1669,7 +1693,7 @@ export class SimWorld implements SimCore<BoxFrame> {
   grabBody(bodyId: number): void {
     if (this.disposed || this.holders.has(bodyId)) return
     const box = this.boxes.find((b) => b.id === bodyId)
-    if (box?.unit) this.cargo.splitUnit(box.unit) // a bare grab by body id takes one piece: the load comes apart
+    if (box) this.takeOut(box) // a bare grab by body id takes one piece out of its load
     if (box) this.holds.claim(box, { kind: 'grip', rig: null, gripper: '' })
   }
 
