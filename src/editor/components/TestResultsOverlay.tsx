@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { ProjectJSON } from '../../core/project/project'
 import { runProjectTests } from '../project/projectTestsRun'
@@ -55,16 +55,20 @@ export function TestResultsOverlay({ project, onClose }: TestResultsOverlayProps
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  // One run per mount. The guard is a ref rather than a dep list because StrictMode double-invokes
-  // effects in dev, and a second run here would step every scene's physics twice.
-  const started = useRef(false)
+  // One run per mount, stopped when the overlay closes: a test left running would step a large line to its end
+  // with nobody reading the result, beside the run of an overlay opened again. A run stopped before its first test
+  // has cost nothing, so an effect React runs twice in dev (StrictMode) starts it again cleanly.
   useEffect(() => {
-    if (started.current) return
-    started.current = true
+    const stop = new AbortController()
     let live = true
-    runProjectTests(project, (run) => {
-      if (live) setRuns((prev) => [...prev, run])
-    })
+    runProjectTests(
+      project,
+      (run) => {
+        if (live) setRuns((prev) => [...prev, run])
+      },
+      undefined,
+      stop.signal,
+    )
       .then(() => live && setDone(true))
       .catch((e: unknown) => {
         if (!live) return
@@ -73,6 +77,7 @@ export function TestResultsOverlay({ project, onClose }: TestResultsOverlayProps
       })
     return () => {
       live = false
+      stop.abort()
     }
   }, [project])
 

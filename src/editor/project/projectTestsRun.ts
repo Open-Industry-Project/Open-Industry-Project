@@ -39,6 +39,11 @@ export interface ProjectTestsOptions {
   cargo?: readonly number[]
 }
 
+/** What a run that was stopped rejects with (an `AbortError`, as fetch gives). */
+export function runStopped(): DOMException {
+  return new DOMException('the test run was stopped', 'AbortError')
+}
+
 /** The display name of the spec at `index`, matching what the CLI prints for a document-carried test. */
 export function testName(spec: { name?: string }, index: number): string {
   return spec.name ?? `test-${index + 1}`
@@ -59,10 +64,19 @@ function withRegisteredParts(project: ProjectJSON): ProjectJSON {
 /**
  * Run every test the project carries, oldest-first, reporting each verdict as it finishes. Resolves with every
  * verdict, and rejects when the run as a whole could not go on.
+ *
+ * `signal` stops the run: its worker is ended at once, in the middle of a test, and the promise rejects with
+ * {@link runStopped}. A run on the page stops before its next test.
  */
-export async function runProjectTests(project: ProjectJSON, onVerdict?: (run: ProjectTestRun, done: number, total: number) => void, opts?: ProjectTestsOptions): Promise<ProjectTestRun[]> {
+export async function runProjectTests(
+  project: ProjectJSON,
+  onVerdict?: (run: ProjectTestRun, done: number, total: number) => void,
+  opts?: ProjectTestsOptions,
+  signal?: AbortSignal,
+): Promise<ProjectTestRun[]> {
   if ((project.tests ?? []).length === 0) return []
-  const here = async (): Promise<ProjectTestRun[]> => (await import('./projectTestsLoop')).runProjectTestsHere(project, onVerdict, opts)
+  if (signal?.aborted) throw runStopped()
+  const here = async (): Promise<ProjectTestRun[]> => (await import('./projectTestsLoop')).runProjectTestsHere(project, onVerdict, opts, signal)
   if (typeof Worker === 'undefined') return here()
 
   return new Promise((resolve, reject) => {
@@ -73,10 +87,13 @@ export async function runProjectTests(project: ProjectJSON, onVerdict?: (run: Pr
       return resolve(here())
     }
     const runs: ProjectTestRun[] = []
+    const stop = (): void => end(() => reject(runStopped()))
     const end = (settle: () => void): void => {
+      signal?.removeEventListener('abort', stop)
       worker.terminate()
       settle()
     }
+    signal?.addEventListener('abort', stop, { once: true })
     worker.onmessage = (e: MessageEvent<ProjectTestsReply>) => {
       const m = e.data
       if ('run' in m) {

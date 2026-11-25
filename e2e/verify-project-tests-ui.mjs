@@ -3,6 +3,7 @@
 //   - the command is disabled while the project carries no tests, and reachable once it does
 //   - running it loads jolt lazily, steps real physics + the ST scan in a worker of its own, and shows
 //     a verdict per spec with the individual check details
+//   - closing the overlay while a test runs ends its worker
 //   - a passing and a failing spec are told apart, and the failing one's passing checks still show
 //     as passing (CSS scoping: a blanket rule would turn every mark in a failed row red)
 //
@@ -118,7 +119,12 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     // every worker the page starts, by url: the tests run in one of their own
     const workers = []
-    page.on('worker', (w) => workers.push(w.url()))
+    // the test workers that have ended
+    let testWorkersClosed = 0
+    page.on('worker', (w) => {
+      workers.push(w.url())
+      if (w.url().includes('projectTests.worker')) w.on('close', () => testWorkersClosed++)
+    })
     page.on('pageerror', (e) => {
       failures++
       console.error('  FAIL: page error:', e.message)
@@ -209,6 +215,29 @@ async function main() {
       (await page.locator('[data-test-results-overlay]').count()) === 0,
       'Escape closes the overlay',
     )
+
+    console.log('--- closing the overlay stops a run under way ---')
+    // ten simulated hours of the program alone: far longer than this gate waits, so only a stop can end it
+    const LONG = { ...PROJECT, name: 'Long', tests: [{ name: 'long', duration: 36000, checks: [{ at: 35999, tag: 'Run', equals: false }] }] }
+    await page.evaluate((project) => window.__oip.store.loadProject(project), LONG)
+    await page.waitForTimeout(400)
+    const startedBefore = workers.filter((u) => u.includes('projectTests.worker')).length
+    const closedBefore = testWorkersClosed
+    await openPalette(page, 'Run Project')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('[data-test-results-overlay]', { timeout: 10000 })
+    // let the worker load and get into the test
+    await page.waitForTimeout(3000)
+    expect(workers.filter((u) => u.includes('projectTests.worker')).length === startedBefore + 1, 'the long run started a worker')
+    expect(
+      (await page.locator('[data-test-results-overlay] .test-run-row').count()) === 0 && testWorkersClosed === closedBefore,
+      'the long test is still running after 3 s',
+    )
+    await page.keyboard.press('Escape')
+    // a worker busy inside a test does not answer the request to end, and the browser ends it by force about 2 s on
+    const t0 = Date.now()
+    while (testWorkersClosed === closedBefore && Date.now() - t0 < 10000) await page.waitForTimeout(100)
+    expect(testWorkersClosed === closedBefore + 1, 'closing the overlay ended the worker, in the middle of its test')
   } finally {
     await browser.close()
     vite.kill()

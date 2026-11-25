@@ -9,7 +9,7 @@ import type { ProjectJSON } from '../../core/project/project'
 import { CargoSnapshots } from '../../core/project/projectProbe'
 import { TraceRecorder } from '../../core/project/projectTest'
 import { runProjectTest } from './projectTestRunner'
-import { testName } from './projectTestsRun'
+import { runStopped, testName } from './projectTestsRun'
 import type { ProjectTestRun, ProjectTestsOptions } from './projectTestsRun'
 import { testFactsView } from './testFacts'
 
@@ -20,12 +20,14 @@ type JoltModule = Parameters<typeof runProjectTest>[0]
  * Run every test the project carries, oldest-first, reporting each verdict as it finishes.
  *
  * Each spec steps a fresh SimWorld synchronously, which is deterministic and blocks this realm for the length of
- * the spec. Specs are separated by a macrotask, so a page that runs them can paint the verdict before.
+ * the spec. Specs are separated by a macrotask, so a page that runs them can paint the verdict before, and a run
+ * whose `signal` has fired stops there, rejecting with `runStopped`.
  */
 export async function runProjectTestsHere(
   project: ProjectJSON,
   onVerdict?: (run: ProjectTestRun, done: number, total: number) => void,
   opts?: ProjectTestsOptions,
+  signal?: AbortSignal,
 ): Promise<ProjectTestRun[]> {
   const specs = project.tests ?? []
   if (specs.length === 0) return []
@@ -37,6 +39,7 @@ export async function runProjectTestsHere(
   for (const [i, spec] of specs.entries()) {
     // yield first, so a page paints "running" (and each finished row) before the next spec blocks it
     await new Promise((resolve) => setTimeout(resolve, 0))
+    if (signal?.aborted) throw runStopped()
     let run: ProjectTestRun
     try {
       const trace = opts?.trace ? new TraceRecorder(opts.trace) : undefined

@@ -521,7 +521,8 @@ They run in a worker of their own (`projectTests.worker.ts`), started for the ru
 stays live while a long test steps. The worker gets a copy of the project, with every part the page has registered
 that the project does not hold itself, since a worker starts with no parts. Where a worker cannot start, the tests
 run on the page (`projectTestsLoop.ts`, the loop the worker runs), which blocks it for each test.
-`verify-project-tests-ui.mjs` checks that the worker ran.
+Closing the overlay stops the run: its worker is ended in the middle of the test it is on (`runProjectTests`'
+`signal`). `verify-project-tests-ui.mjs` checks that the worker ran, and that closing ends it.
 
 ## Not building
 
