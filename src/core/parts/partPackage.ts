@@ -1024,6 +1024,8 @@ export interface PartPackage {
   holds?: HoldsDecl
   /** this part is cargo with its own body: its rig moves as one rigid body ({@link CargoDecl}) */
   cargo?: CargoDecl
+  /** the product this cargo part is the base of: the components that snap onto it ({@link AssemblyDecl}) */
+  assembly?: AssemblyDecl
   /** Where this project's copy came from ({@link PartOrigin}). Absent on a part made here, and on a copy made before
    *  these records existed. */
   origin?: PartOrigin
@@ -1094,6 +1096,97 @@ export interface CargoDecl {
   separateContacts?: boolean
   nestDepth?: number
 }
+
+/**
+ * A product assembled from other cargo, declared on the cargo part that is its base (a fixture, a lower housing).
+ * Each slot is one component's place on the base. During a run, a loose piece of the slot's part whose bounding box
+ * overlaps the slot's box is moved to the slot's exact pose and joined to the base, so it travels with it as one
+ * rigid body (the unit load a machine's ctx.join makes). Nothing holds a piece that snaps: one in a gripper snaps
+ * when the gripper lets go. A base that something holds (a fixture clamped on a carrier) takes pieces all the same,
+ * and stays held.
+ *
+ * The product's state is on its marks, for a station to read (ctx.marked, ctx.sense): each slot's `name` is `true`
+ * once its piece is placed, and `assembled` is `true` once every slot is filled.
+ *
+ * `mode` says what holds a placed piece:
+ * - `'fixed'` (the default): the piece is fixed to the base, and the product is one rigid body from then on. Nothing
+ *   shakes it apart; a hand can lift a piece out.
+ * - `'loose'`: the snap only puts the piece exactly in place, once. It stays its own body, kept there by gravity and
+ *   friction like anything set down, so a product moved too hard comes apart. A slot counts as filled while its
+ *   piece is still in its place, and opens again when the piece has left it.
+ *
+ * A slot is one of two kinds. A plain slot takes a component of the product: once placed it is part of it, and
+ * counts toward `assembled`. A `hold` slot is a fixture's: it locates a part and keeps it there, always rigidly, but
+ * what it holds stays a thing of its own. Taking the held part out takes it with everything assembled on it and
+ * leaves the fixture behind, so a product is built in one fixture, lifted out and set down in another. A fixture
+ * carries each hold slot's name while it is filled, and `occupied` while any is. A hold slot for a part also takes
+ * what that part's product `becomes`.
+ *
+ * `product` names the finished product: a mark of that name is set with `assembled`, so a line of several products
+ * can tell them apart.
+ *
+ * `becomes` swaps a finished product for one body: the moment the last piece is placed on a fixed assembly, the
+ * base and its pieces are removed and one cargo body of `becomes.part` stands where they were (`at` / `quat`: its
+ * centre and turn in the base's frame), carrying the product's marks, and in the same fixture slot if the product
+ * was held in one. It is one-way: there are no pieces to take off afterwards. A light model there keeps a long line
+ * of finished products cheap to draw.
+ *
+ * Fastening (a screw driven, a weld, a clip pressed home) is not a step of its own: `mode` is all that says whether a
+ * placed piece is fixed.
+ */
+export interface AssemblyDecl {
+  slots: AssemblySlot[]
+  mode?: AssemblyMode
+  product?: string
+  becomes?: AssemblyBecomes
+}
+
+/** What a finished product is swapped for ({@link AssemblyDecl} `becomes`). */
+export interface AssemblyBecomes {
+  part: string
+  at?: Vec3Tuple
+  quat?: Vec4Tuple
+}
+
+/** What holds a placed piece on its base ({@link AssemblyDecl}). */
+export type AssemblyMode = 'fixed' | 'loose'
+
+/**
+ * One component's place in an {@link AssemblyDecl}.
+ *
+ * - `name`: what the slot is called, unique in the assembly; also the mark that says it is filled.
+ * - `part`: the package id of the cargo part that goes here.
+ * - `at`: where that part's centre sits, in the base's own frame (m; a cargo part's origin is its centre).
+ * - `quat`: how it is turned there, a quaternion (x, y, z, w) in the base's frame. Absent = as the base.
+ * - `tolerance`: how far outside its assembled bounding box a piece is still caught (m, each side). Default
+ *   {@link ASSEMBLY_TOLERANCE}.
+ * - `after`: slots that must be filled first (an assembly sequence). Absent = any time.
+ * - `reach`: the furthest the piece's centre may be from its place and still be caught (m). Overlapping boxes alone
+ *   catch a long piece from most of its length away; this says how near it has to be put. Absent = no limit.
+ * - `maxTurn`: the most the piece may be turned from its assembled orientation and still be caught (degrees, about
+ *   any axis). Absent = any way round, which suits a piece that fits more than one way (a fuse, a washer).
+ * - `hold`: this is a fixture's slot: what is put here is held, not made part of the product (see AssemblyDecl).
+ */
+export interface AssemblySlot {
+  name: string
+  part: string
+  at: Vec3Tuple
+  quat?: Vec4Tuple
+  tolerance?: number
+  after?: string[]
+  reach?: number
+  maxTurn?: number
+  hold?: boolean
+}
+
+/** How far outside its assembled bounding box a piece is caught when its slot names no tolerance (m). */
+export const ASSEMBLY_TOLERANCE = 0.003
+
+/** The mark a product carries once every slot of its assembly is filled. */
+export const ASSEMBLED_MARK = 'assembled'
+
+/** The mark a fixture carries while any of its `hold` slots is filled. */
+export const OCCUPIED_MARK = 'occupied'
 
 /** Is this package cargo: a box, pallet or tote (`geometry.kind: 'cargo'`), or a rig with its own cargo body? */
 export function isCargoPackage(pkg: Pick<PartPackage, 'geometry' | 'cargo'>): boolean {
@@ -1175,6 +1268,8 @@ export function packageDependencies(pkg: PartPackage): string[] {
   if (pkg.holds) out.push(pkg.holds.part)
   const pieces = unitPiecesOf(pkg)
   if (pieces) out.push(pieces.pallet, pieces.case)
+  for (const slot of pkg.assembly?.slots ?? []) out.push(slot.part)
+  if (pkg.assembly?.becomes) out.push(pkg.assembly.becomes.part)
   for (const spec of Object.values(pkg.params)) {
     if (spec.type === 'string' && spec.product === true && typeof spec.default === 'string' && spec.default) out.push(spec.default)
   }
@@ -1262,6 +1357,8 @@ export interface PackageManifest {
   holds?: HoldsDecl
   /** this part is cargo with its own body ({@link CargoDecl}) */
   cargo?: CargoDecl
+  /** the product this cargo part is the base of ({@link AssemblyDecl}) */
+  assembly?: AssemblyDecl
   /** where a project's copy came from, written by the app ({@link PartOrigin}) */
   origin?: PartOrigin
   /** who made a copy from a part library, written by the app ({@link PartCredit}) */
@@ -1289,6 +1386,7 @@ export function manifestOfPackage(pkg: PartPackage): PackageManifest {
     ...(pkg.snap !== undefined ? { snap: pkg.snap } : {}),
     ...(pkg.holds !== undefined ? { holds: pkg.holds } : {}),
     ...(pkg.cargo !== undefined ? { cargo: pkg.cargo } : {}),
+    ...(pkg.assembly !== undefined ? { assembly: pkg.assembly } : {}),
     ...(pkg.origin !== undefined ? { origin: pkg.origin } : {}),
     ...(pkg.credit !== undefined ? { credit: pkg.credit } : {}),
     ...(pkg.sdk !== undefined ? { sdk: pkg.sdk } : {}),

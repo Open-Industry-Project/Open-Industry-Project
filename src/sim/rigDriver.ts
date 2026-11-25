@@ -42,6 +42,10 @@ export class RigDriver {
     private readonly rigMsByPart: Map<string, number>,
   ) {}
 
+  /** What a gripper takes of the cargo it closed on, when something other than "each load whole" decides it
+   *  (CargoFlow.gripTargets: a product in a fixture is lifted out of it). SimWorld sets it. */
+  gripTargets: ((picked: LiveBox[]) => LiveBox[]) | null = null
+
   /** a rig built for a part: driven from the next step on */
   add(rig: RigInstance): void {
     this.rigs.push(rig)
@@ -241,6 +245,7 @@ export class RigDriver {
         // anchor piece, whose body is the unit's)
         if (picked.length) {
           const seen = new Set<number>()
+          if (this.gripTargets) picked = this.gripTargets(picked)
           picked = picked.map((box) => (box.unit ? box.unit.members[0]! : box)).filter((box) => !seen.has(box.id) && !!seen.add(box.id))
         }
         if (picked.length) {

@@ -9,6 +9,16 @@ change can land in any release (see the README's
 The first public source release. The [README](README.md#features) lists what it includes. It also includes:
 
 - A desktop app for Windows (a signed installer) and Linux (a `.deb` and an AppImage).
+- Product assemblies: a cargo part can declare `assembly` slots, and during a run a loose piece that reaches its
+  slot snaps exactly into place and travels with the base as one body. The product's marks say which pieces are on
+  it, so a photoeye set to a mark reports it to a PLC. **Import part > A product assembly…** makes the parts and
+  slots from one `.glb` whose named objects are the pieces, and the Part Editor's **Assembly** section edits them. A
+  product is one solid body (`fixed`) or pieces only put in place (`loose`). A fixture is a part with `hold` slots:
+  it holds a product's base while the product is built on it, and the product is lifted out whole and can be set
+  down in another fixture. A finished product can be swapped for one simpler body (`becomes`), which the import
+  takes as a second model. A piece being carried to its place does not push the product, and the pieces on a
+  product collide once it is whole (Part SDK level 19,
+  [docs/cargo-bodies.md](docs/cargo-bodies.md#assemblies)).
 - Project tests: JSON regression tests for a project's control logic (`npm run test-project`).
 - An MQTT publisher beside the simulated PLC: the program's variables on a broker, one retained topic each, with a
   set topic to write one. Over plain TCP from the desktop app and over WebSocket from a browser tab too, with a

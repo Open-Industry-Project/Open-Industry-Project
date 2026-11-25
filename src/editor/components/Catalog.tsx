@@ -31,8 +31,10 @@ import { defineMessages, t, type MessageId } from '../../core/i18n'
 import { importPartFiles, partFilesOf } from '../parts/importPartFiles'
 import { readPartDrop, receivePartDrops, type PartDrop } from '../parts/partDrop'
 import { ImportRunning } from './ImportRunning'
-import { isModelFile, isRobotArchive, isUrdfFile, MODEL_ACCEPT, newPartFromModel } from '../parts/modelPartImport'
+import { isModelFile, isRobotArchive, isUrdfFile, MODEL_ACCEPT, newPartFromModel, partNameFromFile } from '../parts/modelPartImport'
 import { RobotOptionsDialog } from './RobotOptionsDialog'
+import { ProductImportDialog } from './ProductImportDialog'
+import { addProduct, readProductModel, type ProductModel } from '../parts/productImport'
 
 const M = defineMessages('catalog', {
   title: 'Parts',
@@ -43,6 +45,9 @@ const M = defineMessages('catalog', {
   importTitle: 'Import shared part files into this project, or make a new part from a model (.glb, STEP or USD) or a robot (a URDF file, or a .zip of its folder)',
   importTitleDesktop: 'Import shared part files or a folder of parts into this project, or make a new part from a model or a robot (a URDF file, or a .zip of its folder)',
   importModel: 'A model…',
+  importProduct: 'A product assembly…',
+  importProductTitle: 'Make a product from one model (.glb): each named object becomes a part, and the pieces snap onto the base during a run',
+  importProductFailed: "Couldn't import the product:\n{error}",
   importModelTitle: 'Make a new part from a model: a .glb, a STEP file from CAD, or a USD model (.usd, .usda, .usdc, .usdz)',
   oneModelAtATime: 'A model opens as a new part of its own, so one is imported at a time: {file} was imported.',
   importRobot: 'A robot (unzipped folder)…',
@@ -221,6 +226,18 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
   const importRef = useRef<HTMLInputElement>(null)
   const importModelRef = useRef<HTMLInputElement>(null)
   const importRobotRef = useRef<HTMLInputElement>(null)
+  const importProductRef = useRef<HTMLInputElement>(null)
+  const [productModel, setProductModel] = useState<ProductModel | null>(null)
+  // a product model: read here, then asked about (ProductImportDialog) before anything is added
+  const onPickProduct = (e: ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !controller || state.readOnly) return
+    void file
+      .arrayBuffer()
+      .then((buf) => setProductModel(readProductModel(file.name, new Uint8Array(buf))))
+      .catch((err: unknown) => alert(t(M.importProductFailed, { error: err instanceof Error ? err.message : String(err) })))
+  }
   const importRobotFileRef = useRef<HTMLInputElement>(null)
   // where Import part's menu opened, so a follow-up choice (which URDF of a folder) opens in the same place
   const menuAt = useRef({ x: 0, y: 0 })
@@ -499,6 +516,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
                   ? [{ label: t(M.importFolder), title: t(M.importFolderTitle), testid: 'catalog-import-folder', onClick: () => void importPartsFolder(store) }]
                   : []),
                 { label: t(M.importModel), title: t(M.importModelTitle), testid: 'catalog-import-model', onClick: () => importModelRef.current?.click() },
+                { label: t(M.importProduct), title: t(M.importProductTitle), testid: 'catalog-import-product', onClick: () => importProductRef.current?.click() },
                 { label: t(M.importRobotFile), title: t(M.importRobotFileTitle), testid: 'catalog-import-robot-file', onClick: () => importRobotFileRef.current?.click() },
                 { label: t(M.importRobot), title: t(M.importRobotTitle), testid: 'catalog-import-robot', onClick: () => importRobotRef.current?.click() },
               ],
@@ -519,6 +537,7 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         </button>
         <input ref={importRef} type="file" accept={`.oippart,.json,application/json,${MODEL_ACCEPT},.urdf,.xacro,.zip`} multiple hidden onChange={onImportFile} />
         <input ref={importModelRef} type="file" accept={MODEL_ACCEPT} hidden onChange={onImportFile} data-testid="catalog-import-model-input" />
+        <input ref={importProductRef} type="file" accept=".glb,model/gltf-binary" hidden onChange={onPickProduct} data-testid="catalog-import-product-input" />
         <input ref={importRobotFileRef} type="file" accept=".zip,.urdf,.xacro" multiple hidden onChange={onImportFile} data-testid="catalog-import-robot-file-input" />
         {/* webkitdirectory is not in React's input attributes; every browser and Electron read it */}
         <input ref={importRobotRef} type="file" hidden onChange={(e) => void onPickRobotFolder(e)} data-testid="catalog-import-robot-input" {...{ webkitdirectory: '' }} />
@@ -882,6 +901,24 @@ export function Catalog({ state, controller, thumbnails, packageThumbnails, pend
         )}
       </div>
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {productModel && store && (
+        <ProductImportDialog
+          file={productModel.file}
+          pieces={productModel.pieces}
+          order={productModel.order}
+          initialName={partNameFromFile(productModel.file)}
+          onClose={() => setProductModel(null)}
+          onImport={(plan) => {
+            const model = productModel
+            setProductModel(null)
+            try {
+              addProduct(store, model, plan, plan.finished)
+            } catch (err) {
+              alert(t(M.importProductFailed, { error: err instanceof Error ? err.message : String(err) }))
+            }
+          }}
+        />
+      )}
       {robotOptions && (
         <RobotOptionsDialog
           file={robotOptions.root.split('/').pop() ?? robotOptions.root}

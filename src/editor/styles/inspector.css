@@ -60,6 +60,45 @@
   margin: 0 2px 6px;
 }
 
+/* the Part Editor's Assembly section (inspector/assembly.tsx): a product base's mode and its slots */
+.inspector-assembly {
+  margin: 12px 0 6px;
+}
+.inspector-assembly-title {
+  font-weight: 600;
+  margin: 0 2px 6px;
+}
+.inspector-assembly-subtitle {
+  font-weight: 600;
+  margin: 12px 2px 0;
+}
+/* one place: a card of its own, so six of them read as six things and not one long form */
+.inspector-assembly-slot {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  margin-top: 6px;
+  padding: 4px 6px 6px;
+}
+.inspector-assembly-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+/* the settings most parts leave alone, closed until wanted */
+.inspector-assembly-more {
+  margin-top: 4px;
+}
+.inspector-assembly-more > summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  margin: 0 2px 4px;
+}
+.inspector-assembly-foot {
+  margin-top: 8px;
+}
+
 .rig-error {
   color: light-dark(#ca4021, #f0907a);
 }

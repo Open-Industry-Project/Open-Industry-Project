@@ -57,6 +57,10 @@
       "description": "this part is cargo with its own body ({@link CargoDecl})",
       "$ref": "#/$defs/CargoDecl"
     },
+    "assembly": {
+      "description": "the product this cargo part is the base of ({@link AssemblyDecl})",
+      "$ref": "#/$defs/AssemblyDecl"
+    },
     "origin": {
       "description": "where a project's copy came from, written by the app ({@link PartOrigin})",
       "$ref": "#/$defs/PartOrigin"
@@ -2056,6 +2060,95 @@
         }
       },
       "additionalProperties": false
+    },
+    "AssemblyDecl": {
+      "description": "A product assembled from other cargo, declared on the cargo part that is its base (a fixture, a lower housing).\nEach slot is one component's place on the base. During a run, a loose piece of the slot's part whose bounding box\noverlaps the slot's box is moved to the slot's exact pose and joined to the base, so it travels with it as one\nrigid body (the unit load a machine's ctx.join makes). Nothing holds a piece that snaps: one in a gripper snaps\nwhen the gripper lets go. A base that something holds (a fixture clamped on a carrier) takes pieces all the same,\nand stays held.\n\nThe product's state is on its marks, for a station to read (ctx.marked, ctx.sense): each slot's `name` is `true`\nonce its piece is placed, and `assembled` is `true` once every slot is filled.\n\n`mode` says what holds a placed piece:\n- `'fixed'` (the default): the piece is fixed to the base, and the product is one rigid body from then on. Nothing\n  shakes it apart; a hand can lift a piece out.\n- `'loose'`: the snap only puts the piece exactly in place, once. It stays its own body, kept there by gravity and\n  friction like anything set down, so a product moved too hard comes apart. A slot counts as filled while its\n  piece is still in its place, and opens again when the piece has left it.\n\nA slot is one of two kinds. A plain slot takes a component of the product: once placed it is part of it, and\ncounts toward `assembled`. A `hold` slot is a fixture's: it locates a part and keeps it there, always rigidly, but\nwhat it holds stays a thing of its own. Taking the held part out takes it with everything assembled on it and\nleaves the fixture behind, so a product is built in one fixture, lifted out and set down in another. A fixture\ncarries each hold slot's name while it is filled, and `occupied` while any is. A hold slot for a part also takes\nwhat that part's product `becomes`.\n\n`product` names the finished product: a mark of that name is set with `assembled`, so a line of several products\ncan tell them apart.\n\n`becomes` swaps a finished product for one body: the moment the last piece is placed on a fixed assembly, the\nbase and its pieces are removed and one cargo body of `becomes.part` stands where they were (`at` / `quat`: its\ncentre and turn in the base's frame), carrying the product's marks, and in the same fixture slot if the product\nwas held in one. It is one-way: there are no pieces to take off afterwards. A light model there keeps a long line\nof finished products cheap to draw.\n\nFastening (a screw driven, a weld, a clip pressed home) is not a step of its own: `mode` is all that says whether a\nplaced piece is fixed.",
+      "type": "object",
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AssemblySlot"
+          }
+        },
+        "mode": {
+          "enum": [
+            "fixed",
+            "loose"
+          ]
+        },
+        "product": {
+          "type": "string"
+        },
+        "becomes": {
+          "$ref": "#/$defs/AssemblyBecomes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "slots"
+      ]
+    },
+    "AssemblySlot": {
+      "description": "One component's place in an {@link AssemblyDecl}.\n\n- `name`: what the slot is called, unique in the assembly; also the mark that says it is filled.\n- `part`: the package id of the cargo part that goes here.\n- `at`: where that part's centre sits, in the base's own frame (m; a cargo part's origin is its centre).\n- `quat`: how it is turned there, a quaternion (x, y, z, w) in the base's frame. Absent = as the base.\n- `tolerance`: how far outside its assembled bounding box a piece is still caught (m, each side). Default\n  {@link ASSEMBLY_TOLERANCE}.\n- `after`: slots that must be filled first (an assembly sequence). Absent = any time.\n- `reach`: the furthest the piece's centre may be from its place and still be caught (m). Overlapping boxes alone\n  catch a long piece from most of its length away; this says how near it has to be put. Absent = no limit.\n- `maxTurn`: the most the piece may be turned from its assembled orientation and still be caught (degrees, about\n  any axis). Absent = any way round, which suits a piece that fits more than one way (a fuse, a washer).\n- `hold`: this is a fixture's slot: what is put here is held, not made part of the product (see AssemblyDecl).",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "part": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/Vec3Tuple"
+        },
+        "quat": {
+          "$ref": "#/$defs/Vec4Tuple"
+        },
+        "tolerance": {
+          "type": "number"
+        },
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reach": {
+          "type": "number"
+        },
+        "maxTurn": {
+          "type": "number"
+        },
+        "hold": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "part",
+        "at"
+      ]
+    },
+    "AssemblyBecomes": {
+      "description": "What a finished product is swapped for ({@link AssemblyDecl} `becomes`).",
+      "type": "object",
+      "properties": {
+        "part": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/Vec3Tuple"
+        },
+        "quat": {
+          "$ref": "#/$defs/Vec4Tuple"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "part"
+      ]
     },
     "PartOrigin": {
       "description": "Where a project's copy of a part came from, per source: the fingerprint of the version that\nsource had when the copy was made, so the app can tell whether the source, this project, or both have changed it\nsince. One copy can have more than one: a project's version of a built-in that is also on\nthe shelf. Package format 5 spelled `app` as `basedOn` and `shelf` as `fromShelf`.\n\n- `app`: this is a project's own version of the built-in part of the same id, or, with\n  `appPart`, of the built-in `appPart` names: a variant made from it under its own id (\"Save as a New Part\").\n- `appPart`: the id of the built-in a variant was made from. Absent on a copy of the same id.\n- `shelf`: this was copied from the parts shelf.\n- `library`: this was installed from a part library. Read through the index signature.\n\nA key this build does not know is kept and ignored, so a later source does not make an older build refuse the part.",

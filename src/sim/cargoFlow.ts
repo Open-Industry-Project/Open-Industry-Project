@@ -4,10 +4,12 @@
 // sensor registry. SimWorld owns one; tickBehaviors hands it each behavior's requests in call order.
 import { CARGO_CAP_LOAD_BASE, CARGO_KIND_BOX, CARGO_KIND_PALLET, CARGO_KIND_TOTE, DEFAULT_DRESS_OPACITY, cargoRefKey, kindSpawnRef, cargoFriction, cargoView, partChildren, unitMembers, unitStart } from '../core/frame'
 import type { FrameDressing } from '../core/frame'
+import { aabbOverlap, assemblyMarks, becomesLocal, bodyAabb, composePose, isAssembled, openSlots, reachesSlot, slotLocal, slotTarget, slotWorld } from '../core/cargoAssembly'
 import { fitLoad, wrapAnchor } from '../core/cargoWrap'
 import type { WrapBody } from '../core/cargoWrap'
-import type { CargoMarkValue } from '../core/parts/partPackage'
+import type { AssemblySlot, CargoMarkValue } from '../core/parts/partPackage'
 import { isCargoPackage } from '../core/parts/partPackage'
+import type { Quat, Vec3 } from '../core/rig/rigPose'
 import { reportPartDiagnostic } from '../core/parts/partDiagnostics'
 import { getPackage } from '../core/parts/partRegistry'
 import { hexToRgb } from '../core/math'
@@ -177,6 +179,313 @@ export class CargoFlow {
     }
   }
 
+  /**
+   * Assemblies (partPackage.ts AssemblyDecl), once a step after the machines have moved: each piece that has reached
+   * an open slot of a base is put exactly in the slot, and the base's marks say what is on it. On a fixed assembly,
+   * and in any `hold` slot (a fixture's), the piece is then joined to the base (CargoRegistry.seatRow), together with
+   * whatever is assembled on it. On a loose one it is only placed, once, and stays its own body; its slot is filled
+   * while it is still in its place, and opens when it has left. A finished product that `becomes` one body is
+   * swapped for it here (finishProduct).
+   *
+   * Bases in row order, their slots in declared order, pieces in row order, one piece a base a step, so a run is the
+   * same every time. A piece something holds is left alone: a piece in a gripper is taken when the gripper opens. A
+   * base something holds takes pieces all the same, and stays held. A base seated in another's slot (a product in
+   * its fixture) takes pieces too. In a run with no base it does nothing, for two passes over the rows.
+   *
+   * A load has one set of marks, so a fixture and the product in it read as one: a sensor on either sees `occupied`
+   * and `assembled` alike. They are told apart again when the product is lifted out (liftSeated).
+   *
+   * Fastening (a screw, a weld) is not modelled: `mode` is all that says whether a placed piece is fixed.
+   */
+  snapAssemblies(): void {
+    const boxes = this.boxes
+    /** the pieces placed on each base, by the base's id; built on the first loose base that needs it */
+    let placedOn: Map<number, LiveBox[]> | null = null
+    const looseBases = new Set<number>()
+    /** the marks each load is to carry, by its anchor: every base in it has a say, and a mark any of them sets is set */
+    const want = new Map<LiveBox, Record<string, boolean>>()
+    const finished: LiveBox[] = []
+    for (let bi = 0; bi < boxes.length; bi++) {
+      const base = boxes[bi]!
+      const decl = getPackage(base.product)?.assembly
+      if (!decl || decl.slots.length === 0) continue
+      // it takes pieces when its pose is its own to give: standing alone, the anchor of its load, or seated in one
+      const takes = !base.unit || base.unit.members[0] === base || base.seat !== undefined
+      const fixed = decl.mode !== 'loose'
+      const filled = new Set<string>()
+      if (base.unit) for (const m of base.unit.members) if (m.seatOn === base.id && m.seat !== undefined) filled.add(m.seat)
+      let bodies: WrapBody[] | null = null
+      if (!fixed) {
+        looseBases.add(base.id)
+        if (!placedOn) {
+          placedOn = new Map()
+          for (const b of boxes) {
+            // (a piece that has since had pieces of its own put on it anchors a load, and is still where it was put)
+            if (b.seatOn === undefined || (b.unit && b.unit.members[0] !== b)) continue
+            let list = placedOn.get(b.seatOn)
+            if (!list) placedOn.set(b.seatOn, (list = []))
+            list.push(b)
+          }
+        }
+        const mine = placedOn.get(base.id)
+        if (mine?.length) {
+          bodies = this.cargo.wrapBodies()
+          const at = bodies[bi]!
+          for (const m of mine) {
+            const slot = decl.slots.find((s) => s.name === m.seat)
+            const b = bodies[boxes.indexOf(m)]
+            // still in its place: its box and the slot's overlap, as they had to for it to be put there
+            if (slot && b && aabbOverlap(slotTarget(at.pos, at.quat, slot, b.half), bodyAabb(b.pos, b.quat, b.half))) filled.add(slot.name)
+            else {
+              delete m.seat
+              delete m.seatOn
+            }
+          }
+        }
+      }
+      const open = takes ? openSlots(decl, filled) : []
+      if (open.length > 0) {
+        bodies ??= this.cargo.wrapBodies()
+        const at = bodies[bi]!
+        seat: for (const slot of open) {
+          // a fixture's slot for a part also takes what that part's finished product has become
+          const whole = slot.hold ? getPackage(slot.part)?.assembly : undefined
+          for (let i = 0; i < boxes.length; i++) {
+            const piece = boxes[i]!
+            if (piece === base || piece.seat !== undefined || this.holds.holders.has(piece.id)) continue
+            const became = whole?.becomes !== undefined && piece.product === whole.becomes.part
+            if (piece.product !== slot.part && !became) continue
+            // a piece in a load comes on only as the anchor of it, and with all of it
+            if (piece.unit && (piece.unit === base.unit || piece.unit.members[0] !== piece)) continue
+            const joins = fixed || slot.hold === true
+            if (piece.unit && !joins) continue
+            const place = became ? slotFor(slot, composePose(slotLocal(slot), becomesLocal(whole))) : slot
+            const b = bodies[i]!
+            if (!reachesSlot(at.pos, at.quat, place, b.pos, b.quat, b.half)) continue
+            if (joins) {
+              const alone = !piece.unit
+              if (!this.cargo.seatRow(bi, i, slot.name, slotLocal(place))) continue
+              // what a fixture holds is read through the fixture too, as a load that came on brings its marks
+              if (slot.hold && alone && piece.marks && piece.unit) Object.assign(piece.unit.marks, piece.marks)
+            } else {
+              const to = slotWorld(at.pos, at.quat, place)
+              this.cargo.putRow(i, to.p, to.q, this.cargo.rowVelocity(bi))
+              piece.seat = slot.name
+              piece.seatOn = base.id
+            }
+            filled.add(slot.name)
+            break seat
+          }
+        }
+      }
+      const root = base.unit ? base.unit.members[0]! : base
+      const marks = assemblyMarks(decl, filled)
+      const have = want.get(root)
+      if (!have) want.set(root, marks)
+      else for (const k of Object.keys(marks)) have[k] = have[k] === true || marks[k] === true
+      if (fixed && decl.becomes && isAssembled(decl, filled)) finished.push(base)
+    }
+    for (const [root, marks] of want) this.markAssembly(root, marks)
+    // a piece whose base has gone is just cargo: a joined piece's base has left its load, a placed piece's is no
+    // longer a loose base in the run
+    for (const b of boxes) {
+      if (b.seatOn === undefined) continue
+      const joined = b.unit !== null && b.unit.members[0] !== b
+      if (joined ? b.unit!.members.some((m) => m.id === b.seatOn) : looseBases.has(b.seatOn)) continue
+      delete b.seat
+      delete b.seatOn
+    }
+    // (a base that was a piece of another finished product went with it)
+    for (const base of finished) if (boxes.includes(base)) this.finishProduct(base)
+  }
+
+  /** a load's assembly marks, kept as its slots are (core/cargoAssembly.ts assemblyMarks), on the load or the lone
+   *  base. Written only when one differs, so a base nothing has changed on costs a read. */
+  private markAssembly(root: LiveBox, marks: Readonly<Record<string, boolean>>): void {
+    const have = root.unit ? root.unit.marks : root.marks
+    const next: Record<string, CargoMarkValue> = {}
+    for (const k of Object.keys(marks)) if ((have?.[k] === true) !== marks[k]) next[k] = marks[k]!
+    if (Object.keys(next).length === 0) return
+    if (root.unit) Object.assign(root.unit.marks, next)
+    else root.marks = { ...(root.marks ?? {}), ...next }
+  }
+
+  /** the slot a seated piece is in, and the base whose slot it is; null for a piece in no slot */
+  private seatOf(piece: LiveBox): { base: LiveBox; slot: AssemblySlot } | null {
+    if (piece.seat === undefined || piece.seatOn === undefined || !piece.unit) return null
+    const base = piece.unit.members.find((m) => m.id === piece.seatOn)
+    const slot = base && getPackage(base.product)?.assembly?.slots.find((s) => s.name === piece.seat)
+    return base && slot ? { base, slot } : null
+  }
+
+  /** everything seated on `root` in its load, and on those in turn */
+  private ridersOf(root: LiveBox): LiveBox[] {
+    const out: LiveBox[] = []
+    if (!root.unit) return out
+    const on = new Set<number>([root.id])
+    // pieces are seated after what they sit on, so one pass in member order finds them all; a second catches the rest
+    for (let pass = 0; pass < 2; pass++) {
+      for (const m of root.unit.members) {
+        if (m === root || m.seatOn === undefined || !on.has(m.seatOn) || on.has(m.id)) continue
+        on.add(m.id)
+        out.push(m)
+      }
+    }
+    return out
+  }
+
+  /** the assembly marks a load is to carry now: every base in it has a say, and a mark any of them sets is set */
+  private loadMarks(root: LiveBox): Record<string, boolean> {
+    const out: Record<string, boolean> = {}
+    const members = root.unit ? root.unit.members : [root]
+    for (const m of members) {
+      const decl = getPackage(m.product)?.assembly
+      if (!decl) continue
+      const filled = new Set<string>()
+      for (const r of members) if (r.seatOn === m.id && r.seat !== undefined) filled.add(r.seat)
+      const marks = assemblyMarks(decl, filled)
+      for (const k of Object.keys(marks)) out[k] = out[k] === true || marks[k] === true
+    }
+    return out
+  }
+
+  /**
+   * Take a seated piece out of its load. A component with nothing on it comes out alone. Anything held in a
+   * fixture's slot, and any piece with others seated on it, comes out as one load with all of them (a product lifted
+   * out of its fixture).
+   *
+   * A load has one set of marks, so what was marked while a product stood in its fixture is on both. Out of a
+   * fixture's slot the marks go with what was held: it leaves with all of them but the fixture's own, and the
+   * fixture is left with the marks it had as a bare part and what its slots say now. So a fixture never hands one
+   * product's marks to the next.
+   */
+  private liftSeated(piece: LiveBox): boolean {
+    const seat = this.seatOf(piece)
+    const unit = piece.unit
+    if (!unit) return false
+    const anchor = unit.members[0]!
+    const riders = this.ridersOf(piece)
+    const held = seat?.slot.hold === true
+    if (!held && riders.length === 0) return this.cargo.unseat(piece, [piece])
+    const bare = anchor.marks ? { ...anchor.marks } : null
+    if (!this.cargo.liftOut(piece, riders)) return false
+    const set = (root: LiveBox, marks: Readonly<Record<string, boolean>>, drop: readonly string[]): void => {
+      const to = root.unit ? root.unit.marks : (root.marks ??= {})
+      for (const k of drop) delete to[k]
+      for (const k of Object.keys(marks)) if (marks[k] || to[k] === true) to[k] = marks[k]!
+    }
+    const stays = this.loadMarks(anchor)
+    const goes = this.loadMarks(piece)
+    if (held) {
+      anchor.marks = bare
+      if (anchor.unit) for (const k of Object.keys(anchor.unit.marks)) delete anchor.unit.marks[k]
+      set(anchor, stays, [])
+      set(piece, goes, Object.keys(stays).filter((k) => !(k in goes)))
+    } else {
+      set(anchor, stays, [])
+      set(piece, goes, [])
+      const left = anchor.unit ? anchor.unit.marks : anchor.marks
+      const took = piece.unit ? piece.unit.marks : piece.marks
+      if (left) for (const k of Object.keys(goes)) if (!(k in stays) && left[k] === true) left[k] = false
+      if (took) for (const k of Object.keys(stays)) if (!(k in goes) && took[k] === true) took[k] = false
+    }
+    return true
+  }
+
+  /**
+   * What a hand takes when it takes hold of `box` (a drag, a pin, a grab): the base of an assembled load takes the
+   * whole load; a seated piece comes out of it (liftSeated); a piece of any other load takes the load apart.
+   */
+  takeOut(box: LiveBox): void {
+    const unit = box.unit
+    if (!unit) return
+    if (unit.members.some((m) => m.seat !== undefined)) {
+      if (box === unit.members[0]) return
+      if (box.seat !== undefined && this.liftSeated(box)) return
+    }
+    this.cargo.splitUnit(unit)
+  }
+
+  /**
+   * What a gripper takes of the cargo it closed on. A load is taken whole, by any piece, as ever. The one exception:
+   * when everything it closed on in a load is a thing held in a fixture's slot, or rides on that thing, the thing is
+   * lifted out with what is on it and the fixture stays where it is, for each such thing it closed on. A gripper that
+   * also closed on the fixture itself takes the load whole.
+   */
+  gripTargets(picked: LiveBox[]): LiveBox[] {
+    if (!picked.some((b) => b.seat !== undefined)) return picked
+    const held = (box: LiveBox): LiveBox | null => {
+      for (let cur: LiveBox | undefined = box, n = 0; cur && n < 16; n++) {
+        const seat = this.seatOf(cur)
+        if (!seat) return null
+        if (seat.slot.hold) return cur
+        cur = seat.base
+      }
+      return null
+    }
+    const roots = picked.map(held)
+    return picked.map((box, i) => {
+      const root = roots[i]
+      if (!root || !root.unit || root.unit.members[0] === root) return box
+      const unit = root.unit
+      if (picked.some((p, k) => p.unit === unit && !roots[k])) return box
+      this.liftSeated(root)
+      return root
+    })
+  }
+
+  /**
+   * A finished product becomes one body (AssemblyDecl.becomes): the base and everything on it go, and a body of the
+   * named part stands where they were, with the product's marks, moving as it did, and in the same fixture slot if
+   * the product was held in one. Left for a later step while a hand or gripper holds the product itself, since the
+   * holder's record of it names the base.
+   */
+  private finishProduct(base: LiveBox): void {
+    const decl = getPackage(base.product)?.assembly
+    const pkg = decl?.becomes ? getPackage(decl.becomes.part) : undefined
+    if (!decl?.becomes || !pkg || !isCargoPackage(pkg) || pkg.unit) return
+    const riders = this.ridersOf(base)
+    const nested = !!base.unit && base.unit.members[0] !== base
+    if (!nested && (this.holds.holders.has(base.id) || (base.unit && base.unit.members.length !== riders.length + 1))) return
+    const seat = nested ? this.seatOf(base) : null
+    if (nested && !seat) return
+    // out of its fixture first, which sorts the marks: the product's go with it
+    if (nested && !this.liftSeated(base)) return
+    const marks: Record<string, CargoMarkValue> = { ...(base.marks ?? {}), ...(base.unit?.marks ?? {}) }
+    Object.assign(marks, assemblyMarks(decl, new Set(decl.slots.map((s) => s.name))))
+    const bp = base.body.GetPosition()
+    const bq = base.body.GetRotation()
+    const to = composePose({ p: [bp.GetX(), bp.GetY(), bp.GetZ()], q: [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()] }, becomesLocal(decl))
+    const velocity = this.cargo.rowVelocity(this.boxes.indexOf(base))
+    for (const m of [...riders, base]) {
+      const i = this.boxes.indexOf(m)
+      if (i >= 0) this.cargo.removeBox(i, true)
+    }
+    const born = this.spawnBody(pkg.id, to.p, to.q)
+    if (!born) return
+    born.marks = { ...(born.marks ?? {}), ...marks }
+    const row = this.boxes.indexOf(born)
+    if (!seat) this.cargo.putRow(row, to.p, to.q, velocity)
+    else if (this.cargo.seatRow(this.boxes.indexOf(seat.base), row, seat.slot.name, composePose(slotLocal(seat.slot), becomesLocal(decl))) && born.unit) Object.assign(born.unit.marks, born.marks)
+  }
+
+  /** a cargo body of part `packageId` as it would be if placed at this pose, with its authored attributes as marks */
+  private spawnBody(packageId: string, at: Vec3, turn: Quat): LiveBox | undefined {
+    const view = cargoView({ id: '', type: 'part', packageId, position: [at[0], at[1], at[2]], rotationY: 0, params: {} } as PartInstance)
+    if (!view) return undefined
+    const [hx, hy, hz] = view.halfExtents
+    const own = view.body ? { key: view.body.key, pieces: view.body.pieces, product: packageId, params: view.body.params } : { key: cargoRefKey(packageId, {}), product: packageId, params: {} }
+    const id = this.cargo.createDynamicBox(at[0], at[1], at[2], hx, hy, hz, [turn[0], turn[1], turn[2], turn[3]], view.mass, view.body?.friction ?? cargoFriction(view.kind), view.kind, null, hexToRgb(view.color), own, view.caps)
+    const born = id >= 0 ? this.boxes[this.boxes.length - 1] : undefined
+    if (!born) return undefined
+    born.product = packageId
+    if (Object.keys(view.attributeTypes).length) {
+      born.attrTypes = view.attributeTypes
+      if (Object.keys(view.attributes).length) born.marks = { ...view.attributes }
+    }
+    return born
+  }
+
   // ctx.mark / dress / join: each on the cargo in a named zone of the calling part, in call order. ctx.markHit: on the
   // body a beam of the part hit this step.
   fulfillCargoOps(b: BehaviorRecord, ops: CargoOp[]): void {
@@ -316,4 +625,9 @@ export class CargoFlow {
 function kindOwn(kind: number, size: readonly [number, number, number]): { key: string; product: string; params: Record<string, number | string> } {
   const ref = kindSpawnRef(kind, size)
   return { key: cargoRefKey(ref.packageId, ref.params), product: ref.packageId, params: ref.params as Record<string, number | string> }
+}
+
+/** `slot` with its place moved to `at` (a fixture's slot taking the one body its part's product became) */
+function slotFor(slot: AssemblySlot, at: { p: Vec3; q: Quat }): AssemblySlot {
+  return { ...slot, at: [at.p[0], at.p[1], at.p[2]], quat: [at.q[0], at.q[1], at.q[2], at.q[3]] }
 }
