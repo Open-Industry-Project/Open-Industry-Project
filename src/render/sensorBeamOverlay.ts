@@ -1,28 +1,25 @@
 import { Color, DynamicDrawUsage, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, MeshBasicMaterial, Quaternion, Vector3 } from 'three'
 import type { Object3D, Scene } from 'three'
-import { OVERLAY_LAYER } from './env'
 import { retireInstancedMeshOnly } from './gpuRetire'
 import { bucketCapacity } from './parts/instanceCapacity'
 import { BEAM_GREEN, BEAM_RADIUS, beamGeo } from './parts/sensor'
 
 /**
  * Scene-level renderer for every sensor's beam line (the green/red light-barrier cylinder declared
- * by a `beam` rig link, parts/sdk/rigBeams.ts), drawn as one instanced draw from the overlay pass.
+ * by a `beam` rig link, parts/sdk/rigBeams.ts), drawn as one instanced draw in the main scene pass.
  *
- * Why the beams can't live in their rig group: a beam is `depthWrite: false` (it must not occlude the
- * cargo it stops at), so it must be drawn after what it appears in front of. In the rig it would sit
- * in `partsGroup`, a render-bundle root under WebGPU, and bundles execute at the end of the main
- * pass, so the bundled conveyor hardware draws over it and only green stubs in the guards' discard
- * holes show (WebGL and `?nobundle` are fine). Same failure and fix as the flow arrows (flowArrowBank.ts).
+ * The beam is opaque and writes depth. Under WebGPU the render bundles execute at the end of the pass,
+ * after every other draw, so a translucent beam (no depth write) was painted over by the bundled
+ * conveyor hardware behind it and only green stubs in the guards' holes showed. An opaque beam needs
+ * no draw order: the hardware behind it fails the depth test, solid guard metal in front still hides it,
+ * and it needs no overlay pass, so the mobile tier's single pass draws it the same way.
  *
- * The beams keep `depthTest: true`: the overlay pass runs over the full depth buffer
- * (consolidatedOutlineNode.renderLayeredScene), so solid guard metal still hides them and the discard hole still shows them. depthTest-off
- * would float every beam over its own guard.
+ * Why the beams don't live in their rig group: the rig sits in `partsGroup`, a render-bundle root, and
+ * a beam re-aims every probe, so it would re-record the bundle continuously.
  *
- * Why instanced: outside the bundles the beams are encoded fresh every frame. Per-beam meshes cost a draw +
- * pipeline each, and every show/hide changes the overlay projection-cache signature
- * (consolidatedOutlineNode.overlayVisSig). One InstancedMesh with the tint on `instanceColor` is one draw
- * at any sensor count. It is not a bundle: instances re-aim every probe, so it would re-record continuously.
+ * Why instanced: outside the bundles the beams are encoded fresh every frame, and per-beam meshes cost
+ * a draw and a pipeline each. One InstancedMesh with the tint on `instanceColor` is one draw at any
+ * sensor count.
  *
  * Ownership: rig.ts's probeTick writes each beam's world aim + tint every probe (a beam inherits
  * nothing from its part), and view.tick calls {@link syncSensorBeams} once a frame to
@@ -30,9 +27,9 @@ import { BEAM_GREEN, BEAM_RADIUS, beamGeo } from './parts/sensor'
  */
 
 /** shared beam material - one pipeline for every beam; the per-beam tint rides `instanceColor` */
-const beamMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, toneMapped: false, depthWrite: false })
+const beamMaterial = new MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
 
-/** the container the view parents into the scene and lists in collectOverlays */
+/** the container the view parents into the scene */
 export const sensorBeamGroup = new Group()
 sensorBeamGroup.matrixAutoUpdate = false // identity, never moves - the instances carry world poses
 
@@ -99,13 +96,10 @@ function mintMesh(capacity: number): InstancedMesh {
   mesh.visible = false // empty-bank invariant: a count-0 bank must be invisible, not a no-op draw
   mesh.castShadow = false
   mesh.receiveShadow = false
-  mesh.raycast = () => {} // a visual overlay, never a pick/rest target
-  mesh.renderOrder = 10
+  mesh.raycast = () => {} // a visual cue, never a pick/rest target
   mesh.matrixAutoUpdate = false // identity; the instances carry world poses
-  // frustumCulled=false keeps the overlay pass's cached projection (subPassCache) camera-
-  // independent, matching the gizmo/handles/flow-arrow overlay meshes
+  // the bank's own bounds are the unit cylinder at the origin, which says nothing about where the beams are
   mesh.frustumCulled = false
-  mesh.layers.enable(OVERLAY_LAYER)
   mesh.userData.sensorBeam = true // E2E/debug handle: the beams are not under their part
   mesh.instanceMatrix.setUsage(DynamicDrawUsage)
   // Pre-allocate instanceColor at capacity: three compiles the per-instance colour path into the
@@ -200,16 +194,6 @@ function flush(): void {
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   mesh.visible = n > 0 // empty-bank invariant (see mintMesh)
   visibleCount = n
-}
-
-/**
- * Whether any beam currently draws - the collectOverlays membership gate, so a scene with no
- * sensors (or every beam hidden by its `showParam`/a hidden part) costs no extra sub-pass. Beams start
- * hidden and are shown by the first probe, so a rig built for a catalog thumbnail (never probed)
- * never opens the gate. Read after syncSensorBeams() each frame.
- */
-export function hasVisibleSensorBeam(): boolean {
-  return visibleCount > 0
 }
 
 /** e2e / debugging introspection: every beam's live state, drawn ones first-class */

@@ -201,8 +201,9 @@ These use public API but lean on r187 *behavior*. Each has a canary or gate.
   pass (`Renderer._renderObjects` → `_renderBundles` → `renderBundles.push`) but the backend only
   replays them in `finishRender` → `executeBundles`, *after* every non-bundled opaque and transparent
   draw. Two consequences we depend on. (1) Nothing drawn in the base transparent pass can sit on top
-  of bundled content - which is why the flow arrows, sensor beams and the floor grid all render from
-  the post-main overlay sub-pass instead (viewRegistries.ts `collectOverlays`). (2) The relative order of two
+  of bundled content - which is why the flow arrows and the floor grid render from
+  the post-main overlay sub-pass instead (viewRegistries.ts `collectOverlays`), and why the sensor beams
+  are opaque and write depth (sensorBeamOverlay.ts). (2) The relative order of two
   bundle groups is a draw order, so a group holding `depthWrite:false` transparent draws must come
   last among them: [bundleGroups.ts](../src/render/bundleGroups.ts) `mountOpaqueBundleGroupBefore`
   mounts the opaque-only merges (instance pool output, part batches) ahead of `view.partsGroup`,

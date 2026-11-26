@@ -28,12 +28,11 @@ export function createRigBeams(geo: Extract<PartPackage['geometry'], { kind: 'ri
     if (!link.beam) continue
     const g = linkGroups.get(link.name)!
     const axis = new Vector3(link.beam.axis?.[0] ?? 0, link.beam.axis?.[1] ?? 0, link.beam.axis?.[2] ?? 1).normalize()
-    // Not a mesh under g: the beam renders in the overlay pass, so it must not sit inside the part's
-    // rig (which is bundled under WebGPU, and bundles execute after every base draw, so they would paint
-    // over it). Every beam in the scene is one instance of a shared bank instead: probeTick
-    // writes its world aim + tint below, and `root` is passed so the bank can mirror the part's
-    // visibility each frame. It stays collapsed/undrawn until that first probe, which keeps an
-    // unprobed thumbnail rig out of the overlay gate. See sensorBeamOverlay.ts.
+    // Not a mesh under g: the part's rig is bundled under WebGPU, and a beam re-aims every probe, so
+    // inside it the bundle would re-record continuously. Every beam in the scene is one instance of a
+    // shared bank instead: probeTick writes its world aim + tint below, and `root` is passed so the
+    // bank can mirror the part's visibility each frame. It stays undrawn until that first probe, so an
+    // unprobed thumbnail rig draws no beam. See sensorBeamOverlay.ts.
     beamVisuals.push({ name: link.name, group: g, beam: addSensorBeam(root), axis, range: link.beam.range, ...(link.beam.rangeParam !== undefined ? { rangeParam: link.beam.rangeParam } : {}), ...(link.beam.showParam !== undefined ? { showParam: link.beam.showParam } : {}), paramRange: null, shown: true, tintHit: link.beam.tint === 'hit', lastDist: -1 })
   }
   const probeTick = beamVisuals.length

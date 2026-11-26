@@ -12,7 +12,7 @@ const KEY_BASE = 2.1
 const FILL_BASE = 1.0
 
 /**
- * The editor overlays (the transform/resize/ruler manipulators, sensor beams, flow arrows, the
+ * The editor overlays (the transform/resize/ruler manipulators, flow arrows, the
  * floor grid) are on this layer, in addition to layer 0, so the WebGPU path can draw them in a
  * final sub-pass after the bundled main pass, against its full depth buffer. Render bundles execute
  * after every base draw there (finishRender → executeBundles), so drawn inline they would be painted
@@ -105,8 +105,7 @@ export function createEnvironment(scene: Scene): Environment {
   grid.material.opacity = 0.35
   grid.material.depthWrite = false
   grid.visible = false // off by default; the editor toggles it on via setGridVisible
-  // Drawn in the overlay sub-pass, not inline, like the flow arrows and sensor beams
-  // (flowArrowBank.ts / sensorBeamOverlay.ts). The grid is a depthWrite-off translucent overlay
+  // Drawn in the overlay sub-pass, not inline, like the flow arrows (flowArrowBank.ts). The grid is a depthWrite-off translucent overlay
   // 2 mm above the floor, so inline it would go in the base transparent pass. Under WebGPU render
   // bundles the backend executes bundles last (finishRender → executeBundles), so the bundled
   // building floor would be painted over it and the toggle would show nothing. It keeps depthTest

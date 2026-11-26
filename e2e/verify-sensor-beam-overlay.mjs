@@ -1,17 +1,15 @@
 /* global console, process, window, Image, document */
 // Sensor-beam draw-order gate (WebGPU render bundles).
 //
-// A beam is depthWrite:false (it must not occlude the cargo it stops at), so it relies on being
-// drawn after whatever it should appear in front of. Inside the part's rig it would sit in
-// partsGroup, a render-bundle root under WebGPU, and the backend executes every bundle at the end
-// of the main pass, so the bundled conveyor hardware paints over it: a sensor mounted on a belt
-// shows two green stubs at the holes in the side guards and nothing across the belt. WebGL and ?nobundle
-// are unaffected. So the beams render from the overlay pass (sensorBeamOverlay.ts), like the flow arrows.
+// Under WebGPU the backend executes every render bundle at the end of the main pass. A translucent
+// beam that writes no depth is painted over by the bundled conveyor hardware behind it: a sensor
+// mounted on a belt shows two green stubs at the holes in the side guards and nothing across the
+// belt. WebGL and ?nobundle are unaffected. So the beams are opaque and write depth
+// (sensorBeamOverlay.ts), which holds on the mobile tier's single pass too.
 //
-// That pass exists only for them, so they are also instanced: every sensor's beam is one instance
-// of a single scene-level bank, with the hit length on instanceMatrix and the clear/blocked tint on
-// instanceColor. This gate asserts that too; a per-beam Mesh + per-beam material would add a draw
-// call and a pipeline per sensor.
+// They are also instanced: every sensor's beam is one instance of a single scene-level bank, with
+// the hit length on instanceMatrix and the clear/blocked tint on instanceColor. This gate asserts
+// that too; a per-beam Mesh + per-beam material would add a draw call and a pipeline per sensor.
 //
 // This gate asserts the beam is continuous along its whole length, not merely that green pixels
 // exist somewhere: a plain pixel count scores two guard stubs the same as a healthy beam, which is
@@ -274,7 +272,7 @@ async function arm(label, query, expectWebGPU) {
     // the auto-fit range is the mount's signature: the declared default is 2, a guard mount rewrites
     // it to span the belt (width + 2×outwardOffset), so it must differ from the default
     check(`${label}: mount auto-fit the beam range (proves a real guard mount)`, g.maxRange !== 2 && g.maxRange > 0.2, `maxRange=${g.maxRange}`)
-    check(`${label}: beam stays depth-TESTED (overlay pass must not make it always-on-top)`, g.depthTest === true)
+    check(`${label}: beam stays depth-TESTED (never an always-on-top line)`, g.depthTest === true)
     // the purpose of the bank: N sensors take one instanced draw in a pass that runs only for them
     check(`${label}: beams draw from a single instanced bank`, g.instanced === true && g.bankMeshes === 1, `${g.bankMeshes} bank mesh(es), instanced=${g.instanced}`)
     check(`${label}: the bank hangs off the scene, not the part`, g.inOverlayGroup === true)
@@ -377,9 +375,13 @@ async function arm(label, query, expectWebGPU) {
 
     check(`${label}: beam draws while shown`, (await beamDrawn()) === 1)
 
+    const shownAt = (await beamGeom(page)).screen
     await setParam('showBeam', false)
     await page.waitForTimeout(900)
     check(`${label}: showBeam:false hides the beam`, (await beamDrawn()) === 0)
+    // in pixels too: the bank draws in the main pass, so a hide has to reach the screen, not only the count
+    const hiddenProf = await greenProfile(page, shownAt)
+    check(`${label}: the hidden beam leaves the screen`, !hiddenProf.includes('#'), hiddenProf)
     await setParam('showBeam', true)
     await page.waitForTimeout(900)
     check(`${label}: showBeam:true brings it back`, (await beamDrawn()) === 1)
@@ -406,6 +408,8 @@ async function arm(label, query, expectWebGPU) {
 async function main() {
   try {
     await arm('webgpu-bundles', '', true) // the arm the bug affects
+    // the mobile tier draws one scene pass with no overlay pass after the bundles (a phone on WebGPU)
+    await arm('webgpu-mobile', '?gfx=low', true)
     await arm('webgpu-nobundle', '?nobundle', true)
     await arm('webgl', '?nowebgpu', false)
   } finally {

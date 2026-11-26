@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest'
 import { Color, Group, Matrix4, Object3D, Quaternion, Scene, Vector3 } from 'three'
-import type { InstancedMesh } from 'three'
-import { addSensorBeam, hasVisibleSensorBeam, removeSensorBeam, sensorBeamGroup, syncSensorBeams } from './sensorBeamOverlay'
+import type { InstancedMesh, Material } from 'three'
+import { addSensorBeam, removeSensorBeam, sensorBeamGroup, syncSensorBeams } from './sensorBeamOverlay'
 import type { SensorBeam } from './sensorBeamOverlay'
 import { BEAM_RADIUS } from './parts/sensor'
 
@@ -55,9 +55,15 @@ describe('sensor beam bank', () => {
     const beam = beamFor(root)
     beam.aim(new Vector3(0, 1, 0), new Vector3(0, 0, 1), 2)
     syncSensorBeams()
-    expect(hasVisibleSensorBeam()).toBe(false)
     expect(bank().count).toBe(0)
     expect(bank().visible).toBe(false) // empty-bank invariant: not a count-0 no-op draw
+  })
+
+  it('is opaque and writes depth, so bundled hardware drawn after it cannot paint over it', () => {
+    const m = bank().material as Material
+    expect(m.transparent).toBe(false)
+    expect(m.depthWrite).toBe(true)
+    expect(m.depthTest).toBe(true)
   })
 
   it('a shown beam becomes one instance spanning origin → hit point', () => {
@@ -125,7 +131,7 @@ describe('sensor beam bank', () => {
     root.visible = false // a hide outside any probe seam (WebGPU's staged compile does this)
     syncSensorBeams()
     expect(bank().count).toBe(0)
-    expect(hasVisibleSensorBeam()).toBe(false)
+    expect(bank().visible).toBe(false)
     root.visible = true // ...and the reveal is not a probe seam either
     syncSensorBeams()
     expect(bank().count).toBe(1)

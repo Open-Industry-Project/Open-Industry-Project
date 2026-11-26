@@ -2,7 +2,6 @@
 // main pass: the editor overlays (extracted from view.ts).
 
 import type { Object3D } from 'three'
-import { hasVisibleSensorBeam, sensorBeamGroup } from '../sensorBeamOverlay'
 import { visualStructureEpoch } from '../parts/structureRev'
 import type { Entry, PartTick, PartViewTick, PartProbeTick } from './viewTypes'
 import type { RenderView } from './view'
@@ -105,12 +104,6 @@ export function collectOverlays(view: RegistriesHost): Object3D[] {
   // transparent pass can't draw over bundled content (finishRender executes bundles last),
   // so "always on top" is only deliverable from this post-main sub-pass (see syncFlowArrow)
   if (view.flowArrowBank.hasVisible()) out.push(view.flowArrowBank.group)
-  // sensor beams, for the same reason: a depthWrite-off line inside the bundled parts group would be
-  // painted over by the bundles the backend executes last, leaving only the stubs the guards'
-  // shader-discard holes expose (sensorBeamOverlay.ts). Every beam in the scene is one instanced
-  // draw in this pass, and they stay depth-tested, so this restores the draw order without
-  // turning them into always-on-top lines.
-  if (hasVisibleSensorBeam()) out.push(sensorBeamGroup)
   // the floor reference grid, for the same reason: a depthWrite-off translucent grid 2 mm over the
   // floor would draw in the base transparent pass, which the bundled floor (executed last) paints
   // over, so the toggle would change nothing on screen under WebGPU (env.ts)
