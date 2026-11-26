@@ -119,7 +119,14 @@ async function main() {
 
     const after = await bankMap(page, info.id)
     const lit = await litFrac(page)
-    const dc = await page.evaluate(() => window.__oip.view.getStats().drawCalls)
+    // The visible drawables in the scene graph, not the renderer's draw counter: under render bundles a replayed
+    // frame counts one draw per bundle (8 here, 26 on the whole demo) and a re-recorded one counts every draw, so
+    // that counter reads low on a healthy frame. One visible Mesh or InstancedMesh is one draw (verify-draw-budget.mjs).
+    const dc = await page.evaluate(() => {
+      let n = 0
+      window.__oip.view.scene.traverseVisible((o) => { if (o.isMesh) n++ })
+      return n
+    })
     const grewErrors = errors.slice(errsBeforeGrow)
     const shaderErrors = grewErrors.filter((e) => /not compatible|NodeBuilder|ShaderMaterial|instanceMatrix|out of bounds/i.test(e))
 
@@ -134,10 +141,10 @@ async function main() {
     // 3) render still healthy (a broken reconcile would blank the canvas / crater draws / throw)
     if (shaderErrors.length) return fail(`WebGPU instancing/material error during resize: ${shaderErrors.slice(0, 3).join(' | ')}`)
     if (lit < 0.05) return fail(`canvas nearly blank after resize (lit=${(lit * 100).toFixed(1)}%)`)
-    if (dc < 20) return fail(`draw calls cratered after resize (${dc})`)
+    if (dc < 20) return fail(`the scene's drawables cratered after resize (${dc})`)
     if (errors.length) return fail(`console/page errors present: ${errors.slice(0, 3).join(' | ')}`)
 
-    console.log(`PASS: conveyor ${info.id} (${info.name}) extended ${info.length}->${target}m, hardware ${tBefore}->${tAfter} instances, ${beforeUuids.length} banks all reused (0 re-minted), lit=${(lit * 100).toFixed(0)}%, drawCalls=${dc}`)
+    console.log(`PASS: conveyor ${info.id} (${info.name}) extended ${info.length}->${target}m, hardware ${tBefore}->${tAfter} instances, ${beforeUuids.length} banks all reused (0 re-minted), lit=${(lit * 100).toFixed(0)}%, drawables=${dc}`)
   } finally {
     await page.close().catch(() => {})
     await browser.close().catch(() => {})
