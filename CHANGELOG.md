@@ -34,6 +34,9 @@ The first public source release. The [README](README.md#features) lists what it 
   end-position tags and a stroke time, so a PLC moves the joint with no code in the part, and a spinning joint's to
   **Spin**, with a run tag, a speed tag in rpm and an at-speed tag.
   Editing a joint in the panel no longer drops its `servo`, `rest`, `cosmetic` or param-driven limits.
+- Part Editor: a node's **Grip area** makes a part a gripper without editing its manifest. **Add grip area** adds a
+  node with a pickup box that is moved and sized in the Inspector and drawn over the part while it is selected, and
+  its **PLC control** can be set to **Grip tag**, which writes a behavior with a BOOL grip tag and a BOOL holding tag.
 - Each node of an imported model is drawn by one mesh link, the nearest that keeps it (`keepNode`), so a split
   piece needs no `hideNodes` entry on the model, a piece can be split from inside another, and deleting a piece
   gives it back to the model (Part SDK level 13).

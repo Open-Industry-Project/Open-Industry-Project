@@ -1126,6 +1126,17 @@ The Part Editor writes the same carving for you. Import the model onto a node (*
    are lost. Each joint's param keys are kept on that line too, so a placed copy's tag names stay bound when other
    joints change. A script you wrote is replaced
    only after a confirm, and setting every joint back to None gives the empty template.
+8. **Grip area** makes the part a gripper. **Add grip area** puts a `frame` node under the selected node with a
+   `grip.zone` box, and selects it: move the node to where the tool takes hold (between the fingers, under the cup)
+   and set the box's **Size** and **Center**, or pick **Sphere** for a `grip.radius`. The view draws the area over
+   the part while its node is selected (**Show area** turns that off); it is never drawn in a scene. A gripper takes
+   every cargo body in the area when it closes, so keep the area close to the size of what is gripped. Its
+   **PLC control** has **None**, where the behavior closes it with `ctx.setGrip(name, on)`, and **Grip tag**, which
+   writes the behavior as a joint's PLC control does (the same script and `// oip-panel` line, so a part can have
+   both): a BOOL `Grip` tag in (TRUE takes the cargo in the area, FALSE lets it go) and a BOOL `Holding` tag out.
+   The script is written again when the node is renamed, and without the grip area when the area or its node is
+   removed. A node that already has a `grip` shows the same section, and a size a param sets (`sizeParams`,
+   `radiusParams`) is read-only there.
 
 A piece split under the wrong node can be fixed two ways. **Merge back into model** removes the piece with its
 joint, so the model draws it again, and the pieces under it move up. **Delete** does the same for the node and

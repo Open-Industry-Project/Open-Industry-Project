@@ -3,7 +3,6 @@ import type { BoxFrame } from '../core/frame'
 import { subscribePartDiagnostics } from '../core/parts/partDiagnostics'
 import { getPackage, onPackagesChanged } from '../core/parts/partRegistry'
 import type { AuthorableShapeKind } from './rigTree'
-import type { RigShape } from '../core/parts/partPackage'
 import { IdleUseSession } from '../sim/idlePose'
 import type { PartDiagnostic } from '../sim/validatePart'
 import { moveViewportState, persistViewportState } from './store/storePrefs'
@@ -950,7 +949,7 @@ export class EditorController {
   editRigLink(
     packageId: string,
     linkName: string,
-    patch: { offset?: [number, number, number]; rotation?: [number, number, number]; shape?: RigShape },
+    patch: Parameters<typeof authoringOps.editRigLink>[3],
   ): void {
     authoringOps.editRigLink(this, packageId, linkName, patch)
   }
@@ -1286,6 +1285,8 @@ export class EditorController {
     this.view.setSelection(s.selectedIds)
     // author mode: mirror the read-only rig-node selection (tree- or viewport-driven) as a link outline
     this.view.setRigNodeHighlight(s.selectedRigNode)
+    // and its grip area, where it has one, as the volume it takes cargo from
+    this.view.setGripArea(authoringOps.selectedGripArea(s))
     // F-follow: a selection change ends the consecutive-press run, or retargets an active follow
     cameraOps.syncFocusSelection(this.camera, this.view, s)
     // collab: stream the parts being dragged so peers see the motion live (no-op in solo mode)

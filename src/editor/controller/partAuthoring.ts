@@ -12,9 +12,9 @@ import { fitRigToModel } from '../../core/parts/modelFit'
 import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import { mergeRigPiece as mergedGeometry, releaseKeptNodes, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
-import { isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig, type JointPlcMode } from '../jointPlcControl'
+import { gripConfigKey, isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig, type JointPlcConfig, type JointPlcMode } from '../jointPlcControl'
 import type { AuthorableShapeKind } from '../rigTree'
-import type { PartAsset, PartMaterial, PartPackage, RigGeometry, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
+import type { PartAsset, PartMaterial, PartPackage, RigGeometry, RigGrip, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
 import type { PackageManifest } from '../../sim/buildPackage'
 import { parsePartBytes, parsePartText } from '../parts/partFile'
@@ -24,6 +24,8 @@ import { validatePart } from '../../sim/validatePart'
 import type { PartDiagnostic } from '../../sim/validatePart'
 import type { SdkPart } from '../../core/types'
 import type { EditorController } from '../controller'
+import type { EditorState } from '../store/store'
+import { linkCollisionBox, resolvedGrabReach, resolvedGrabZone, shapeHalfExtents, type RigParams } from '../../core/rig/rigPose'
 
 /** what part authoring reads and drives: the store (packages, selection, undo), the view (the rig gizmo's held pose),
  *  the read-only gate, and opening a definition as its own scene */
@@ -33,7 +35,7 @@ export function editRigLink(
   ec: AuthoringDeps,
   packageId: string,
   linkName: string,
-  patch: { offset?: [number, number, number]; rotation?: [number, number, number]; shape?: RigShape },
+  patch: { offset?: [number, number, number]; rotation?: [number, number, number]; shape?: RigShape; grip?: RigGrip | null },
 ): void {
   const pkg = getPackage(packageId)
   if (!pkg || pkg.geometry.kind !== 'rig') return
@@ -47,9 +49,14 @@ export function editRigLink(
       delete next.quat
     }
     if (patch.shape) next.shape = patch.shape
+    // the node's grip area (RigLink.grip); null takes it away
+    if (patch.grip === null) delete next.grip
+    else if (patch.grip) next.grip = patch.grip
     return next
   })
-  ec.store.commitPackage('Edit node', { ...pkg, geometry: { ...pkg.geometry, links } }, { coalesceKey: `rig:${packageId}:${linkName}` })
+  const edited = { ...pkg, geometry: { ...pkg.geometry, links } }
+  // a grip area taken away goes out of a panel-written script with it
+  ec.store.commitPackage('Edit node', patch.grip === null ? withJointPlcScript(edited) : edited, { coalesceKey: `rig:${packageId}:${linkName}` })
 }
 
 export function setRigLinkHidden(ec: AuthoringDeps, packageId: string, linkName: string, hidden: boolean): void {
@@ -77,10 +84,18 @@ export function renameRigNode(
   const next = renameRigLink(pkg.geometry, linkName, rawName)
   if (!next) return false // blank/unchanged/colliding name - nothing to commit (and no prompt)
   const newName = rawName.trim()
-  // guarded behavior-source half: rewrite whole-literal link-name args only when the author opts in
-  const rewrite = renameRigNameRefs(pkg.behavior, linkName, newName)
-  const behavior = rewrite.count > 0 && confirmBehaviorRewrite?.(rewrite.count) ? rewrite.source : pkg.behavior
-  ec.store.commitPackage('Rename node', { ...pkg, behavior, geometry: { ...pkg.geometry, links: next.links, joints: next.joints } })
+  const geometry = { ...pkg.geometry, links: next.links, joints: next.joints }
+  // a panel-written script that drives this node's grip area is written again under the new name, with nothing asked
+  const config = readJointPlcConfig(pkg.behavior)
+  if (config?.[gripConfigKey(linkName)]) {
+    const renamed = Object.fromEntries(Object.entries(config).map(([k, v]) => [k === gripConfigKey(linkName) ? gripConfigKey(newName) : k, v]))
+    ec.store.commitPackage('Rename node', withJointPlcScript({ ...pkg, geometry }, renamed))
+  } else {
+    // guarded behavior-source half: rewrite whole-literal link-name args only when the author opts in
+    const rewrite = renameRigNameRefs(pkg.behavior, linkName, newName)
+    const behavior = rewrite.count > 0 && confirmBehaviorRewrite?.(rewrite.count) ? rewrite.source : pkg.behavior
+    ec.store.commitPackage('Rename node', { ...pkg, behavior, geometry })
+  }
   // keep the renamed node selected under its new identity (so the Inspector + highlight don't drop it)
   const st = ec.store.getState()
   const sel = st.selectedRigNode
@@ -161,6 +176,43 @@ export function addRigNode(ec: AuthoringDeps, packageId: string, parentLinkName:
   while (links.some((l) => l.name === name)) name = `node-${++n}`
   const node: RigLink = { name, parent: parentLinkName, shape: defaultShape(kind), offset: [0, 0.3, 0] }
   ec.store.commitPackage('Add node', { ...pkg, geometry: { ...pkg.geometry, links: [...links, node] } })
+  const focused = ec.store.getState().focusedPartId
+  if (focused) ec.store.selectRigNode(focused, name)
+}
+
+/** The grip area of the selected rig node, as the view draws it (RenderView.setGripArea): the volume the sim takes
+ *  cargo from (sim/rigDriver.ts), so a box by its resolved zone, else the sphere past the node's own half extent. */
+export function selectedGripArea(s: Pick<EditorState, 'selectedRigNode' | 'scene'>): Parameters<EditorController['view']['setGripArea']>[0] {
+  const sel = s.selectedRigNode
+  if (!sel) return null
+  const part = s.scene.parts.find((p) => p.id === sel.partId)
+  if (part?.type !== 'part') return null
+  const geometry = getPackage((part as SdkPart).packageId)?.geometry
+  const link = geometry?.kind === 'rig' ? geometry.links.find((l) => l.name === sel.linkName) : undefined
+  if (!link?.grip) return null
+  const params = (part as SdkPart).params as RigParams
+  const zone = resolvedGrabZone(link, params)
+  if (zone) return { ...sel, box: zone }
+  const he = shapeHalfExtents(link.shape, linkCollisionBox(link))
+  return { ...sel, radius: Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, params) }
+}
+
+/** the side of a new grip area's box (m): a small part's worth, sized afterwards in the Inspector */
+const NEW_GRIP_SIZE = 0.1
+
+/**
+ * Add a grip area under `parentLinkName`: a child frame node with a box pickup volume (RigLink.grip) centred on the
+ * parent's origin, selected so it can be moved and sized next. A node of its own, so the area is placed with the
+ * node's Offset and the move gizmo like anything else in the part.
+ */
+export function addGripArea(ec: AuthoringDeps, packageId: string, parentLinkName: string): void {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return
+  const links = pkg.geometry.links
+  let name = 'grip'
+  for (let n = 2; links.some((l) => l.name === name); n++) name = `grip-${n}`
+  const node: RigLink = { name, parent: parentLinkName, shape: defaultShape('frame'), offset: [0, 0, 0], grip: { zone: { size: [NEW_GRIP_SIZE, NEW_GRIP_SIZE, NEW_GRIP_SIZE] } } }
+  ec.store.commitPackage('Add grip area', { ...pkg, geometry: { ...pkg.geometry, links: [...links, node] } })
   const focused = ec.store.getState().focusedPartId
   if (focused) ec.store.selectRigNode(focused, name)
 }
@@ -292,14 +344,33 @@ export function setRigJoint(
   ec.store.commitPackage(joint ? 'Edit joint' : 'Remove joint', withJointPlcScript({ ...pkg, geometry: { ...pkg.geometry, joints } }))
 }
 
-/** `pkg` with a panel-written PLC control script written again for its joints (their limits, or their removal).
- *  Every edit that changes or removes joints commits through this: a script still naming a removed joint does not
- *  build. Any other script, or a rewrite that does not build, leaves `pkg` as it is. */
-function withJointPlcScript(pkg: PartPackage): PartPackage {
-  const config = readJointPlcConfig(pkg.behavior)
+/** `pkg` with a panel-written PLC control script written again for its joints and grip areas (a joint's limits, or
+ *  the removal of either). Every edit that changes or removes them commits through this: a script still naming a
+ *  removed joint does not build. Any other script, or a rewrite that does not build, leaves `pkg` as it is.
+ *  `config`: what to write it for, when that is not what the script says now (a renamed node). */
+function withJointPlcScript(pkg: PartPackage, config: JointPlcConfig | null = readJointPlcConfig(pkg.behavior)): PartPackage {
   if (!config || pkg.geometry.kind !== 'rig') return pkg
-  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints))
+  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints, pkg.geometry.links))
   return result.ok && result.package ? result.package : pkg
+}
+
+/**
+ * Set the panel's PLC control for one node's grip area: Grip tag (`on`) or none, by writing the behavior script. A
+ * script the panel did not write is replaced only after `confirmReplace`.
+ */
+export function setGripPlcControl(ec: AuthoringDeps, packageId: string, linkName: string, on: boolean, confirmReplace?: () => boolean): boolean {
+  const pkg = getPackage(packageId)
+  if (!pkg || pkg.geometry.kind !== 'rig') return false
+  if (!isReplaceableBehavior(pkg.behavior) && !confirmReplace?.()) return false
+  const config = { ...readJointPlcConfig(pkg.behavior) }
+  const at = gripConfigKey(linkName)
+  // a grip area already driven keeps its key stem, so its placed copies' tag names stay bound
+  if (!on) delete config[at]
+  else config[at] ??= { mode: 'grip' }
+  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints, pkg.geometry.links))
+  if (!result.ok || !result.package) return false
+  ec.store.commitPackage('PLC control', result.package, { coalesceKey: `plc:${packageId}:${at}` })
+  return true
 }
 
 /**
@@ -321,7 +392,7 @@ export function setJointPlcControl(
   if (mode === null) delete config[jointName]
   // a joint already driven keeps its key stem, so its placed copies' tag names stay bound
   else config[jointName] = key ? { ...mode, key } : mode
-  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints))
+  const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints, pkg.geometry.links))
   if (!result.ok || !result.package) return false
   ec.store.commitPackage('PLC control', result.package, { coalesceKey: `plc:${packageId}:${jointName}` })
   return true
@@ -337,6 +408,9 @@ export function rigEdits(ec: AuthoringDeps) {
     reparentRigLink: (packageId: string, linkName: string, parent: string | undefined): boolean => reparentRigLink(ec, packageId, linkName, parent),
     setJointPlcControl: (packageId: string, jointName: string, mode: JointPlcMode | null, confirmReplace?: () => boolean): boolean =>
       setJointPlcControl(ec, packageId, jointName, mode, confirmReplace),
+    addGripArea: (packageId: string, parentLinkName: string): void => addGripArea(ec, packageId, parentLinkName),
+    setGripPlcControl: (packageId: string, linkName: string, on: boolean, confirmReplace?: () => boolean): boolean =>
+      setGripPlcControl(ec, packageId, linkName, on, confirmReplace),
   }
 }
 

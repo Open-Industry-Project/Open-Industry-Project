@@ -1,12 +1,14 @@
-// PLC control for a joint without code: the Joint section's PLC control modes. The panel writes the whole behavior
-// script from a config line kept at its top, so the mode is read back from the script itself and nothing is added to
-// the manifest format.
+// PLC control for a joint or a grip area without code: the PLC control modes of the node Inspector's Joint and Grip
+// area sections. The panel writes the whole behavior script from a config line kept at its top, so the mode is read
+// back from the script itself and nothing is added to the manifest format.
 //   Two positions (a sliding or turning joint with limits): a BOOL command tag (TRUE drives to B = max, FALSE back to
 //     A = min), two BOOL end-position tags and a stroke time; the joint ramps at a constant speed.
 //   Spin (a joint that spins endlessly, a wrapping servo): a BOOL run tag, an optional speed tag in rpm (empty: the
 //     placed copy's own speed), and a BOOL at-speed tag; the host runs the servo at that velocity.
+//   Grip tag (a node with a grip area, RigLink.grip): a BOOL tag that closes the gripper while TRUE, and a BOOL tag
+//     that says it holds cargo.
 
-import type { RigJoint } from '../core/parts/partPackage'
+import type { RigJoint, RigLink } from '../core/parts/partPackage'
 
 /** One joint's Two positions control. `time` is the stroke time A to B, in seconds. */
 export interface TwoPositions {
@@ -24,8 +26,22 @@ export interface Spin {
 
 export type JointPlcMode = TwoPositions | Spin
 
-/** The joints the panel drives, by joint name. */
-export type JointPlcConfig = Record<string, JointPlcMode>
+/** One grip area's control: the PLC closes the gripper and reads whether it holds cargo. */
+export interface GripTag {
+  mode: 'grip'
+  key?: string
+}
+
+/** What the panel drives: the joints by joint name, and the grip areas by {@link gripConfigKey} of their node. */
+export type JointPlcConfig = Record<string, JointPlcMode | GripTag>
+
+const GRIP_PREFIX = 'grip:'
+
+/** The config key of a node's grip area. Not the node's bare name: a joint is often named after its node. */
+export const gripConfigKey = (link: string): string => GRIP_PREFIX + link
+
+/** The node a config key names the grip area of */
+const gripLinkOf = (key: string): string => key.slice(GRIP_PREFIX.length)
 
 const CONFIG_PREFIX = '// oip-panel '
 
@@ -50,6 +66,7 @@ export function readJointPlcConfig(behavior: string): JointPlcConfig | null {
       const key = typeof c?.key === 'string' && KEY_RE.test(c.key) ? { key: c.key } : {}
       if (c?.mode === 'twoPositions' && typeof c.time === 'number' && c.time > 0) out[name] = { mode: 'twoPositions', time: c.time, ...key }
       else if (c?.mode === 'spin') out[name] = { mode: 'spin', ...key }
+      else if (c?.mode === 'grip' && name.startsWith(GRIP_PREFIX)) out[name] = { mode: 'grip', ...key }
     }
     return out
   } catch {
@@ -81,6 +98,11 @@ function fits(mode: JointPlcMode, joint: RigJoint): boolean {
   return mode.mode === 'spin' ? canSpin(joint) : canTwoPositions(joint)
 }
 
+/** Whether a node can take Grip tag: one with a grip area that is not repeated (a copy of an array grips by index). */
+export function canGripTag(link: RigLink): boolean {
+  return !!link.grip && !link.array
+}
+
 /** The param keys of one joint: identifiers made from its name, unique within the script. */
 function keyBase(name: string, taken: Set<string>): string {
   const words = name.split(/[^A-Za-z0-9]+/).filter(Boolean)
@@ -107,11 +129,13 @@ function keyStems(config: JointPlcConfig): Record<string, string> {
   return out
 }
 
-/** The PLC-facing param keys the script declares for each configured joint. */
-export function jointPlcKeys(config: JointPlcConfig): Record<string, { toB: string; atA: string; atB: string; time: string; run: string; speed: string; atSpeed: string; rpm: string }> {
+/** The PLC-facing param keys the script declares for each configured joint or grip area. */
+export function jointPlcKeys(
+  config: JointPlcConfig,
+): Record<string, { toB: string; atA: string; atB: string; time: string; run: string; speed: string; atSpeed: string; rpm: string; close: string; holding: string }> {
   const out: ReturnType<typeof jointPlcKeys> = {}
   for (const [name, k] of Object.entries(keyStems(config))) {
-    out[name] = { toB: `${k}ToB`, atA: `${k}AtA`, atB: `${k}AtB`, time: `${k}Time`, run: `${k}Run`, speed: `${k}Speed`, atSpeed: `${k}AtSpeed`, rpm: `${k}Rpm` }
+    out[name] = { toB: `${k}ToB`, atA: `${k}AtA`, atB: `${k}AtB`, time: `${k}Time`, run: `${k}Run`, speed: `${k}Speed`, atSpeed: `${k}AtSpeed`, rpm: `${k}Rpm`, close: `${k}Close`, holding: `${k}Holding` }
   }
   return out
 }
@@ -120,16 +144,21 @@ const num = (n: number): string => String(Math.round(n * 1e9) / 1e9)
 const RPM = (2 * Math.PI) / 60
 
 /**
- * The behavior script for `config` over the rig's joints. A configured joint that no longer exists or can no longer
- * take its mode is dropped. An empty config gives the new-part template back.
+ * The behavior script for `config` over the rig's joints and links. A configured joint or grip area that no longer
+ * exists or can no longer take its mode is dropped. An empty config gives the new-part template back.
  */
-export function jointPlcBehavior(rawPartName: string, config: JointPlcConfig, joints: readonly RigJoint[]): string {
+export function jointPlcBehavior(rawPartName: string, config: JointPlcConfig, joints: readonly RigJoint[], links: readonly RigLink[] = []): string {
   // the name goes into a // comment, so a line break in it would end the comment
   const partName = rawPartName.replace(/[\r\n\u2028\u2029]+/g, ' ')
   // stems over the whole config, before any joint is dropped, so the joints that stay keep theirs
   const stems = keyStems(config)
   const live: JointPlcConfig = {}
   for (const [name, c] of Object.entries(config)) {
+    if (c.mode === 'grip') {
+      const l = links.find((x) => x.name === gripLinkOf(name))
+      if (l && canGripTag(l)) live[name] = { ...c, key: stems[name]! }
+      continue
+    }
     const j = joints.find((x) => x.name === name)
     if (j && fits(c, j)) live[name] = { ...c, key: stems[name]! }
   }
@@ -148,16 +177,27 @@ export function jointPlcBehavior(rawPartName: string, config: JointPlcConfig, jo
     ].join('\n')
   }
   const keys = jointPlcKeys(live)
-  // one joint: plain labels. Several: each label names its joint.
-  const label = (name: string, text: string): string => JSON.stringify(names.length > 1 ? `${name}: ${text}` : text)
+  // one joint or grip area: plain labels. Several: each label names its joint, or its grip area's node.
+  const label = (name: string, text: string): string => JSON.stringify(names.length > 1 ? `${live[name]!.mode === 'grip' ? gripLinkOf(name) : name}: ${text}` : text)
   const params: string[] = []
   const calls: string[] = []
   const posed = names.filter((n) => live[n]!.mode === 'twoPositions')
   const spun = names.filter((n) => live[n]!.mode === 'spin')
+  const gripped = names.filter((n) => live[n]!.mode === 'grip').map(gripLinkOf)
   for (const name of names) {
-    const j = joints.find((x) => x.name === name)!
     const k = keys[name]!
     const c = live[name]!
+    if (c.mode === 'grip') {
+      params.push(
+        `    ${k.close}: { type: 'tag', dir: 'in', stType: 'BOOL', default: '', group: 'Comms', label: ${label(name, 'Grip')},`,
+        `      desc: 'TRUE closes the gripper: it takes the cargo in its grip area. FALSE lets it go. Empty: it stays open.' },`,
+        `    ${k.holding}: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', group: 'Comms', label: ${label(name, 'Holding')},`,
+        `      desc: 'TRUE while the gripper holds cargo.' },`,
+      )
+      calls.push(`    grip(ctx, ${JSON.stringify(gripLinkOf(name))}, p.${k.close}, p.${k.holding})`)
+      continue
+    }
+    const j = joints.find((x) => x.name === name)!
     if (c.mode === 'twoPositions') {
       const unit = j.type === 'revolute' ? 'rad' : 'm'
       params.push(
@@ -225,9 +265,20 @@ export function jointPlcBehavior(rawPartName: string, config: JointPlcConfig, jo
       ``,
     )
   }
+  if (gripped.length > 0) {
+    helpers.push(
+      `// Closes a gripper while its tag is TRUE, and reports whether it holds cargo (as of the tick before).`,
+      `function grip(ctx, link, close, holding) {`,
+      `  ctx.setGrip(link, close ? ctx.readTag(close) === true : false)`,
+      `  if (holding) ctx.writeTag(holding, ctx.measured.grips[link] === true)`,
+      `}`,
+      ``,
+    )
+  }
   return [
-    `// ${partName} - written by the Part Editor (Joint > PLC control). Changing a joint's PLC control or limits there`,
-    `// writes this script again, so edits made here are lost. Set every joint's PLC control to None to write your own.`,
+    `// ${partName} - written by the Part Editor (PLC control of a joint or a grip area). Changing a PLC control, a`,
+    `// joint's limits or a grip area there writes this script again, so edits made here are lost. Set every PLC control`,
+    `// to None to write your own.`,
     `${CONFIG_PREFIX}${JSON.stringify(live)}`,
     ``,
     ...helpers,
@@ -237,6 +288,7 @@ export function jointPlcBehavior(rawPartName: string, config: JointPlcConfig, jo
     `  },`,
     ...(posed.length > 0 ? [`  joints: ${JSON.stringify(posed)},`] : []),
     ...(spun.length > 0 ? [`  servos: ${JSON.stringify(spun)},`] : []),
+    ...(gripped.length > 0 ? [`  grippers: ${JSON.stringify(gripped)},`] : []),
     `  step(ctx) {`,
     `    const p = ctx.params`,
     ...calls,

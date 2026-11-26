@@ -72,6 +72,7 @@ import type { GpuTextureAuditResult } from './gpuTextureAudit'
 import { TransformGizmo } from './gizmo'
 import { ResizeHandles } from './handles'
 import { RigGizmoOverlay } from './rigGizmoOverlay'
+import { GripAreaOverlay, type GripAreaView } from './gripAreaOverlay'
 import { OrbitGizmo } from './orbitGizmo'
 import * as robotGizmoDrag from './robotGizmoDrag'
 import type { RobotDrag } from './robotGizmoDrag'
@@ -188,6 +189,8 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
   readonly handles = new ResizeHandles()
   /** internal - the robot pose gizmo's drawing, for viewport modules (robotGizmoDrag.ts) */
   readonly rigGizmoOverlay = new RigGizmoOverlay()
+  /** internal - the grip area of the rig node selected in the Part Editor, drawn (gripAreaOverlay.ts) */
+  readonly gripArea = new GripAreaOverlay()
   /** internal - for viewport modules */
   readonly entries = new Map<string, Entry>()
   readonly seen = new Set<string>()
@@ -566,6 +569,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
       this.gizmo.root,
       this.handles.root,
       this.rigGizmoOverlay.root,
+      this.gripArea.root,
       this.overlays.rulerGroup,
       this.walk.presenceGroup,
     )
@@ -812,6 +816,31 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     if (a === sel || (a && sel && a.partId === sel.partId && a.linkName === sel.linkName)) return
     this.outlineState.rigHighlight = sel
     this.refreshOutline()
+  }
+
+  /** Author mode: draw one rig node's grip area (its pickup volume, in the node's frame) over the part; null clears. */
+  setGripArea(area: GripAreaView | null): void {
+    // the overlay enters or leaves collectOverlays with no syncScene, as the flow arrows' toggle does: without the
+    // epoch bump the overlay pass would replay its cached list
+    if (this.gripArea.set(area)) notifyBundleStructureChanged()
+  }
+
+  /** Author mode: whether grip areas are drawn at all (the node Inspector's Show area). */
+  setGripAreaShown(on: boolean): void {
+    if (this.gripArea.setEnabled(on)) notifyBundleStructureChanged()
+  }
+
+  get gripAreaShown(): boolean {
+    return this.gripArea.enabled
+  }
+
+  /** lay the shown grip area out on its node, after the matrix walk */
+  private layoutGripArea(): void {
+    const area = this.gripArea.target
+    if (!area) return
+    const entry = this.entries.get(area.partId)
+    const g = entry ? findLinkGroup(entry.visual.object, area.linkName) : null
+    this.gripArea.layout(g ? g.matrixWorld : null)
   }
 
   /**
@@ -1969,6 +1998,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.gizmo.dispose()
     this.handles.dispose()
     this.rigGizmoOverlay.dispose()
+    this.gripArea.dispose()
     for (const entry of this.entries.values()) {
       entry.visual.dispose()
       if (entry.proxy) disposeCollisionProxy(entry.proxy)
@@ -2256,6 +2286,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
     this.poolRebuildOnStructureSettled()
     // the owned world-matrix walk: after every mutator above, before the bundle patch + render
     this.updateWorldMatrices()
+    this.layoutGripArea()
     // palette-merged mask: after the matrix walk (it reads the selected meshes' fresh
     // matrixWorld), before the outline draws it. Re-bakes only when the merged set went stale.
     this.maskMerge?.tick()

@@ -329,6 +329,14 @@ export interface IRenderView {
   setSelection(ids: readonly string[]): void
   /** author mode: outline one internal rig link of a custom part (read-only inspection); null clears */
   setRigNodeHighlight(sel: { partId: string; linkName: string } | null): void
+  /** author mode: draw one rig node's grip area (its pickup volume, in the node's own frame, metres): a box by its
+   *  half extents and centre, else a sphere of `radius` about the node's origin; null clears */
+  setGripArea(
+    area: { partId: string; linkName: string; box?: { half: readonly [number, number, number]; offset: readonly [number, number, number] }; radius?: number } | null,
+  ): void
+  /** author mode: whether grip areas are drawn at all */
+  setGripAreaShown(on: boolean): void
+  readonly gripAreaShown: boolean
   /** re-apply every placed instance of a package after its geometry changed in the registry (edit/hot-reload) */
   refreshPackage(id: string): void
   /** author-mode gizmo placement for a rig node: its world position + its parent's world matrix; null if absent */
