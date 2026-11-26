@@ -40,6 +40,9 @@ const GRIP_PREFIX = 'grip:'
 /** The config key of a node's grip area. Not the node's bare name: a joint is often named after its node. */
 export const gripConfigKey = (link: string): string => GRIP_PREFIX + link
 
+/** whether the panel's config drives `link`'s grip area */
+export const hasGripTag = (config: JointPlcConfig | null, link: string): boolean => config?.[gripConfigKey(link)]?.mode === 'grip'
+
 /** The node a config key names the grip area of */
 const gripLinkOf = (key: string): string => key.slice(GRIP_PREFIX.length)
 

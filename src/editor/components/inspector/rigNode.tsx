@@ -15,7 +15,7 @@ import type { LinkFieldOwner, LinkNote } from '../../../core/rig/rigPose'
 import { AUTHORABLE_SHAPE_KINDS, canDeleteRigNode, convertShape, isAuthorableShapeKind, shapeLabel } from '../../rigTree'
 import { keptNodes, movingPartCentre, reparentTargets, rigPivot, splitSourcesFor } from '../../rigSplit'
 import { drawnElsewhere, meshLinkBox, parseGlb } from '../../../core/glbBox'
-import { canSpin, canTwoPositions, DEFAULT_STROKE_TIME, gripConfigKey, readJointPlcConfig, type JointPlcMode } from '../../jointPlcControl'
+import { canSpin, canTwoPositions, DEFAULT_STROKE_TIME, hasGripTag, readJointPlcConfig, type JointPlcMode } from '../../jointPlcControl'
 import { base64ToBytes } from '../../../core/parts/partAssets'
 import type { AuthorableShapeKind } from '../../rigTree'
 import type { EditorStore } from '../../store/store'
@@ -1187,7 +1187,7 @@ export function RigNodePanel({
         )}
 
       </Fold>
-      <GripAreaSection part={part} link={link} controller={controller} gripPlc={!!plcConfig?.[gripConfigKey(link.name)]} folds={folds} toggle={toggle} />
+      <GripAreaSection part={part} link={link} controller={controller} gripPlc={hasGripTag(plcConfig, link.name)} folds={folds} toggle={toggle} />
       <Fold title={t(M.node)} path="Node" collapsed={folds} toggle={toggle}>
         <label className="field">
           <span className="field-label" title={t(M.newNodeTip)}>

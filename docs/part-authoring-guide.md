@@ -587,7 +587,7 @@ and squares against a side guard. See [sdk-geometry-flexibility.md](sdk-geometry
 moves rigidly (a palletizer head taking a formed layer, a fork carrying a pallet and its stack). There is no
 single/multi-pick switch: `grip.zone` is how you say how much the tool holds. Declare a zone on any gripper
 wider than what it grips. A gripper made for one part says so with `grip.takes: { part, at?, rotation?, reach?,
-maxTurn? }`: it takes the nearest body of that part in its volume and no other cargo, and holds it at `at` /
+maxTurn?, snap? }`: it takes the nearest body of that part in its volume and no other cargo, and holds it at `at` /
 `rotation` (Euler XYZ, radians) in the link's frame, moving it there as it takes it (`snap: false` holds it as it
 lies). `reach` (m) and `maxTurn` (degrees: one number for the whole turn, or three for the turn about the held
 part's X, Y and Z) leave a body that lies further off than that, and `measured.grips` stays false for it. A body in a unit

@@ -111,9 +111,13 @@ export function GripAreaSection({
   }
   // Takes: a gripper made for one part (RigGrip.takes), which holds it at a set place and may leave one that lies off
   const takes = grip?.takes
-  const cargoParts = listPackages()
-    .filter((p) => isCargoPackage(p) && p.id !== part.packageId)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  // listed only where the choice is offered
+  const cargoParts =
+    grip && !grip.forks
+      ? listPackages()
+          .filter((p) => isCargoPackage(p) && p.id !== part.packageId)
+          .sort((a, b) => a.name.localeCompare(b.name))
+      : []
   const setTakes = (next: RigGripTakes | null): void => {
     if (!grip) return
     const rest: RigGrip = { ...grip }

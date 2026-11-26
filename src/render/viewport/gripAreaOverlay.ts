@@ -16,7 +16,9 @@ import { BoxGeometry, EdgesGeometry, Group, LineBasicMaterial, LineSegments, Mat
 import type { Object3D } from 'three'
 import type { PartInstance } from '../../core/types'
 import { OVERLAY_LAYER } from '../env'
+import { getPackage } from '../../core/parts/partRegistry'
 import { createPartVisual, type PartVisual } from '../parts/registry'
+import { PREVIEW_FLOOR_LIFT } from '../parts/sdk/cargo'
 
 /** A grip area to draw, in its node's own frame (metres). */
 export interface GripAreaView {
@@ -37,7 +39,7 @@ const _local = new Matrix4()
 const _scale = new Vector3()
 const _at = new Vector3()
 const _q = new Quaternion()
-const _one = new Vector3(1, 1, 1)
+const _shift = new Matrix4()
 
 function overlayObject<T extends Object3D>(o: T, order: number): T {
   o.layers.enable(OVERLAY_LAYER)
@@ -78,6 +80,8 @@ export class GripAreaOverlay {
   readonly heldRoot = new Group()
   private heldVisual: PartVisual | null = null
   private heldPackage: string | null = null
+  /** how far the held part's visual draws above its own centre (a cargo part's placement preview), taken out here */
+  private heldLift = 0
   private area: GripAreaView | null = null
   private shown = true
 
@@ -130,6 +134,7 @@ export class GripAreaOverlay {
     this.dropHeld()
     this.heldPackage = packageId
     if (packageId === null) return
+    this.heldLift = getPackage(packageId)?.geometry.kind === 'cargo' ? PREVIEW_FLOOR_LIFT : 0
     try {
       const part = { id: 'grip-area-held', type: 'part', packageId, position: [0, 0, 0], rotationY: 0, params: {} } as unknown as PartInstance
       this.heldVisual = createPartVisual(part)
@@ -167,8 +172,11 @@ export class GripAreaOverlay {
     if (a.held && this.heldVisual) {
       _at.set(a.held.at[0], a.held.at[1], a.held.at[2])
       _q.set(a.held.quat[0], a.held.quat[1], a.held.quat[2], a.held.quat[3])
-      _local.compose(_at, _q, _one)
+      // the part keeps its own size in a scaled rig, as its body does in a run: the node's scale is taken back out
+      const scale = _scale.setFromMatrixColumn(linkWorld, 0).length() || 1
+      _local.compose(_at, _q, _scale.setScalar(1 / scale))
       this.heldRoot.matrix.multiplyMatrices(linkWorld, _local)
+      if (this.heldLift) this.heldRoot.matrix.multiply(_shift.makeTranslation(0, -this.heldLift, 0))
       // every frame: the part's model arrives after its visual is built, and joins at the root's matrix as it is then
       this.heldRoot.updateMatrixWorld(true)
     }

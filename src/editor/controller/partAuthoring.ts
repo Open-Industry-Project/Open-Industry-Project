@@ -2,7 +2,7 @@
 // behavior script, importing and creating parts. No state of its own: every edit is a package commit through
 // the store, so each function takes only the narrow slice of the controller it uses (AuthoringDeps).
 
-import { getPackage, hasPackage, listPackages, registerPackage } from '../../core/parts/partRegistry'
+import { getPackage, hasPackage, listPackages, registerPackage, registryRevision } from '../../core/parts/partRegistry'
 import { packageCategory, sameCategory } from '../../core/parts/partCategory'
 import { behaviorMentions, renameRigJoint as renamedJoints, renameRigLink, renameRigNameRefs } from '../../core/parts/partPackage'
 import { validatePartPackage } from '../../core/parts/partValidate'
@@ -12,7 +12,7 @@ import { fitRigToModel } from '../../core/parts/modelFit'
 import { meshLinkBox, parseGlb, type Box3Like } from '../../core/glbBox'
 import { canDeleteRigNode, defaultShape, rigSubtree } from '../rigTree'
 import { mergeRigPiece as mergedGeometry, releaseKeptNodes, reparentRigLink as reparentedGeometry, setRigPivot as pivotedGeometry, splitRigNode as splitGeometry } from '../rigSplit'
-import { gripConfigKey, isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig, type JointPlcConfig, type JointPlcMode } from '../jointPlcControl'
+import { gripConfigKey, hasGripTag, isReplaceableBehavior, jointPlcBehavior, readJointPlcConfig, type JointPlcConfig, type JointPlcMode } from '../jointPlcControl'
 import type { AuthorableShapeKind } from '../rigTree'
 import type { PartAsset, PartMaterial, PartPackage, RigGeometry, RigGrip, RigJoint, RigLink, RigServo, RigShape } from '../../core/parts/partPackage'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
@@ -87,7 +87,7 @@ export function renameRigNode(
   const geometry = { ...pkg.geometry, links: next.links, joints: next.joints }
   // a panel-written script that drives this node's grip area is written again under the new name, with nothing asked
   const config = readJointPlcConfig(pkg.behavior)
-  if (config?.[gripConfigKey(linkName)]) {
+  if (config && hasGripTag(config, linkName)) {
     const renamed = Object.fromEntries(Object.entries(config).map(([k, v]) => [k === gripConfigKey(linkName) ? gripConfigKey(newName) : k, v]))
     ec.store.commitPackage('Rename node', withJointPlcScript({ ...pkg, geometry }, renamed))
   } else {
@@ -198,6 +198,23 @@ export function selectedGripArea(s: Pick<EditorState, 'selectedRigNode' | 'scene
   if (zone) return { ...sel, box: zone, ...held }
   const he = shapeHalfExtents(link.shape, linkCollisionBox(link))
   return { ...sel, radius: Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, params), ...held }
+}
+
+/** selectedGripArea, worked out again only when the selection, the scene's parts or a package has changed: the
+ *  controller asks on every store change, most of which are none of those */
+export function gripAreaSelector(): (s: Pick<EditorState, 'selectedRigNode' | 'scene'>) => ReturnType<typeof selectedGripArea> {
+  let sel: EditorState['selectedRigNode'] | undefined
+  let parts: unknown
+  let rev = -1
+  let last: ReturnType<typeof selectedGripArea> = null
+  return (s) => {
+    if (!s.selectedRigNode) return null
+    if (s.selectedRigNode === sel && s.scene.parts === parts && registryRevision() === rev) return last
+    sel = s.selectedRigNode
+    parts = s.scene.parts
+    rev = registryRevision()
+    return (last = selectedGripArea(s))
+  }
 }
 
 /** the side of a new grip area's box (m): a small part's worth, sized afterwards in the Inspector */
@@ -369,7 +386,7 @@ export function setGripPlcControl(ec: AuthoringDeps, packageId: string, linkName
   const at = gripConfigKey(linkName)
   // a grip area already driven keeps its key stem, so its placed copies' tag names stay bound
   if (!on) delete config[at]
-  else config[at] ??= { mode: 'grip' }
+  else if (config[at]?.mode !== 'grip') config[at] = { mode: 'grip' }
   const result = validatePart(manifestOfPackage(pkg), jointPlcBehavior(pkg.name, config, pkg.geometry.joints, pkg.geometry.links))
   if (!result.ok || !result.package) return false
   ec.store.commitPackage('PLC control', result.package, { coalesceKey: `plc:${packageId}:${at}` })

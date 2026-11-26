@@ -1020,17 +1020,26 @@ export function resolvedGripTakes(link: RigLink): { part: string; at: Vec3; quat
 
 /**
  * Whether a body turned `actual` is within `maxTurn` of `held` (both in one frame; `grip.takes.maxTurn`). One
- * number limits the whole turn. Three limit the turn about each of `held`'s own axes: the twist of the difference
- * about that axis, so a turn about one axis does not count against the others.
+ * number limits the whole turn. Three limit the turn about each of `held`'s own axes, and a turn about one axis does
+ * not count against the others: the difference is taken apart one axis at a time, the freest first, each time taking
+ * out the twist about that axis and leaving the rest for the next (swing-twist). So a can that is free about Y and
+ * tilted one degree reads one degree of tilt however far round it stands.
  */
 export function withinTurn(maxTurn: number | Vec3, held: Quat, actual: Quat): boolean {
   if (typeof maxTurn === 'number') return turnBetweenDeg(held, actual) <= maxTurn
   // the difference in held's frame: held^-1 * actual
-  const d = qMul(qConjugate(held), actual)
-  for (let k = 0; k < 3; k++) {
+  let d = qMul(qConjugate(held), actual)
+  const order = [0, 1, 2].sort((i, j) => maxTurn[j]! - maxTurn[i]! || i - j)
+  for (const k of order) {
+    // the twist about axis k: the part of the difference that is a turn about it. None when the rest is a half
+    // turn about an axis square to k.
+    const n = Math.hypot(d[k]!, d[3])
+    if (n < 1e-9) continue
     const twist = (2 * Math.atan2(Math.abs(d[k]!), Math.abs(d[3])) * 180) / Math.PI
-    // past a half turn the same pose is reached the other way round
-    if (Math.min(twist, 360 - twist) > maxTurn[k]! + 1e-9) return false
+    if (twist > maxTurn[k]! + 1e-6) return false
+    const undo: Quat = [0, 0, 0, d[3] / n]
+    undo[k] = -d[k]! / n
+    d = qMul(d, undo)
   }
   return true
 }

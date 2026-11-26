@@ -1056,6 +1056,7 @@ export class EditorController {
 
   /** Author mode: the Part Editor's rig edits (split, pivot, merge back, parent, PLC control), in controller/partAuthoring.ts. */
   readonly rig = authoringOps.rigEdits(this)
+  private readonly gripAreaOf = authoringOps.gripAreaSelector()
 
   /**
    * Author mode (in-browser behavior editor): validate a candidate behavior script against the part's own
@@ -1286,7 +1287,7 @@ export class EditorController {
     // author mode: mirror the read-only rig-node selection (tree- or viewport-driven) as a link outline
     this.view.setRigNodeHighlight(s.selectedRigNode)
     // and its grip area, where it has one, as the volume it takes cargo from
-    this.view.setGripArea(authoringOps.selectedGripArea(s))
+    this.view.setGripArea(this.gripAreaOf(s))
     // F-follow: a selection change ends the consecutive-press run, or retargets an active follow
     cameraOps.syncFocusSelection(this.camera, this.view, s)
     // collab: stream the parts being dragged so peers see the motion live (no-op in solo mode)
