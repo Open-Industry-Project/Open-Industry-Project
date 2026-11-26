@@ -307,6 +307,6 @@
 /* the draggable horizontal divider between a side's Top and Bottom panes */
 .gutter-split {
   flex: 0 0 6px;
-  cursor: row-resize;
+  cursor: ns-resize;
 }
 

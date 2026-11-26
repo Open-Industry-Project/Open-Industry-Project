@@ -1265,7 +1265,7 @@ export function App({ store, sim }: AppProps) {
       <ResizeGutter
         key={`${spec.gridArea}-gut`}
         className="gutter"
-        style={{ gridArea: spec.gutterArea, cursor: 'col-resize' }}
+        style={{ gridArea: spec.gutterArea, cursor: 'ew-resize' }}
         {...widthResize(spec.widthKey, sign)}
       />
     )

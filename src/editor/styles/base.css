@@ -139,23 +139,16 @@ body {
    rule only carries the resize cursor for the bottom-dock height gutter. */
 .gutter-dock {
   grid-area: gutd;
-  cursor: row-resize;
+  cursor: ns-resize;
 }
 
 /* where a column's width gutter meets the bottom dock's height gutter (App places it by grid line). It sits over
-   both gutters, and its hit area reaches past the 6px cell so the junction is easy to catch. A left column and the
-   dock both grow toward up-right; a right column and the dock both grow toward up-left. */
+   both gutters, and its hit area reaches past the 6px cell so the junction is easy to catch. The junction moves on
+   both axes, so it shows the four-way cursor. A diagonal arrow would say the two sizes change together. */
 .gutter-corner {
   position: relative;
   z-index: 5;
-}
-
-.gutter-corner-left {
-  cursor: nesw-resize;
-}
-
-.gutter-corner-right {
-  cursor: nwse-resize;
+  cursor: all-scroll;
 }
 
 .gutter-corner::before {
