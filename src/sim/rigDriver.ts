@@ -7,7 +7,7 @@ import { CARGO_CAP_FORK_POCKETS } from '../core/frame'
 import { clamp } from '../core/math'
 import { forkEntryProblem } from '../core/pallet'
 import { reportPartDiagnostic } from '../core/parts/partDiagnostics'
-import { arrayInstanceDeltas, composePartWorldInPlace, jointLimits, parseCopyGripName, posedInstanceInto, linkCollisionBox, POSE_STRIDE, qApply, qConjugate, qFromAxisAngle, qMul, resolvedGrabReach, resolvedGrabZone, resolvedGripTakes, rigLinkIndex, rigPoseBuffer, rigWorldPosesInto, shapeHalfExtents, turnBetweenDeg } from '../core/rig/rigPose'
+import { arrayInstanceDeltas, composePartWorldInPlace, jointLimits, parseCopyGripName, posedInstanceInto, linkCollisionBox, POSE_STRIDE, qApply, qConjugate, qFromAxisAngle, qMul, resolvedGrabReach, resolvedGrabZone, resolvedGripTakes, rigLinkIndex, rigPoseBuffer, rigWorldPosesInto, shapeHalfExtents, withinTurn } from '../core/rig/rigPose'
 import type { Quat, Vec3 } from '../core/rig/rigPose'
 import type { BodyHolds } from './bodyHolds'
 import type { CargoRegistry } from './cargoRegistry'
@@ -242,7 +242,8 @@ export class RigDriver {
           picked = grabbableBoxesInReach(this.boxes, this.holds.holders, this.cargo.stepSnapshot(), gw.pos, (Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, rig.params)) * s)
         }
         // A gripper made for one part (grip.takes) takes the nearest body of that part its volume holds, and only
-        // if it lies within the limits the gripper sets; it then holds it at its own place, not as it lay.
+        // if it lies within the limits the gripper sets; it then holds it at its own place, not as it lay (unless
+        // it is told not to move it).
         const takes = resolvedGripTakes(link)
         if (takes) picked = this.pickForTakes(picked, takes, gw, s)
         // a gripper that closes on any piece of a unit load takes the whole unit, held as the one body it is (by its
@@ -260,8 +261,9 @@ export class RigDriver {
             const bp = box.body.GetPosition()
             const bq = box.body.GetRotation()
             // held as it lay, or at the gripper's own place for its part: the body is moved there from the next step
-            const offPos: Vec3 = takes ? [takes.at[0] * s, takes.at[1] * s, takes.at[2] * s] : qApply(inv, [bp.GetX() - gw.pos[0], bp.GetY() - gw.pos[1], bp.GetZ() - gw.pos[2]])
-            const offQuat = takes ? takes.quat : qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])
+            const snap = takes?.snap === true
+            const offPos: Vec3 = snap ? [takes.at[0] * s, takes.at[1] * s, takes.at[2] * s] : qApply(inv, [bp.GetX() - gw.pos[0], bp.GetY() - gw.pos[1], bp.GetZ() - gw.pos[2]])
+            const offQuat = snap ? takes.quat : qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])
             // how far the load reaches from the gripper along its X, either side, in the rig's own units (the world's
             // over its scale): its extent across X plus how far off centre it sits. A clamp's pads close to this. A
             // box's extent is its half extents through the rotation's first row; a unit load's (one body of several
@@ -322,7 +324,7 @@ export class RigDriver {
       if (takes.reach !== undefined && d > takes.reach * s) continue
       if (takes.maxTurn !== undefined) {
         const bq = box.body.GetRotation()
-        if (turnBetweenDeg(takes.quat, qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])) > takes.maxTurn) continue
+        if (!withinTurn(takes.maxTurn, takes.quat, qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()]))) continue
       }
       if (d < bestD || (d === bestD && best !== null && box.id < best.id)) {
         best = box

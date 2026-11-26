@@ -49,13 +49,16 @@ const M = defineMessages('inspector.rigGrip', {
   heldTurn: 'Held turn (°)',
   heldTurnTip: 'How the part is turned in the gripper. Turn it here until the part drawn in the view sits in the tool as it should.',
   whenOff: 'A part that lies off',
-  whenOffTip: 'Corrected: the part is moved to its place as it is taken, however it lies in the area. Left: it is taken only if it already lies within the limits below, so a badly presented part is not picked and Holding stays FALSE.',
+  whenOffTip:
+    'Corrected: the part is moved to its place as it is taken, however it lies in the area. Left: it is taken only if it already lies within the limits below, so a badly presented part is not picked and Holding stays FALSE. Taken as it lies: it is held where it was caught, with no correction.',
   whenOffCorrect: 'Is corrected',
   whenOffLeave: 'Is left',
+  whenOffAsIs: 'Is taken as it lies',
   maxDistance: 'Max distance',
   maxDistanceTip: "The furthest the part's center may be from where it is held and still be taken.",
-  maxTurn: 'Max turn',
-  maxTurnTip: 'The most the part may be turned from how it is held and still be taken, about any axis.',
+  maxTurn: 'Max turn (°)',
+  maxTurnTip:
+    "The most the part may be turned from how it is held and still be taken, about each of the part's own axes as it is drawn in the gripper. 180 leaves that axis free: a can that may stand any way round about its Y is 5, 180, 5.",
   plcControl: 'PLC control',
   plcNone: 'None (behavior code)',
 })
@@ -125,12 +128,22 @@ export function GripAreaSection({
     setTakes({ ...takes, [key]: next })
   }
   const strict = takes?.reach !== undefined || takes?.maxTurn !== undefined
-  const setStrict = (on: boolean): void => {
+  const whenOff = strict ? 'leave' : takes?.snap === false ? 'asIs' : 'correct'
+  const setWhenOff = (mode: string): void => {
     if (!takes) return
     const next: RigGripTakes = { ...takes }
     delete next.reach
     delete next.maxTurn
-    setTakes(on ? { ...next, reach: 0.01, maxTurn: 15 } : next)
+    delete next.snap
+    setTakes(mode === 'leave' ? { ...next, reach: 0.01, maxTurn: [15, 15, 15] } : mode === 'asIs' ? { ...next, snap: false } : next)
+  }
+  // one number limits the whole turn; shown as that number on each axis, and stored per axis once one is edited
+  const turnLimits: [number, number, number] = typeof takes?.maxTurn === 'number' ? [takes.maxTurn, takes.maxTurn, takes.maxTurn] : takes?.maxTurn ? [takes.maxTurn[0], takes.maxTurn[1], takes.maxTurn[2]] : [180, 180, 180]
+  const setTurnLimit = (i: number, v: number): void => {
+    if (!takes) return
+    const next: [number, number, number] = [turnLimits[0], turnLimits[1], turnLimits[2]]
+    next[i] = Math.min(180, Math.max(1, v))
+    setTakes(next.every((n) => n >= 180) ? withoutKey(takes, 'maxTurn') : { ...takes, maxTurn: next })
   }
   // whether areas are drawn is the view's, so it holds across nodes
   const [showGrip, setShowGrip] = useState(view?.gripAreaShown ?? true)
@@ -226,16 +239,21 @@ export function GripAreaSection({
                   {t(M.whenOff)}
                 </span>
                 <span className="field-control">
-                  <select className="rig-select" data-testid="grip-takes-off" value={strict ? 'leave' : 'correct'} disabled={!editable} onChange={(e) => setStrict(e.target.value === 'leave')}>
+                  <select className="rig-select" data-testid="grip-takes-off" value={whenOff} disabled={!editable} onChange={(e) => setWhenOff(e.target.value)}>
                     <option value="correct">{t(M.whenOffCorrect)}</option>
                     <option value="leave">{t(M.whenOffLeave)}</option>
+                    <option value="asIs">{t(M.whenOffAsIs)}</option>
                   </select>
                 </span>
               </label>
               {strict && (
                 <>
                   <NumberField label={t(M.maxDistance)} unit="m" tooltip={t(M.maxDistanceTip)} value={takes.reach ?? 0} decimals={3} step={lenStep} min={0} disabled={!editable} onCommit={(v) => setTakes(v > 0 ? { ...takes, reach: v } : withoutKey(takes, 'reach'))} />
-                  <NumberField label={t(M.maxTurn)} unit="°" tooltip={t(M.maxTurnTip)} value={takes.maxTurn ?? 180} decimals={0} step={5} min={1} max={180} disabled={!editable} onCommit={(v) => setTakes(v < 180 ? { ...takes, maxTurn: Math.max(1, v) } : withoutKey(takes, 'maxTurn'))} />
+                  <VectorRow label={t(M.maxTurn)} tooltip={t(M.maxTurnTip)}>
+                    {([0, 1, 2] as const).map((axis) => (
+                      <AxisInput key={axis} prefix={['X', 'Y', 'Z'][axis]!} value={turnLimits[axis]} decimals={0} step={5} disabled={!editable} onCommit={(v) => setTurnLimit(axis, v)} />
+                    ))}
+                  </VectorRow>
                 </>
               )}
             </>

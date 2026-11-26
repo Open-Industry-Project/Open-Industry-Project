@@ -588,8 +588,9 @@ moves rigidly (a palletizer head taking a formed layer, a fork carrying a pallet
 single/multi-pick switch: `grip.zone` is how you say how much the tool holds. Declare a zone on any gripper
 wider than what it grips. A gripper made for one part says so with `grip.takes: { part, at?, rotation?, reach?,
 maxTurn? }`: it takes the nearest body of that part in its volume and no other cargo, and holds it at `at` /
-`rotation` (Euler XYZ, radians) in the link's frame, moving it there as it takes it. `reach` (m) and `maxTurn`
-(degrees) leave a body that lies further off than that, and `measured.grips` stays false for it. A body in a unit
+`rotation` (Euler XYZ, radians) in the link's frame, moving it there as it takes it (`snap: false` holds it as it
+lies). `reach` (m) and `maxTurn` (degrees: one number for the whole turn, or three for the turn about the held
+part's X, Y and Z) leave a body that lies further off than that, and `measured.grips` stays false for it. A body in a unit
 load is not taken, and `takes` does not go with `forks`. The `radius` sphere (measured to the box surface, so a cup that brushes a case
 still seals) suits a tool no bigger than one load; on a plate it would lift whatever stands beside the target.
 Use the zone's `offset` when the tool engages away from its frame: the AGV's volume sits 1.1 m out on the
@@ -1146,8 +1147,10 @@ The Part Editor writes the same carving for you. Import the model onto a node (*
    in the gripper while the node is selected, so **Held at** and **Held turn** are set by eye until it sits in the
    tool as it should. The gripper then takes one body of that part, the nearest to its place, and no other cargo,
    and moves it to that place and turn as it takes it. **A part that lies off** is **corrected** (taken wherever it
-   lies in the area) or **left**: with a **Max distance** and a **Max turn** it is taken only if it already lies
-   within them, and `Holding` stays FALSE for one that does not.
+   lies in the area), **left** (with a **Max distance** and a **Max turn** it is taken only if it already lies
+   within them, and `Holding` stays FALSE for one that does not) or **taken as it lies** (held where it was caught,
+   `snap: false`). Max turn is per axis of the part as it is drawn in the gripper, and 180 leaves an axis free, so a
+   can that may stand any way round is `5, 180, 5`.
 
 A piece split under the wrong node can be fixed two ways. **Merge back into model** removes the piece with its
 joint, so the model draws it again, and the pieces under it move up. **Delete** does the same for the node and

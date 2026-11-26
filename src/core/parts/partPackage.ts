@@ -113,19 +113,23 @@ export interface RigGrip {
  *   the link's origin.
  * - `rotation`: how the part is turned there, Euler XYZ in radians like a link's. Absent = as the link.
  * - `reach`: the furthest the body's centre may be from `at` and still be taken (m). Absent = anywhere in the volume.
- * - `maxTurn`: the most it may be turned from `rotation` and still be taken (degrees, about any axis). Absent = any
- *   way round.
+ * - `maxTurn`: the most it may be turned from `rotation` and still be taken, in degrees. One number is the whole
+ *   turn, about any axis. Three are the turn about each of the held part's own X, Y and Z, so a part may be free
+ *   about one axis and held close about the others: a can standing on its Y is `[5, 180, 5]`. Absent = any way round.
+ * - `snap`: `false` holds the body as it lies instead of moving it to `at` / `rotation`, which then only say which
+ *   body is nearest and what the limits are measured from. Absent = moved.
  *
- * With neither limit the gripper corrects whatever it finds. With them it leaves a body that lies too far off, and
- * `ctx.measured.grips` stays false, so a program can tell a bad presentation from a good one. A body that is part of
- * a unit load is not taken: the gripper is made for the part on its own.
+ * With neither limit the gripper takes whatever it finds of its part. With them it leaves a body that lies too far
+ * off, and `ctx.measured.grips` stays false, so a program can tell a bad presentation from a good one. A body that is
+ * part of a unit load is not taken: the gripper is made for the part on its own.
  */
 export interface RigGripTakes {
   part: string
   at?: Vec3Tuple
   rotation?: Vec3Tuple
   reach?: number
-  maxTurn?: number
+  maxTurn?: number | Vec3Tuple
+  snap?: boolean
 }
 
 /** A shape for a rig link: a primitive, a transform-only 'frame', or a 'mesh' that renders an embedded GLB.

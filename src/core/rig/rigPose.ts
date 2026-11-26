@@ -1005,16 +1005,34 @@ export function resolvedGrabZone(link: RigLink, params: RigParams): { half: Vec3
 
 /** The place a gripper made for one part holds it (`grip.takes`), in the link's frame, and the limits on what it
  *  takes; null for a gripper that takes whatever is in its volume. */
-export function resolvedGripTakes(link: RigLink): { part: string; at: Vec3; quat: Quat; reach?: number; maxTurn?: number } | null {
+export function resolvedGripTakes(link: RigLink): { part: string; at: Vec3; quat: Quat; snap: boolean; reach?: number; maxTurn?: number | Vec3 } | null {
   const t = link.grip?.takes
   if (!t) return null
   return {
     part: t.part,
     at: t.at ? [t.at[0], t.at[1], t.at[2]] : [0, 0, 0],
     quat: t.rotation ? qFromEulerXYZ([t.rotation[0], t.rotation[1], t.rotation[2]]) : [0, 0, 0, 1],
+    snap: t.snap !== false,
     ...(t.reach !== undefined ? { reach: t.reach } : {}),
-    ...(t.maxTurn !== undefined ? { maxTurn: t.maxTurn } : {}),
+    ...(t.maxTurn !== undefined ? { maxTurn: typeof t.maxTurn === 'number' ? t.maxTurn : [t.maxTurn[0], t.maxTurn[1], t.maxTurn[2]] } : {}),
   }
+}
+
+/**
+ * Whether a body turned `actual` is within `maxTurn` of `held` (both in one frame; `grip.takes.maxTurn`). One
+ * number limits the whole turn. Three limit the turn about each of `held`'s own axes: the twist of the difference
+ * about that axis, so a turn about one axis does not count against the others.
+ */
+export function withinTurn(maxTurn: number | Vec3, held: Quat, actual: Quat): boolean {
+  if (typeof maxTurn === 'number') return turnBetweenDeg(held, actual) <= maxTurn
+  // the difference in held's frame: held^-1 * actual
+  const d = qMul(qConjugate(held), actual)
+  for (let k = 0; k < 3; k++) {
+    const twist = (2 * Math.atan2(Math.abs(d[k]!), Math.abs(d[3])) * 180) / Math.PI
+    // past a half turn the same pose is reached the other way round
+    if (Math.min(twist, 360 - twist) > maxTurn[k]! + 1e-9) return false
+  }
+  return true
 }
 
 /** the angle between two orientations, degrees (0 to 180) */

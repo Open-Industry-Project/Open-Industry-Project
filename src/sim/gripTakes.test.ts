@@ -141,6 +141,43 @@ describe('a gripper made for one part', () => {
   })
 })
 
+describe('a gripper made for one part: per-axis turn limits and no correction', () => {
+  let world: SimWorld | null = null
+  afterEach(() => {
+    world?.dispose()
+    world = null
+    for (const id of [HAND, PIECE, OTHER]) unregisterPackage(id)
+  })
+  const fell = (w: SimWorld): boolean => bodies(w)[0]!.p[1] < HAND_Y - 0.2
+
+  it('with a limit per axis, takes a part turned any amount about a free axis and leaves one turned about a held axis', () => {
+    // free about Y, held to 5 degrees about X and Z: a part turned 2 rad about Y is taken
+    const free = (world = setup({ maxTurn: [5, 180, 5] }, [{ id: 'a', at: [0, HELD_Y, 0], turn: 2 }]))
+    run(free, 30)
+    expect(held(bodies(free)[0]!)).toBe(true)
+    free.dispose()
+    for (const id of [HAND, PIECE, OTHER]) unregisterPackage(id)
+    // held to 5 degrees about Y: the same part is left
+    const tight = (world = setup({ maxTurn: [180, 5, 180] }, [{ id: 'a', at: [0, HELD_Y, 0], turn: 0.3 }]))
+    run(tight, 30)
+    expect(fell(tight)).toBe(true)
+  })
+
+  it('with snap off, holds the part as it lies, and still takes only its own part', () => {
+    const w = (world = setup({ snap: false }, [
+      { id: 'a', at: [0.08, HAND_Y, 0.05], turn: 0.3 },
+      { id: 'b', pkg: OTHER, at: [-0.15, HAND_Y, 0] },
+    ]))
+    run(w, 30)
+    const [a, b] = bodies(w)
+    expect(a!.p[0]).toBeCloseTo(0.08, 3)
+    expect(a!.p[2]).toBeCloseTo(0.05, 3)
+    expect(Math.abs(a!.p[1] - HAND_Y)).toBeLessThan(0.01)
+    expect(Math.abs(a!.q[1])).toBeCloseTo(Math.sin(0.15), 3)
+    expect(b!.p[1]).toBeLessThan(HAND_Y - 0.2)
+  })
+})
+
 describe('grip.takes in a manifest', () => {
   const problems = (takes: unknown, forks = false): string[] =>
     validatePart(
@@ -159,6 +196,7 @@ describe('grip.takes in a manifest', () => {
   it('loads with a part alone, and with a place, a turn and both limits', () => {
     expect(problems({ part: PIECE })).toEqual([])
     expect(problems({ part: PIECE, at: [0, -0.1, 0], rotation: [0, 1.57, 0], reach: 0.01, maxTurn: 15 })).toEqual([])
+    expect(problems({ part: PIECE, maxTurn: [5, 180, 5], snap: false })).toEqual([])
   })
 
   it('is refused without a part, with a place or a limit that is not what it must be, and on forks', () => {
@@ -167,6 +205,8 @@ describe('grip.takes in a manifest', () => {
     expect(problems({ part: PIECE, rotation: 'up' })).toHaveLength(1)
     expect(problems({ part: PIECE, reach: 0 })).toHaveLength(1)
     expect(problems({ part: PIECE, maxTurn: 181 })).toHaveLength(1)
+    expect(problems({ part: PIECE, maxTurn: [5, 0, 5] })).toHaveLength(1)
+    expect(problems({ part: PIECE, snap: 'no' })).toHaveLength(1)
     expect(problems({ part: PIECE }, true)).toHaveLength(1)
   })
 })
