@@ -1564,7 +1564,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
 
   beginResizeDrag(handle: ResizeHandle, clientX: number, clientY: number): void {
     this.setPointerRay(clientX, clientY)
-    this.handles.beginDrag(handle)
+    this.handles.beginDrag(handle, this.raycaster.ray)
   }
 
   resizeDragExtent(clientX: number, clientY: number): number | null {

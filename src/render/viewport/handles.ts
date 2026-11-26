@@ -49,6 +49,11 @@ const proxyGeo = new BoxGeometry(HANDLE_SIZE * 2.4, HANDLE_SIZE * 2.4, HANDLE_SI
 const WALL_STEP = 0.05
 /** the guard sheet's offset outside the bed edge (the belt's rail wall), so the wall line lies ON the guard */
 const GUARD_INSET = 0.01
+// a size dot has no handle while its drag line points within ~10 deg of the line of sight (|line . sight| above
+// this): the dot then lies over the middle of the part and takes a press meant for it, and its travel is all into
+// the screen. The transform gizmo leaves an end-on arrow out by the same rule.
+const LINE_END_ON = 0.985
+const _sight = new Vector3()
 
 /** a guard wall as a world-space polyline, with the tail-relative row value at each vertex */
 interface WallLine {
@@ -174,11 +179,19 @@ export class ResizeHandles {
     toneMapped: false,
   })
   private readonly proxyMaterial = new MeshBasicMaterial({ visible: false })
-  private readonly cubes: { handle: BoxResizeHandle | CurveResizeHandle | FlexResizeHandle; group: Group; sprite: Sprite; proxy: Mesh }[] =
-    []
+  // dir: the world line a box dot drags along (null for the arc and flex dots, which read a plane).
+  // endOn: that line points at the viewer and the dot is left out (updateScale).
+  private readonly cubes: {
+    handle: BoxResizeHandle | CurveResizeHandle | FlexResizeHandle
+    group: Group
+    sprite: Sprite
+    proxy: Mesh
+    dir: Vector3 | null
+    endOn: boolean
+  }[] = []
   // belt tail + per-segment dots: count varies with the segment chain, so pooled
   // and (re)assigned in setPart rather than fixed like `cubes`.
-  private readonly beltCubes: { handle: ResizeHandle | null; group: Group; sprite: Sprite; proxy: Mesh }[] = []
+  private readonly beltCubes: { handle: ResizeHandle | null; group: Group; sprite: Sprite; proxy: Mesh; dir: Vector3 | null; endOn: boolean }[] = []
   // side-guard opening edge dots (guard-openings mode): two per opening per wall, so the count varies.
   private readonly openingCubes: { handle: GuardOpeningHandle | null; group: Group; sprite: Sprite; proxy: Mesh }[] =
     []
@@ -200,11 +213,13 @@ export class ResizeHandles {
   /** neighbour-cut gaps per wall in row space: pickWall treats them as already open */
   private junctions: Record<GuardWall, [number, number][]> | null = null
   private part: PartInstance | null = null
+  // offset / dx, dz: the dot's own reading minus the pointer's at the press. A press lands anywhere on the dot, and
+  // without it the first move put the dot's centre under the pointer: the size jumped by the miss.
   private drag:
-    | { kind: 'line'; origin: Vector3; dir: Vector3 }
-    | { kind: 'curve'; param: 'angle' | 'width' }
+    | { kind: 'line'; origin: Vector3; dir: Vector3; offset: number }
+    | { kind: 'curve'; param: 'angle' | 'width'; offset: number }
     | { kind: 'opening'; guard: GuardWall }
-    | { kind: 'flex' }
+    | { kind: 'flex'; dx: number; dz: number }
     | null = null
 
   constructor() {
@@ -218,7 +233,7 @@ export class ResizeHandles {
       proxy.userData.handle = handle
       group.add(sprite, proxy)
       this.root.add(group)
-      this.cubes.push({ handle, group, sprite, proxy })
+      this.cubes.push({ handle, group, sprite, proxy, dir: null, endOn: false })
     }
     // the hover ghost: where a sweep would start. Not pickable (no proxy), so it never steals a press.
     const ghostGroup = new Group()
@@ -247,7 +262,7 @@ export class ResizeHandles {
       // them into the always-on-top overlay pass here too (+ cull-off, matching that sweep -
       // the overlay projection cache needs a camera-independent visit set).
       group.traverse((o) => { o.layers.enable(OVERLAY_LAYER); o.frustumCulled = false })
-      this.beltCubes.push({ handle: null, group, sprite, proxy })
+      this.beltCubes.push({ handle: null, group, sprite, proxy, dir: null, endOn: false })
     }
   }
 
@@ -264,13 +279,14 @@ export class ResizeHandles {
         cube.handle = null
         continue
       }
-      const handle: ResizeHandle = k === 0 ? { belt: 'tail' } : { belt: k - 1 }
+      const handle: { belt: 'tail' | number } = k === 0 ? { belt: 'tail' } : { belt: k - 1 }
       const corner = corners[k]! // corners[0]=tail, corners[i+1]=end of segment i
       const w = toWorldXZ(part, corner.x, 0)
       cube.group.position.set(w.x, part.position[1] + corner.y, w.z)
       cube.group.visible = true
       cube.handle = handle
       cube.proxy.userData.handle = handle
+      cube.dir = this.beltDragLine(part, handle.belt).dir
     }
   }
 
@@ -524,7 +540,9 @@ export class ResizeHandles {
     const cosT = Math.cos(tilt)
     const sinT = Math.sin(tilt)
     let any = false
-    for (const { handle, group } of this.cubes) {
+    for (const cube of this.cubes) {
+      const { handle, group } = cube
+      cube.dir = null
       if ('flexPoint' in handle) {
         // the infeed is the part origin; a flex with no path points has nothing to pull it against
         const pt: readonly [number, number] | undefined =
@@ -558,6 +576,7 @@ export class ResizeHandles {
       group.visible = enabled
       if (!enabled) continue
       any = true
+      cube.dir = this.boxDragLine(part, handle).dir
       if (handle.axis === 'y') {
         // vertical handle: top/bottom face center, on the part's centerline
         group.position.set(part.position[0], part.position[1] + faceY(part, handle.sign), part.position[2])
@@ -588,7 +607,7 @@ export class ResizeHandles {
   pick(raycaster: Raycaster): ResizeHandle | null {
     if (!this.root.visible) return null
     this.root.updateMatrixWorld(true)
-    const proxies = [...this.cubes, ...this.beltCubes, ...this.openingCubes]
+    const proxies = [...this.cubes.filter((c) => !c.endOn), ...this.beltCubes.filter((c) => !c.endOn), ...this.openingCubes]
       .filter((c) => c.group.visible)
       .map((c) => c.proxy)
     const hits = raycaster.intersectObjects(proxies, false)
@@ -625,8 +644,11 @@ export class ResizeHandles {
     }
   }
 
-  /** cache the face axis line: anchored opposite face center + outward direction */
-  beginDrag(handle: ResizeHandle): void {
+  /**
+   * cache the face axis line: anchored opposite face center + outward direction. `ray` is the pointer's at the
+   * press: the drag then keeps the dot where it was under the pointer (see `drag`).
+   */
+  beginDrag(handle: ResizeHandle, ray?: Ray): void {
     const part = this.part
     if (!part) return
     this.applyHighlight(handle)
@@ -635,29 +657,40 @@ export class ResizeHandles {
       this.drag = { kind: 'opening', guard: handle.guard }
       return
     }
+    const dot = [...this.cubes, ...this.beltCubes].find((c) => c.handle !== null && c.group.visible && sameHandle(c.handle, handle))?.group.position
     if ('flexPoint' in handle) {
       // a flex path dot reads a whole deck-plane point (dragPoint), not an extent
-      this.drag = { kind: 'flex' }
+      this.drag = { kind: 'flex', dx: 0, dz: 0 }
+      const at = ray && dot ? this.dragPoint(ray) : null
+      if (at && dot) this.drag = { kind: 'flex', dx: dot.x - at.x, dz: dot.z - at.z }
       return
     }
     if ('curve' in handle) {
       // arc handles read straight off the deck plane in dragExtent - no line to cache
-      this.drag = { kind: 'curve', param: handle.curve }
+      this.drag = { kind: 'curve', param: handle.curve, offset: 0 }
+      const gizmo = curvedGizmoOf(part)
+      const at = ray && gizmo ? this.curveDragValue(ray, handle.curve) : null
+      if (at !== null && gizmo) {
+        const l = curvedHandleLocal(gizmo, handle.curve)
+        this.drag.offset = curvedHandleValue(gizmo, handle.curve, l.x, l.z) - at
+      }
       return
     }
-    if ('belt' in handle) {
-      this.drag = { kind: 'line', ...this.beltDragLine(part, handle.belt) }
-      return
-    }
+    const line = 'belt' in handle ? this.beltDragLine(part, handle.belt) : this.boxDragLine(part, handle)
+    const at = ray && dot ? rayLineParam(line.origin, line.dir, ray) : null
+    const offset = at !== null && dot ? dot.clone().sub(line.origin).dot(line.dir) - at : 0
+    this.drag = { kind: 'line', ...line, offset }
+  }
+
+  /** the line a box face dot drags along: from the opposite face's centre, outward through the dot */
+  private boxDragLine(part: PartInstance, handle: BoxResizeHandle): { origin: Vector3; dir: Vector3 } {
     if (handle.axis === 'y') {
       // anchor the opposite face on the centerline; drag projects onto world +Y,
       // so dragExtent reads the new full height up/down from that fixed face
-      this.drag = {
-        kind: 'line',
+      return {
         origin: new Vector3(part.position[0], part.position[1] + faceY(part, -handle.sign as 1 | -1), part.position[2]),
         dir: new Vector3(0, handle.sign, 0),
       }
-      return
     }
     const half = paramHalf(part, handle.axis)
     // anchor the opposite face center on the bed midpoint (see setPart) so the
@@ -674,8 +707,7 @@ export class ResizeHandles {
     const dl = handle.axis === 'x' ? { x: handle.sign, z: 0 } : { x: 0, z: handle.sign }
     const dw = toWorldXZ(part, dl.x * cosT, dl.z)
     const y = part.position[1] + resizeHandleMidY(part) + ax * sinT
-    this.drag = {
-      kind: 'line',
+    return {
       origin: new Vector3(anchor.x, y, anchor.z),
       dir: new Vector3(dw.x - part.position[0], dl.x * sinT, dw.z - part.position[2]).normalize(),
     }
@@ -718,9 +750,13 @@ export class ResizeHandles {
       // the row value on the dragged wall nearest the pointer, clamped to the guard by the line's own ends
       return screen ? (this.nearestOnWall(this.drag.guard, ray, screen)?.s ?? null) : null
     }
-    if (this.drag.kind === 'line') return rayLineParam(this.drag.origin, this.drag.dir, ray)
+    if (this.drag.kind === 'line') {
+      const at = rayLineParam(this.drag.origin, this.drag.dir, ray)
+      return at === null ? null : at + this.drag.offset
+    }
     if (this.drag.kind === 'flex') return null
-    return this.curveDragValue(ray, this.drag.param)
+    const value = this.curveDragValue(ray, this.drag.param)
+    return value === null ? null : value + this.drag.offset
   }
 
   /** where the pointer ray meets the dragged part's deck plane, in world XZ */
@@ -730,7 +766,8 @@ export class ResizeHandles {
     if (Math.abs(ray.direction.y) < 1e-6) return null
     const t = (part.position[1] - ray.origin.y) / ray.direction.y
     if (t < 0) return null
-    return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t }
+    const off = this.drag.kind === 'flex' ? this.drag : { dx: 0, dz: 0 }
+    return { x: ray.origin.x + ray.direction.x * t + off.dx, z: ray.origin.z + ray.direction.z * t + off.dz }
   }
 
   /** intersect the pointer ray with the deck plane and read the dragged arc param in local space */
@@ -762,6 +799,16 @@ export class ResizeHandles {
       if (!group.visible) continue
       const d = camera.position.distanceTo(group.position)
       group.scale.setScalar(Math.max(worldPerPixel(camera, d, viewportHeight) * k, 1e-4))
+    }
+    // held while a drag is live: the grabbed dot must not vanish as the part it sizes turns its line to the camera
+    if (this.drag) return
+    const ortho = (camera as PerspectiveCamera & { orthographic?: boolean }).orthographic === true
+    if (ortho) camera.getWorldDirection(_sight)
+    for (const cube of [...this.cubes, ...this.beltCubes]) {
+      if (!cube.group.visible) continue
+      if (!ortho) _sight.subVectors(cube.group.position, camera.position).normalize()
+      cube.endOn = cube.dir !== null && Math.abs(cube.dir.dot(_sight)) > LINE_END_ON
+      cube.sprite.visible = !cube.endOn
     }
   }
 
