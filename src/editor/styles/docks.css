@@ -80,11 +80,7 @@
   border-color: var(--panel-edge);
 }
 
-/* draggable dock tabs (desktop) - grab cursor + dim the tab while it's being dragged */
-.dock-slot-tab[draggable='true'] {
-  cursor: grab;
-}
-
+/* dim a dock tab while it is being dragged. A tab keeps the button cursor: it is clicked far more than dragged. */
 .dock-slot-tab.dragging {
   opacity: 0.4;
 }

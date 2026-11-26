@@ -201,7 +201,7 @@ const panel: CSSProperties = {
   zIndex: 30,
   overflow: 'hidden',
 }
-const header: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'light-dark(#eeeff1, #26282c)', cursor: 'grab', userSelect: 'none', touchAction: 'none' }
+const header: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'light-dark(#eeeff1, #26282c)', userSelect: 'none', touchAction: 'none' }
 // the body fills the panel; the editor grows (flex:1) while the controls keep their
 // natural size (flexShrink:0), so the buttons stay put and the editor takes the rest
 // (--plc-pad-top: 0 in a popped-out desktop window, whose header row is its title bar and so sits on the top edge)
