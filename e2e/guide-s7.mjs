@@ -197,7 +197,7 @@ async function main() {
     const main = readFileSync(join(DESKTOP_DIR, 'main.cjs'), 'utf8')
     const plcIo = readFileSync(join(DESKTOP_DIR, 'plcIo.cjs'), 'utf8')
     const prompt = says('Allow Open Industry Project to connect to a PLC at 192.168.0.1:102?')
-    expect(main.includes('message: `Allow Open Industry Project to ${what}?`') && plcIo.includes('const what = `connect to a PLC at ${host}:${port}`'), `the shell's consent prompt reads "${prompt}"`)
+    expect(main.includes('message: `Allow Open Industry Project to ${what}?`') && plcIo.includes("const what = `connect to ${link === MQTT_LINK ? 'an MQTT broker' : 'a PLC'} at ${host}:${port}`"), `the shell's consent prompt reads "${prompt}"`)
 
     // the run's CPU is the stand-in on this machine
     const setField = async (loc, value) => {
