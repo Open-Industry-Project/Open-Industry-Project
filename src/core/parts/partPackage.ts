@@ -97,6 +97,39 @@ export interface RigGrip {
    *  do not fit (they would land on its blocks). `spread` is blade centre to centre, `spreadParam` a number param
    *  that sets it instead. */
   forks?: { spread?: number; spreadParam?: string; bladeWidth: number; bladeThickness: number }
+  /** The one part this gripper is made for ({@link RigGripTakes}). With it the gripper takes a single body of that
+   *  part and holds it at a set place, where without it it takes every body in its volume as it lies. */
+  takes?: RigGripTakes
+}
+
+/**
+ * A gripper made for one part: fingers shaped to a housing, a cup placed for one board. When it closes it takes the
+ * nearest body of `part` in its volume, and no other cargo, and holds it at `at` / `rotation` in the link's frame:
+ * the body is moved there as it is taken, the way real jaws centre what they close on. So a piece picked a little
+ * off is put down where the gripper is, not off by the same amount.
+ *
+ * - `part`: the package id of the cargo part it takes.
+ * - `at`: where that part's centre is held, in the link's frame (m; a cargo part's origin is its centre). Absent =
+ *   the link's origin.
+ * - `rotation`: how the part is turned there, Euler XYZ in radians like a link's. Absent = as the link.
+ * - `reach`: the furthest the body's centre may be from `at` and still be taken (m). Absent = anywhere in the volume.
+ * - `maxTurn`: the most it may be turned from `rotation` and still be taken, in degrees. One number is the whole
+ *   turn, about any axis. Three are the turn about each of the held part's own X, Y and Z, so a part may be free
+ *   about one axis and held close about the others: a can standing on its Y is `[5, 180, 5]`. Absent = any way round.
+ * - `snap`: `false` holds the body as it lies instead of moving it to `at` / `rotation`, which then only say which
+ *   body is nearest and what the limits are measured from. Absent = moved.
+ *
+ * With neither limit the gripper takes whatever it finds of its part. With them it leaves a body that lies too far
+ * off, and `ctx.measured.grips` stays false, so a program can tell a bad presentation from a good one. A body that is
+ * part of a unit load is not taken: the gripper is made for the part on its own.
+ */
+export interface RigGripTakes {
+  part: string
+  at?: Vec3Tuple
+  rotation?: Vec3Tuple
+  reach?: number
+  maxTurn?: number | Vec3Tuple
+  snap?: boolean
 }
 
 /** A shape for a rig link: a primitive, a transform-only 'frame', or a 'mesh' that renders an embedded GLB.

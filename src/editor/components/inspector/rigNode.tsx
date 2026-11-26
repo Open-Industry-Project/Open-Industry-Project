@@ -15,7 +15,7 @@ import type { LinkFieldOwner, LinkNote } from '../../../core/rig/rigPose'
 import { AUTHORABLE_SHAPE_KINDS, canDeleteRigNode, convertShape, isAuthorableShapeKind, shapeLabel } from '../../rigTree'
 import { keptNodes, movingPartCentre, reparentTargets, rigPivot, splitSourcesFor } from '../../rigSplit'
 import { drawnElsewhere, meshLinkBox, parseGlb } from '../../../core/glbBox'
-import { canSpin, canTwoPositions, DEFAULT_STROKE_TIME, readJointPlcConfig, type JointPlcMode } from '../../jointPlcControl'
+import { canSpin, canTwoPositions, DEFAULT_STROKE_TIME, hasGripTag, readJointPlcConfig, type JointPlcMode } from '../../jointPlcControl'
 import { base64ToBytes } from '../../../core/parts/partAssets'
 import type { AuthorableShapeKind } from '../../rigTree'
 import type { EditorStore } from '../../store/store'
@@ -40,6 +40,7 @@ import {
 import type { StepDetail } from '../../stepConvert'
 import { stepUpAxisGuess, type StepUpAxis, type StepUpAxisGuess } from '../../../core/stepToGlb'
 import { PartActions, PartStatus } from './rig'
+import { GripAreaSection } from './rigGrip'
 import { defineMessages, t } from '../../../core/i18n'
 
 const M = defineMessages('inspector.rigNode', {
@@ -1186,6 +1187,7 @@ export function RigNodePanel({
         )}
 
       </Fold>
+      <GripAreaSection part={part} link={link} controller={controller} gripPlc={hasGripTag(plcConfig, link.name)} folds={folds} toggle={toggle} />
       <Fold title={t(M.node)} path="Node" collapsed={folds} toggle={toggle}>
         <label className="field">
           <span className="field-label" title={t(M.newNodeTip)}>

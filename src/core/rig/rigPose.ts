@@ -1003,6 +1003,52 @@ export function resolvedGrabZone(link: RigLink, params: RigParams): { half: Vec3
   return { half: [s[0] / 2, s[1] / 2, s[2] / 2], offset: o ? [o[0], o[1], o[2]] : [0, 0, 0] }
 }
 
+/** The place a gripper made for one part holds it (`grip.takes`), in the link's frame, and the limits on what it
+ *  takes; null for a gripper that takes whatever is in its volume. */
+export function resolvedGripTakes(link: RigLink): { part: string; at: Vec3; quat: Quat; snap: boolean; reach?: number; maxTurn?: number | Vec3 } | null {
+  const t = link.grip?.takes
+  if (!t) return null
+  return {
+    part: t.part,
+    at: t.at ? [t.at[0], t.at[1], t.at[2]] : [0, 0, 0],
+    quat: t.rotation ? qFromEulerXYZ([t.rotation[0], t.rotation[1], t.rotation[2]]) : [0, 0, 0, 1],
+    snap: t.snap !== false,
+    ...(t.reach !== undefined ? { reach: t.reach } : {}),
+    ...(t.maxTurn !== undefined ? { maxTurn: typeof t.maxTurn === 'number' ? t.maxTurn : [t.maxTurn[0], t.maxTurn[1], t.maxTurn[2]] } : {}),
+  }
+}
+
+/**
+ * Whether a body turned `actual` is within `maxTurn` of `held` (both in one frame; `grip.takes.maxTurn`). One
+ * number limits the whole turn. Three limit the turn about each of `held`'s own axes, and a turn about one axis does
+ * not count against the others: the difference is taken apart one axis at a time, the freest first, each time taking
+ * out the twist about that axis and leaving the rest for the next (swing-twist). So a can that is free about Y and
+ * tilted one degree reads one degree of tilt however far round it stands.
+ */
+export function withinTurn(maxTurn: number | Vec3, held: Quat, actual: Quat): boolean {
+  if (typeof maxTurn === 'number') return turnBetweenDeg(held, actual) <= maxTurn
+  // the difference in held's frame: held^-1 * actual
+  let d = qMul(qConjugate(held), actual)
+  const order = [0, 1, 2].sort((i, j) => maxTurn[j]! - maxTurn[i]! || i - j)
+  for (const k of order) {
+    // the twist about axis k: the part of the difference that is a turn about it. None when the rest is a half
+    // turn about an axis square to k.
+    const n = Math.hypot(d[k]!, d[3])
+    if (n < 1e-9) continue
+    const twist = (2 * Math.atan2(Math.abs(d[k]!), Math.abs(d[3])) * 180) / Math.PI
+    if (twist > maxTurn[k]! + 1e-6) return false
+    const undo: Quat = [0, 0, 0, d[3] / n]
+    undo[k] = -d[k]! / n
+    d = qMul(d, undo)
+  }
+  return true
+}
+
+/** the angle between two orientations, degrees (0 to 180) */
+export function turnBetweenDeg(a: Quat, b: Quat): number {
+  const w = Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3])
+  return (2 * Math.acos(Math.min(1, w)) * 180) / Math.PI
+}
 
 /**
  * Host-computed cross-part geometry input for a placed part - the SDK-visible half of the seam-resolver

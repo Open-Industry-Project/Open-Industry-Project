@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { RigJoint } from '../core/parts/partPackage'
+import type { RigJoint, RigLink } from '../core/parts/partPackage'
 import type { PackageManifest } from '../sim/buildPackage'
 import { validatePart } from '../sim/validatePart'
 import { create, destroy, step } from '../sim/embeddedBehavior'
-import { canSpin, canTwoPositions, isReplaceableBehavior, jointPlcBehavior, jointPlcKeys, readJointPlcConfig } from './jointPlcControl'
+import { canGripTag, canSpin, canTwoPositions, gripConfigKey, isReplaceableBehavior, jointPlcBehavior, jointPlcKeys, readJointPlcConfig } from './jointPlcControl'
 
 const feed: RigJoint = { name: 'feed', link: 'head', type: 'prismatic', axis: [0, -1, 0], min: 0, max: 0.05 }
 const arm: RigJoint = { name: 'Motors-joint', link: 'Motors', type: 'revolute', axis: [0, 1, 0], min: -1, max: 1 }
@@ -162,5 +162,62 @@ describe('jointPlcControl: Spin', () => {
     const stopped = run({}, (i) => ({ Run: i < 10 }), 30)
     expect(per(stopped[28]!.joints['Bit-joint']!, stopped[29]!.joints['Bit-joint']!)).toBeCloseTo(0, 6)
     expect(stopped[29]!.tags.AtSpeed).toBe(false)
+  })
+})
+
+describe('jointPlcControl: Grip tag', () => {
+  const hand: RigLink = { name: 'hand', parent: 'body', shape: { kind: 'frame' }, offset: [0, 0, 0], grip: { zone: { size: [0.1, 0.1, 0.1] } } }
+  const withHand = (joints: RigJoint[] = []): PackageManifest => {
+    const m = manifest(joints)
+    return { ...m, geometry: { ...m.geometry, links: [...(m.geometry as { links: RigLink[] }).links, hand] } } as PackageManifest
+  }
+  const config = { [gripConfigKey('hand')]: { mode: 'grip' as const } }
+
+  it('writes a script that builds, with a grip and a holding tag, and the gripper declared', () => {
+    const source = jointPlcBehavior('Drill', config, [], [hand])
+    const res = validatePart(withHand(), source)
+    expect(res.diagnostics).toEqual([])
+    expect(res.package!.params.gripHandClose).toMatchObject({ type: 'tag', dir: 'in', stType: 'BOOL', label: 'Grip', group: 'Comms' })
+    expect(res.package!.params.gripHandHolding).toMatchObject({ type: 'tag', dir: 'out', stType: 'BOOL', label: 'Holding' })
+    expect(source).toContain('grippers: ["hand"]')
+    expect(readJointPlcConfig(source)).toEqual({ 'grip:hand': { mode: 'grip', key: 'gripHand' } })
+    expect(isReplaceableBehavior(source)).toBe(true)
+  })
+
+  it('closes the gripper while the tag is TRUE and reports what the host says it holds', () => {
+    const source = jointPlcBehavior('Drill', config, [], [hand])
+    const h = create(source, JSON.stringify({ gripHandClose: 'Grip', gripHandHolding: 'Holding' }))
+    const tick = (grip: boolean, holding: boolean): { grips: Record<string, boolean>; tags: Record<string, boolean> } =>
+      JSON.parse(step(h, JSON.stringify({ simTime: 0, tags: { Grip: grip }, grips: { hand: holding } }), 1 / 60))
+    expect(tick(false, false)).toMatchObject({ grips: { hand: false }, tags: { Holding: false } })
+    expect(tick(true, false)).toMatchObject({ grips: { hand: true }, tags: { Holding: false } })
+    expect(tick(true, true)).toMatchObject({ grips: { hand: true }, tags: { Holding: true } })
+    expect(tick(false, false)).toMatchObject({ grips: { hand: false }, tags: { Holding: false } })
+    destroy(h)
+  })
+
+  it('stays open with no tag wired', () => {
+    const h = create(jointPlcBehavior('Drill', config, [], [hand]), JSON.stringify({}))
+    expect(JSON.parse(step(h, JSON.stringify({ simTime: 0, tags: {} }), 1 / 60)).grips).toEqual({ hand: false })
+    destroy(h)
+  })
+
+  it('goes with a joint of the same name as its node, each under its own keys', () => {
+    const jaw: RigJoint = { name: 'hand', link: 'hand', type: 'prismatic', axis: [1, 0, 0], min: 0, max: 0.02 }
+    const both = { hand: { mode: 'twoPositions' as const, time: 1 }, ...config }
+    const source = jointPlcBehavior('Drill', both, [jaw], [hand])
+    const res = validatePart(withHand([jaw]), source)
+    expect(res.diagnostics).toEqual([])
+    expect(Object.keys(res.package!.params)).toEqual(expect.arrayContaining(['handToB', 'gripHandClose']))
+    // two things driven: each label says whose it is
+    expect(res.package!.params.gripHandClose!.label).toBe('hand: Grip')
+    expect(jointPlcKeys(readJointPlcConfig(source)!)['grip:hand']!.close).toBe('gripHandClose')
+  })
+
+  it('drops a grip area whose node is gone, has no grip area any more, or is repeated', () => {
+    expect(readJointPlcConfig(jointPlcBehavior('Drill', config, [], []))).toBeNull()
+    expect(readJointPlcConfig(jointPlcBehavior('Drill', config, [], [{ ...hand, grip: undefined }]))).toBeNull()
+    expect(canGripTag(hand)).toBe(true)
+    expect(canGripTag({ ...hand, array: { count: 3, step: [0.1, 0, 0] } } as unknown as RigLink)).toBe(false)
   })
 })

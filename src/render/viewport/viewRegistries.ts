@@ -37,6 +37,7 @@ export type RegistriesHost = Pick<
   | 'flowArrowBank'
   | 'gizmo'
   | 'gridVisible'
+  | 'gripArea'
   | 'handles'
   | 'overlays'
   | 'registries'
@@ -98,6 +99,7 @@ export function collectOverlays(view: RegistriesHost): Object3D[] {
   // the rig pose gizmo too: drawn in the main pass, its hide would not reach the cached scene projection and the rings
   // would stay on screen after the robot is deselected
   if (view.rigGizmoOverlay.root.visible) out.push(view.rigGizmoOverlay.root)
+  if (view.gripArea.root.visible) out.push(view.gripArea.root)
   if (view.overlays.rulerGroup.visible) out.push(view.overlays.rulerGroup)
   // flow arrows render in the overlay pass too - under WebGPU render bundles the base
   // transparent pass can't draw over bundled content (finishRender executes bundles last),

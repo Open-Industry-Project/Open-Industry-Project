@@ -35,7 +35,7 @@ function palletGeometry(length: number, width: number): BufferGeometry {
 }
 
 /** how far the placement preview floats over the floor plane it would otherwise z-fight (see buildCargo) */
-const PREVIEW_FLOOR_LIFT = 0.01
+export const PREVIEW_FLOOR_LIFT = 0.01
 
 const toteGeometries = new Map<string, BufferGeometry>()
 function toteGeometry(length: number, height: number, width: number): BufferGeometry {

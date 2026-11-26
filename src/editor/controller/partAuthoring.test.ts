@@ -3,8 +3,9 @@ import type { PartPackage, RigJoint } from '../../core/parts/partPackage'
 import { registerPackage, unregisterPackage } from '../../core/parts/partRegistry'
 import { buildPackage, manifestOfPackage } from '../../sim/buildPackage'
 import { validatePart } from '../../sim/validatePart'
-import { jointPlcBehavior, readJointPlcConfig } from '../jointPlcControl'
-import { deleteRigNode, setRigJoint, type AuthoringDeps } from './partAuthoring'
+import { gripConfigKey, jointPlcBehavior, readJointPlcConfig } from '../jointPlcControl'
+import { getPackage } from '../../core/parts/partRegistry'
+import { addGripArea, deleteRigNode, editRigLink, renameRigNode, selectedGripArea, setGripPlcControl, setRigJoint, type AuthoringDeps } from './partAuthoring'
 
 const ID = 'test.joint-fields'
 const turn = 2 * Math.PI
@@ -111,5 +112,92 @@ describe('deleteRigNode', () => {
     deleteRigNode(ec, ID, 'hand')
     expect(Object.keys(readJointPlcConfig(committed!.behavior)!)).toEqual(['shoulder'])
     expect(validatePart(manifestOfPackage(committed!), committed!.behavior).diagnostics).toEqual([])
+  })
+})
+
+describe('a grip area', () => {
+  afterEach(() => void unregisterPackage(ID))
+
+  // a store that registers what is committed, as the editor's does, and records the node selected
+  const deps = (): { ec: AuthoringDeps; selected: () => string | null } => {
+    let selected: string | null = null
+    const ec = {
+      store: {
+        commitPackage: (_label: string, pkg: PartPackage) => void registerPackage(pkg),
+        getState: () => ({ focusedPartId: 'p1', selectedRigNode: selected ? { partId: 'p1', linkName: selected } : null, scene: { parts: [{ id: 'p1', type: 'part', packageId: ID, params: {} }] } }),
+        selectRigNode: (_part: string, link: string) => void (selected = link),
+      },
+    } as unknown as AuthoringDeps
+    return { ec, selected: () => selected }
+  }
+  const link = (name: string) => {
+    const g = getPackage(ID)!.geometry
+    return g.kind === 'rig' ? g.links.find((l) => l.name === name) : undefined
+  }
+
+  it('is added as a frame node under the chosen node, with a box, and selected', () => {
+    register()
+    const { ec, selected } = deps()
+    addGripArea(ec, ID, 'hand')
+    expect(link('grip')).toMatchObject({ parent: 'hand', shape: { kind: 'frame' }, offset: [0, 0, 0], grip: { zone: { size: [0.1, 0.1, 0.1] } } })
+    expect(selected()).toBe('grip')
+    addGripArea(ec, ID, 'arm')
+    expect(link('grip-2')?.parent).toBe('arm')
+    expect(validatePart(manifestOfPackage(getPackage(ID)!), getPackage(ID)!.behavior).diagnostics).toEqual([])
+  })
+
+  it('is what the view is given to draw for the selected node: the box, or the sphere past the node\'s own shape', () => {
+    register()
+    const { ec } = deps()
+    addGripArea(ec, ID, 'hand')
+    editRigLink(ec, ID, 'grip', { grip: { zone: { size: [0.2, 0.1, 0.4], offset: [0, -0.05, 0] } } })
+    const state = (ec.store as unknown as { getState: () => Parameters<typeof selectedGripArea>[0] }).getState
+    expect(selectedGripArea(state())).toEqual({ partId: 'p1', linkName: 'grip', box: { half: [0.1, 0.05, 0.2], offset: [0, -0.05, 0] } })
+    // a sphere on a node that draws a 0.05 m box: its reach starts at the box's half extent
+    editRigLink(ec, ID, 'hand', { grip: { radius: 0.1 } })
+    ec.store.selectRigNode('p1', 'hand')
+    expect(selectedGripArea(state())).toEqual({ partId: 'p1', linkName: 'hand', radius: 0.125 })
+    ec.store.selectRigNode('p1', 'arm')
+    expect(selectedGripArea(state())).toBeNull()
+    // a gripper made for a part: the part is drawn where it is held, when it is one the project has
+    ec.store.selectRigNode('p1', 'grip')
+    const zone = { size: [0.2, 0.1, 0.4] as [number, number, number] }
+    editRigLink(ec, ID, 'grip', { grip: { zone, takes: { part: ID, at: [0, -0.02, 0], rotation: [0, Math.PI, 0] } } })
+    const held = selectedGripArea(state())?.held
+    expect(held).toMatchObject({ packageId: ID, at: [0, -0.02, 0] })
+    expect(held!.quat[1]).toBeCloseTo(1, 9)
+    editRigLink(ec, ID, 'grip', { grip: { zone, takes: { part: 'test.not-loaded' } } })
+    expect(selectedGripArea(state())?.held).toBeUndefined()
+  })
+
+  it('takes Grip tag, keeps it under a new name when its node is renamed, and loses it with the area', () => {
+    register()
+    const { ec } = deps()
+    addGripArea(ec, ID, 'hand')
+    // the part has a script of its own: it is replaced only when that is confirmed
+    expect(setGripPlcControl(ec, ID, 'grip', true, () => false)).toBe(false)
+    expect(setGripPlcControl(ec, ID, 'grip', true, () => true)).toBe(true)
+    expect(Object.keys(getPackage(ID)!.params)).toEqual(['gripGripClose', 'gripGripHolding'])
+    let asked = 0
+    expect(renameRigNode(ec, ID, 'grip', 'cup', () => (asked++, true))).toBe(true)
+    expect(asked).toBe(0)
+    // the same param keys, so the tag names on placed copies stay bound
+    expect(readJointPlcConfig(getPackage(ID)!.behavior)).toEqual({ [gripConfigKey('cup')]: { mode: 'grip', key: 'gripGrip' } })
+    expect(getPackage(ID)!.behavior).toContain('grippers: ["cup"]')
+    expect(validatePart(manifestOfPackage(getPackage(ID)!), getPackage(ID)!.behavior).diagnostics).toEqual([])
+    editRigLink(ec, ID, 'cup', { grip: null })
+    expect(link('cup')?.grip).toBeUndefined()
+    expect(readJointPlcConfig(getPackage(ID)!.behavior)).toBeNull()
+    expect(validatePart(manifestOfPackage(getPackage(ID)!), getPackage(ID)!.behavior).diagnostics).toEqual([])
+  })
+
+  it('goes out of the script with its node when the node is deleted', () => {
+    register()
+    const { ec } = deps()
+    addGripArea(ec, ID, 'hand')
+    setGripPlcControl(ec, ID, 'grip', true, () => true)
+    deleteRigNode(ec, ID, 'grip')
+    expect(readJointPlcConfig(getPackage(ID)!.behavior)).toBeNull()
+    expect(validatePart(manifestOfPackage(getPackage(ID)!), getPackage(ID)!.behavior).diagnostics).toEqual([])
   })
 })
