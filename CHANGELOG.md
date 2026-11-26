@@ -37,7 +37,7 @@ The first public source release. The [README](README.md#features) lists what it 
 - Part Editor: a node's **Grip area** makes a part a gripper without editing its manifest. **Add grip area** adds a
   node with a pickup box that is moved and sized in the Inspector and drawn over the part while it is selected, and
   its **PLC control** can be set to **Grip tag**, which writes a behavior with a BOOL grip tag and a BOOL holding tag.
-- A gripper can be made for one part (`grip.takes`, Part SDK level 19; **Takes** in the Grip area section): it takes
+- A gripper can be made for one part (`grip.takes`, Part SDK level 21; **Takes** in the Grip area section): it takes
   one body of that part and no other cargo, and holds it at a set place and turn, moving it there as it is taken.
   With a distance limit and a turn limit per axis it leaves a part that lies too far off, and it can hold the part
   as it lies instead. The Part Editor draws the part in the
