@@ -803,7 +803,6 @@ export function moveRotate(ec: EditorController, drag: Drag & { kind: 'rotate' }
   if (!drag.moved && delta === 0) return
   drag.moved = true
   ec.view.showRotationFeedback(delta)
-  const single = drag.ids.length === 1
   const moved = new Set(drag.ids) // Set, not ids.includes: O(parts × selection) per move at scale
 
   // rotation about (near-)vertical takes the yaw path, so conveyors still structurally snap
@@ -834,7 +833,9 @@ export function moveRotate(ec: EditorController, drag: Drag & { kind: 'rotate' }
   if (drag.start.parts.some((p) => moved.has(p.id) && isConveyorLike(p))) return
 
   // tilt (X/Z/view rings): compose the world-axis delta onto each part's YXZ
-  // orientation; multi-select orbits positions about the center. No structural snap.
+  // orientation and orbit its position about the pivot, as the yaw path does. No structural snap.
+  // A lone part too: its pivot is the footprint centre, which is not its origin for an off-centre model,
+  // and turned about the origin it swung away from the ring that was turning it.
   const q = new Quaternion().setFromAxisAngle(new Vector3(axis[0], axis[1], axis[2]).normalize(), delta)
   const euler = new Euler()
   const off = new Vector3()
@@ -844,18 +845,16 @@ export function moveRotate(ec: EditorController, drag: Drag & { kind: 'rotate' }
       if (!moved.has(p.id)) return p
       euler.set(p.rotationX ?? 0, p.rotationY, p.rotationZ ?? 0, 'YXZ')
       euler.setFromQuaternion(new Quaternion().setFromEuler(euler).premultiply(q), 'YXZ')
-      let position = p.position
-      if (!single) {
-        off.set(p.position[0] - drag.cx, p.position[1] - drag.cy, p.position[2] - drag.cz).applyQuaternion(q)
-        position = [drag.cx + off.x, drag.cy + off.y, drag.cz + off.z]
-      }
+      off.set(p.position[0] - drag.cx, p.position[1] - drag.cy, p.position[2] - drag.cz)
+      // a part on its pivot keeps its exact position
+      const position: [number, number, number] = off.lengthSq() < 1e-18 ? p.position : (off.applyQuaternion(q), [drag.cx + off.x, drag.cy + off.y, drag.cz + off.z])
       return { ...p, position, rotationX: euler.x, rotationY: euler.y, rotationZ: euler.z } as PartInstance
     }),
   })
   // live cargo: mirror the full tilted orientation to the body (cargo is the one part family whose
   // body accepts arbitrary orientation - it tumbles anyway), so the tilt rings work while running.
-  // Every selected box, not just a lone one: a multi-select also orbits positions about the centre
-  // (see `!single` above), and physics owns those bodies - unsynced, the group visibly stays put.
+  // Every selected box, not just a lone one: a multi-select also orbits positions about the centre,
+  // and physics owns those bodies - unsynced, the group visibly stays put.
   for (const part of liveCargoParts(ec, drag.ids)) {
     ec.sim.moveBody(part.id, part.position, quatFromYXZ(part.rotationX ?? 0, part.rotationY, part.rotationZ ?? 0))
   }

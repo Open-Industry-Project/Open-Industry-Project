@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PerspectiveCamera, Quaternion, Ray, Raycaster, Vector3 } from 'three'
-import { TransformGizmo } from './gizmo'
+import { TransformGizmo, rayLineParam } from './gizmo'
 
 /** a downward ray whose XZ-plane intersection is (x, 0, z) - the gizmo math works off that point */
 function downRay(x: number, z: number): Ray {
@@ -415,6 +415,79 @@ describe('TransformGizmo plane pads follow the camera quadrant', () => {
     expect(g.pick(padRay(g, far, -1, -1))).toBe('xz')
     g.dispose()
   })
+
+  it('every pad is grabbed from every side of its plane', () => {
+    for (const sx of [1, -1]) for (const sy of [1, -1]) for (const sz of [1, -1]) {
+      const g = new TransformGizmo()
+      g.setState(state)
+      const cam = cameraAt([5 * sx, 4 * sy, 6 * sz])
+      g.updateScale(cam, 800)
+      const o = 0.42 * g.root.scale.x
+      const at = (x: number, y: number, z: number) =>
+        g.pick(new Raycaster(cam.position.clone(), new Vector3(x, y, z).sub(cam.position).normalize()))
+      // from behind its plane a pad's back faces the camera (it took the press for the arrow behind it, or nothing)
+      expect(at(sx * o, 0, sz * o)).toBe('xz')
+      expect(at(sx * o, sy * o, 0)).toBe('xy')
+      expect(at(0, sy * o, sz * o)).toBe('yz')
+      g.dispose()
+    }
+  })
+
+  it('a pad seen edge-on has no handle, and the arrow beside it keeps its press', () => {
+    const g = new TransformGizmo()
+    g.setState(state)
+    // 5 deg off the X axis: the XY pad is a sliver lying over the Y arrow
+    const a = (5 * Math.PI) / 180
+    const cam = cameraAt([10 * Math.cos(a), 2, 10 * Math.sin(a)])
+    g.updateScale(cam, 800)
+    const s = g.root.scale.x
+    const through = (p: Vector3) => new Raycaster(cam.position.clone(), p.sub(cam.position).normalize())
+    expect(g.pick(through(new Vector3(0.42 * s, 0.42 * s, 0)))).not.toBe('xy')
+    // a point on the sliver that is also inside the Y arrow's grab width
+    expect(g.pick(through(new Vector3(0.3 * s, 0.42 * s, 0)))).toBe('y')
+    // the pad facing the camera is still there
+    expect(g.pick(through(new Vector3(0, 0.42 * s, 0.42 * s)))).toBe('yz')
+    // and the XY pad is back once the view opens up
+    g.updateScale(cameraAt([7, 2, 7]), 800)
+    const open = cameraAt([7, 2, 7])
+    expect(g.pick(new Raycaster(open.position.clone(), new Vector3(0.42 * g.root.scale.x, 0.42 * g.root.scale.x, 0).sub(open.position).normalize()))).toBe('xy')
+    g.dispose()
+  })
+
+  it('an arrow pointing at the viewer has no handle, so a press on the part is not a move into the screen', () => {
+    const g = new TransformGizmo()
+    g.setState(state)
+    // near top-down: the Y arrow is a dot over the gizmo centre
+    const cam = cameraAt([0.3, 10, 0.3])
+    g.updateScale(cam, 800)
+    const s = g.root.scale.x
+    expect(g.pick(new Raycaster(cam.position.clone(), new Vector3(0, 0.5 * s, 0).sub(cam.position).normalize()))).toBeNull()
+    // the arrows across the view are untouched
+    expect(g.pick(new Raycaster(cam.position.clone(), new Vector3(0.8 * s, 0, 0).sub(cam.position).normalize()))).toBe('x')
+    g.dispose()
+  })
+
+  it('a tilted part moves along the local arrows and pads as they are drawn', () => {
+    const g = new TransformGizmo()
+    // pitched 90 deg: local +Y points along world +Z and the local XY pad lies flat
+    const tilted = { ...state, rotationX: Math.PI / 2, space: 'local' as const }
+    g.setState(tilted)
+    const cam = cameraAt([3, 10, 3])
+    g.updateScale(cam, 800)
+    const o = 0.42 * g.root.scale.x
+    const through = (x: number, z: number) => new Raycaster(cam.position.clone(), new Vector3(x, 0, z).sub(cam.position).normalize())
+    expect(g.pick(through(o, o))).toBe('xy')
+    g.beginDrag('xy', through(o, o).ray, cam.getWorldDirection(new Vector3()))
+    g.setState(tilted)
+    // the drag stays on the flat plane the pad was drawn on (it rode the upright world XY plane)
+    const t = g.dragDelta(through(o + 1, o + 2).ray)?.translation
+    expect(t?.[0]).toBeCloseTo(1, 4)
+    expect(t?.[1]).toBeCloseTo(0, 4)
+    expect(t?.[2]).toBeCloseTo(2, 4)
+    // and the handles do not turn under the cursor at the grab
+    expect(Math.abs(g.root.quaternion.x)).toBeCloseTo(Math.SQRT1_2, 5)
+    g.dispose()
+  })
 })
 
 describe('TransformGizmo drag guards', () => {
@@ -448,6 +521,42 @@ describe('TransformGizmo drag guards', () => {
     const t = g.dragDelta(at(-1, 10))?.translation
     // that ray meets the floor at z = 10 + 1/tan(10°), behind its origin, and it is still the point under the cursor
     expect(t?.[2]).toBeCloseTo(10 + 1 / Math.tan(Math.PI / 18), 3)
+    g.dispose()
+  })
+
+  it('an axis drag of a part off the screen centre follows the cursor when it strays off the arrow', () => {
+    // camera 60 deg up looking at the origin, the part 5 m off to one side
+    const cam: [number, number, number] = [0, 10 * Math.sin(Math.PI / 3), 10 * Math.cos(Math.PI / 3)]
+    const fwd = new Vector3(...cam).negate().normalize()
+    const centre = new Vector3(-4, 0, 3)
+    const up = new Vector3(0, 1, 0)
+    const g = new TransformGizmo()
+    g.setState({ center: [centre.x, centre.y, centre.z], rotationY: 0, mode: 'move', space: 'global' })
+    const grab = rayFrom(cam, [-4, 0.5, 3])
+    // up the arrow and off to its side, across the line of sight
+    const side = new Vector3().crossVectors(up, centre.clone().sub(new Vector3(...cam))).normalize().multiplyScalar(0.5)
+    const moved = rayFrom(cam, [-4 + side.x, 1.3 + side.y, 3 + side.z])
+    g.beginDrag('y', grab, fwd)
+    const t = g.dragDelta(moved)?.translation
+    // the reference is the point of the axis nearest the cursor ray (read on the plane facing the camera's forward
+    // this drag was 2 m out on a 0.9 m move)
+    const want = rayLineParam(centre, up, moved)! - rayLineParam(centre, up, grab)!
+    expect(want).toBeGreaterThan(0.3)
+    expect(Math.abs(t![1] - want)).toBeLessThan(0.2 * want)
+    expect(t![0]).toBeCloseTo(0, 6)
+    expect(t![2]).toBeCloseTo(0, 6)
+    g.dispose()
+  })
+
+  it('an orthographic edge-on ring keeps its linear drag when the cursor drifts along the axis', () => {
+    // front view: the Y ring is a line. An orthographic ray starts on the camera plane under the cursor.
+    const fwd = new Vector3(0, 0, -1)
+    const at = (x: number, y: number): Ray => new Ray(new Vector3(x, y, 10), fwd.clone())
+    const g = new TransformGizmo()
+    g.setState({ center: [0, 0, 0], rotationY: 0, mode: 'rotate', space: 'global' })
+    g.beginDrag('rotY', at(0.2, 0), fwd, undefined, true)
+    // half a radius sideways is 45 deg, whatever the cursor's height (above 0.9 it read 55 to 68 deg)
+    for (const y of [0, 0.5, 0.9, 1.5]) expect(g.dragDelta(at(0.7, y))?.rotationDelta).toBeCloseTo(Math.PI / 4, 5)
     g.dispose()
   })
 

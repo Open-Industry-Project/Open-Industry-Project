@@ -86,6 +86,13 @@ const padProxyYZGeo = new PlaneGeometry(0.42, 0.42).rotateY(Math.PI / 2).transla
 // distance (~1.1 deg). A hard sign test would flip back and forth every frame while an
 // orbit grazes the plane; the band makes the crossing commit.
 const PAD_FLIP_BAND = 0.02
+// a pad has no handle while its plane is within ~14 deg of edge-on to the viewer (|normal . sight| below this). There
+// a pixel of cursor is 4 or more pixels of travel into the screen, and the sliver lies over the arrow beside it and
+// takes that arrow's press.
+const PAD_EDGE_ON = 0.25
+// an arrow has no handle while it points within ~10 deg of the line of sight (|axis . sight| above this). End-on it
+// is a dot over the gizmo centre that takes a press meant for the part, and its travel is all into the screen.
+const ARROW_END_ON = 0.985
 // rotate ring-set: X (YZ plane) / Y (XZ) / Z (XY) axis rings + an outer
 // view ring that rotates about the camera normal. All four are live handles.
 const ringGeo = new TorusGeometry(1, 0.02, 8, 128).rotateX(Math.PI / 2)
@@ -142,6 +149,7 @@ const DEFAULT_CAM_NORMAL = new Vector3(0, -1, 0)
 // scratch for the view ring's per-frame facing (updateScale)
 const _faceM = new Matrix4()
 const _faceQ = new Quaternion()
+const _euler = new Euler()
 
 /** Per-ring root-local rotation axis; the in-plane drag frame is derived per drag. */
 const RING_AXIS: Record<'rotX' | 'rotY' | 'rotZ', Vector3> = {
@@ -270,6 +278,10 @@ type DragState =
       clickOrigin: Vector3
       clickDir: Vector3
       camNormal: Vector3
+      // the line of sight to the gizmo at the grab: an axis drag reads the cursor on the plane through the axis
+      // that faces it. In perspective that is not the camera's forward for a part off the screen centre, and the
+      // forward-facing plane there is skewed to the cursor ray: the drag ran long, short or backwards.
+      sight: Vector3
       plane: GizmoConstraint | 'view'
       local: boolean
       last: [number, number, number]
@@ -287,7 +299,7 @@ type DragState =
       clickOrigin: Vector3
       clickDir: Vector3
       // kept so a keyboard X/Y/Z mid-drag can re-aim the ring (axis lock):
-      // camNormal seeds the view axis + camera-facing reseed, grabQuat the local axis,
+      // camNormal (the line of sight to the gizmo) seeds the view axis + camera-facing reseed, grabQuat the local axis,
       // axisKey/local track the global -> local -> view cycle.
       camNormal: Vector3
       grabQuat: Quaternion
@@ -314,10 +326,12 @@ export class TransformGizmo {
   private readonly rotateGroup = new Group()
   private readonly moveProxies: Mesh[] = []
   // the three translate arrows (visual + pick proxy), by axis, so a GizmoState.lockMove can leave one out
-  private readonly arrowGroups: { group: Group; axis: 0 | 1 | 2 }[] = []
+  // endOn: the arrow points at the viewer and is left out (updateMoveHandles)
+  private readonly arrowGroups: { group: Group; axis: 0 | 1 | 2; endOn: boolean }[] = []
   // the three translate plane pads (visual + pick proxy per plane), each parented to a
-  // group updatePadQuadrants shifts into the camera-facing quadrant
-  private readonly padGroups: { group: Group; axes: readonly ('x' | 'y' | 'z')[] }[] = []
+  // group updateMoveHandles shifts into the camera-facing quadrant. edgeOn: the pad's plane
+  // is seen edge-on and the pad is left out.
+  private readonly padGroups: { group: Group; axes: readonly ('x' | 'y' | 'z')[]; normal: 'x' | 'y' | 'z'; edgeOn: boolean }[] = []
   // which side of each gizmo-local axis the pads currently sit on; +1 = the baked
   // +/+ quadrant, so a gizmo that never sees a camera keeps the baked layout
   private readonly padSign: Record<'x' | 'y' | 'z', number> = { x: 1, y: 1, z: 1 }
@@ -330,6 +344,9 @@ export class TransformGizmo {
   private readonly trackballProxies: Mesh[] = []
   private readonly styles = new Map<GizmoHandle, HandleStyle>()
   private readonly proxyMaterial = new MeshBasicMaterial({ visible: false })
+  // a pad is a flat sheet seen from either side, and a ray skips the back of a single-sided one: from behind its
+  // plane the pad drew but could not be grabbed, and the press went to the arrow behind it
+  private readonly padProxyMaterial = new MeshBasicMaterial({ visible: false, side: DoubleSide })
   private readonly viewRingGroup = new Group()
   // the trackball hover ball: hidden at rest, shown faintly while 'rotTrackball' is
   // highlighted (kept out of `styles` so applyHighlight only toggles its visibility).
@@ -397,13 +414,13 @@ export class TransformGizmo {
       arrow.add(proxy)
       this.moveGroup.add(arrow)
       this.moveProxies.push(proxy)
-      this.arrowGroups.push({ group: arrow, axis: AXIS_INDEX[axis] })
+      this.arrowGroups.push({ group: arrow, axis: AXIS_INDEX[axis], endOn: false })
     }
 
     const planeDefs = [
-      { handle: 'xz' as const, color: AXIS_COLORS.y, geo: padXZGeo, proxy: padProxyXZGeo, axes: ['x', 'z'] as const },
-      { handle: 'xy' as const, color: AXIS_COLORS.z, geo: padXYGeo, proxy: padProxyXYGeo, axes: ['x', 'y'] as const },
-      { handle: 'yz' as const, color: AXIS_COLORS.x, geo: padYZGeo, proxy: padProxyYZGeo, axes: ['y', 'z'] as const },
+      { handle: 'xz' as const, color: AXIS_COLORS.y, geo: padXZGeo, proxy: padProxyXZGeo, axes: ['x', 'z'] as const, normal: 'y' as const },
+      { handle: 'xy' as const, color: AXIS_COLORS.z, geo: padXYGeo, proxy: padProxyXYGeo, axes: ['x', 'y'] as const, normal: 'z' as const },
+      { handle: 'yz' as const, color: AXIS_COLORS.x, geo: padYZGeo, proxy: padProxyYZGeo, axes: ['y', 'z'] as const, normal: 'x' as const },
     ]
     for (const p of planeDefs) {
       const padMaterial = this.handleMaterial(p.handle, p.color, 0.4)
@@ -411,12 +428,12 @@ export class TransformGizmo {
       // picks it together (they must never disagree about where the pad is)
       const padGroup = new Group()
       padGroup.add(this.visualMesh(p.geo, padMaterial))
-      const padProxy = new Mesh(p.proxy, this.proxyMaterial)
+      const padProxy = new Mesh(p.proxy, this.padProxyMaterial)
       padProxy.userData.handle = p.handle
       padGroup.add(padProxy)
       this.moveGroup.add(padGroup)
       this.moveProxies.push(padProxy)
-      this.padGroups.push({ group: padGroup, axes: p.axes })
+      this.padGroups.push({ group: padGroup, axes: p.axes, normal: p.normal, edgeOn: false })
     }
 
     const ringDefs = [
@@ -516,19 +533,20 @@ export class TransformGizmo {
     const yawMat = this.rotateVisuals[0]?.material as MeshBasicMaterial | undefined
     const ringFull = yawMat?.userData.ringFull as { value: number } | undefined
     if (ringFull) ringFull.value = yawOnly ? 1 : 0
-    // locks: an axis or a rotation the part sets itself has no handle at all (pick() skips hidden proxies)
-    const lock = state.lockMove
-    for (const a of this.arrowGroups) a.group.visible = !lock?.[a.axis]
-    for (const p of this.padGroups) p.group.visible = !p.axes.some((ax) => lock?.[AXIS_INDEX[ax]])
+    this.showMoveHandles()
     if (state.lockRotate) this.rotateGroup.visible = false
   }
 
   /**
-   * The handles' orientation. Global space: the world axes. Local space: the part's full orientation, or a frame
-   * when one is given (a rig node's parent frame). While a translate drag is live the gizmo follows the part
-   * (setState fires each frame), so it honours the drag's keyboard lock (constrain), not the space toggle - and a
-   * part's local translate is yaw-only, while a frame is used whole.
+   * Which move handles exist. An axis the part sets itself (lockMove) has no arrow and no pad, and neither has a
+   * handle the view makes useless: an arrow end-on, a pad edge-on (updateMoveHandles). pick() skips a hidden handle.
    */
+  private showMoveHandles(): void {
+    const lock = this.state?.lockMove
+    for (const a of this.arrowGroups) a.group.visible = !a.endOn && !lock?.[a.axis]
+    for (const p of this.padGroups) p.group.visible = !p.edgeOn && !p.axes.some((ax) => lock?.[AXIS_INDEX[ax]])
+  }
+
   private planeHit(origin: Vector3, dir: Vector3, normal: Vector3, point: Vector3): Vector3 | null {
     return rayPlaneHit(origin, dir, normal, point, this.orthographic)
   }
@@ -540,27 +558,26 @@ export class TransformGizmo {
     this.feedbackGroup.quaternion.copy(this.root.quaternion).invert()
   }
 
+  /**
+   * The handles' orientation. Global space: the world axes. Local space: the part's full orientation, or a frame
+   * when one is given (a rig node's parent frame). While a translate drag is live the gizmo follows the part
+   * (setState fires each frame), so it honours the drag's keyboard lock (constrain), not the space toggle.
+   */
   private orientRootOnly(): void {
-    const state = this.state
-    if (!state) return
+    if (!this.state) return
     const translate = this.drag?.kind === 'translate' ? this.drag : null
-    const local = translate ? translate.local : state.space === 'local'
-    if (local && state.frame) {
-      this.root.quaternion.set(state.frame[0], state.frame[1], state.frame[2], state.frame[3])
-      return
-    }
-    let rx = 0
-    let ry = 0
-    let rz = 0
-    if (translate) {
-      ry = translate.local ? state.rotationY : 0
-    } else if (local) {
-      rx = state.rotationX ?? 0
-      ry = state.rotationY
-      rz = state.rotationZ ?? 0
-    }
-    this.root.rotation.order = 'YXZ'
-    this.root.rotation.set(rx, ry, rz)
+    this.orientationInto(this.root.quaternion, translate ? translate.local : this.state.space === 'local')
+  }
+
+  /**
+   * The orientation of the handles, and so of a translate drag's axes and planes. One answer for both: a tilted
+   * part's local arrows were drawn tilted and dragged along its yaw alone, so the part left the arrow that was grabbed.
+   */
+  private orientationInto(out: Quaternion, local: boolean): Quaternion {
+    const state = this.state
+    if (!state || !local) return out.identity()
+    if (state.frame) return out.set(state.frame[0], state.frame[1], state.frame[2], state.frame[3])
+    return out.setFromEuler(_euler.set(state.rotationX ?? 0, state.rotationY, state.rotationZ ?? 0, 'YXZ'))
   }
 
   pick(raycaster: Raycaster): GizmoHandle | null {
@@ -571,8 +588,9 @@ export class TransformGizmo {
     // yaw-only hides the X/Z + view rings (setState sets their proxies invisible);
     // intersectObjects ignores visibility, so filter here too. Trackball is suppressed.
     const yawOnly = this.state.rotateYawOnly === true
-    // a locked axis' arrow (and any pad using it) is hidden; intersectObjects would still hit its proxy
-    const moves = this.state.lockMove ? this.moveProxies.filter((m) => m.parent?.visible !== false) : this.moveProxies
+    // a handle left out (a locked axis, an end-on arrow, an edge-on pad) is hidden; intersectObjects would still hit
+    // its proxy
+    const moves = this.moveProxies.filter((m) => m.parent?.visible !== false)
     if (this.state.lockRotate) return this.state.mode === 'rotate' ? null : this.pickFrom(raycaster, moves)
     const rings = yawOnly ? this.rotateProxies.filter((m) => m.visible) : this.rotateProxies
     const viewRings = yawOnly ? [] : this.viewRingProxies
@@ -644,12 +662,14 @@ export class TransformGizmo {
       this.drag = { kind: 'trackball', right, up, startX: screen?.x ?? 0, startY: screen?.y ?? 0 }
     } else {
       // x | y | z (axis arrows) | xy | xz | yz (plane pads) | view (body drag)
+      const sight = orthographic ? camNormal.clone() : center.clone().sub(ray.origin)
       this.drag = {
         kind: 'translate',
         center,
         clickOrigin: ray.origin.clone(),
         clickDir: ray.direction.clone(),
         camNormal: camNormal.clone().normalize(),
+        sight: sight.lengthSq() > 1e-12 ? sight.normalize() : camNormal.clone().normalize(),
         plane: handle === 'view' ? 'view' : (handle as GizmoConstraint),
         local: handle !== 'view' && this.state.space === 'local',
         last: [0, 0, 0],
@@ -669,7 +689,7 @@ export class TransformGizmo {
       ? new Quaternion(f[0], f[1], f[2], f[3])
       : new Quaternion().setFromEuler(new Euler(this.state?.rotationX ?? 0, this.state?.rotationY ?? 0, this.state?.rotationZ ?? 0, 'YXZ'))
     const axisWorld = this.ringAxisWorld(axisKey, local, grabQuat, camNormal)
-    const seed = this.seedRing(center, axisWorld, ray.origin, ray.direction)
+    const seed = this.seedRing(center, axisWorld, ray.origin, ray.direction, camNormal)
     this.drag = {
       kind: 'ring',
       center,
@@ -711,9 +731,12 @@ export class TransformGizmo {
     axisWorld: Vector3,
     origin: Vector3,
     dir: Vector3,
+    sight: Vector3,
   ): { initialClickVec: Vector3; prevVec: Vector3; planar: boolean; prevRingVec: Vector3; cursorHit: Vector3 | null } {
     const ringHit = this.planeHit(origin, dir, axisWorld, center)
-    const camFacing = tmpA.subVectors(center, origin).normalize()
+    // the line of sight to the gizmo, not centre minus ray origin: an orthographic ray starts under the cursor, so
+    // that difference leans with the cursor and an edge-on ring's linear drag turned angular part way (a jump)
+    const camFacing = tmpA.copy(sight)
     const planar = ringHit !== null && ringHit.distanceToSquared(center) > 1e-12 && Math.abs(camFacing.dot(axisWorld)) >= RING_PLANE_MIN
     const camHit = this.planeHit(origin, dir, camFacing, center)
     const refHit = ringHit ?? camHit
@@ -767,7 +790,7 @@ export class TransformGizmo {
     }
     drag.axisWorld = this.ringAxisWorld(drag.axisKey, drag.local, drag.grabQuat, drag.camNormal)
     drag.radius = drag.axisKey === 'view' ? VIEW_RING_RADIUS : RING_RADIUS
-    const seed = this.seedRing(drag.center, drag.axisWorld, drag.clickOrigin, drag.clickDir)
+    const seed = this.seedRing(drag.center, drag.axisWorld, drag.clickOrigin, drag.clickDir, drag.camNormal)
     drag.initialClickVec = seed.initialClickVec
     drag.prevVec = seed.prevVec
     drag.planar = seed.planar
@@ -833,8 +856,8 @@ export class TransformGizmo {
         rotationAxis: [drag.axisWorld.x, drag.axisWorld.y, drag.axisWorld.z],
       }
     }
-    // a ring near edge-on: read the cursor on a camera-facing plane (perspective: facing the camera position)
-    const camFacing = tmpA.subVectors(drag.center, ray.origin).normalize()
+    // a ring near edge-on: read the cursor on the plane facing the line of sight (camNormal holds it for a ring)
+    const camFacing = tmpA.copy(drag.camNormal)
     const hit = this.planeHit(ray.origin, ray.direction, camFacing, drag.center)
     if (hit) {
       const current = tmpB.subVectors(hit, drag.center).normalize()
@@ -961,30 +984,40 @@ export class TransformGizmo {
     this.root.scale.setScalar(Math.max(worldPerPx * GIZMO_PX, 1e-4))
     // the view ring faces the viewer in world space (undo the root's full orientation): along the line of sight to the
     // gizmo in perspective, the axis a view-ring drag turns about (beginDrag), and along the camera in orthographic
+    const ortho = (camera as PerspectiveCamera & { orthographic?: boolean }).orthographic === true
     if (this.rotateGroup.visible) {
-      const ortho = (camera as PerspectiveCamera & { orthographic?: boolean }).orthographic === true
       const facing = ortho ? camera.quaternion : _faceQ.setFromRotationMatrix(_faceM.lookAt(camera.position, this.root.position, camera.up))
       this.viewRingGroup.quaternion.copy(this.root.quaternion).invert().multiply(facing)
     }
-    if (this.moveGroup.visible) this.updatePadQuadrants(camera)
+    if (this.moveGroup.visible) this.updateMoveHandles(camera, ortho)
   }
 
   /**
-   * Keep each translate plane pad in the quadrant nearest the camera, so a pad is never
+   * Fit the move handles to where the viewer is.
+   *
+   * Each translate plane pad sits in the quadrant nearest the camera, so a pad is never
    * parked behind the part it moves. The geometries
    * bake the +/+ quadrant, so a flip is a -2*PAD_OFFSET shift of the pad's group along
-   * that axis: a pure translation, which leaves the winding - and therefore the
-   * single-sided pick proxies - intact where a mirroring scale would not.
-   * Frozen while a drag is live: the grabbed pad must not jump out from under the cursor
+   * that axis.
+   *
+   * A pad seen edge-on and an arrow seen end-on are left out (PAD_EDGE_ON, ARROW_END_ON).
+   *
+   * Frozen while a drag is live: the grabbed handle must not jump out from under the cursor or vanish
    * when the part it is moving crosses the camera's axis plane.
    */
-  private updatePadQuadrants(camera: PerspectiveCamera): void {
+  private updateMoveHandles(camera: PerspectiveCamera, ortho: boolean): void {
     if (this.drag) return
-    // camera offset in gizmo-local space - the root's yaw/tilt (local space) turns the
-    // pads with the part, so the quadrant test has to be taken in that same frame
-    const v = tmpA.copy(camera.position).sub(this.root.position)
+    // the direction to the viewer in gizmo-local space - the root's yaw/tilt (local space) turns the
+    // handles with the part, so the tests have to be taken in that same frame. Orthographic sight lines are
+    // parallel, so there it is the camera's own axis wherever the gizmo sits.
+    const v = ortho ? camera.getWorldDirection(tmpA).negate() : tmpA.copy(camera.position).sub(this.root.position)
     v.applyQuaternion(tmpQuat.copy(this.root.quaternion).invert())
-    const band = PAD_FLIP_BAND * v.length()
+    const len = v.length()
+    if (len < 1e-9) return
+    for (const a of this.arrowGroups) a.endOn = Math.abs(v.getComponent(a.axis)) > ARROW_END_ON * len
+    for (const p of this.padGroups) p.edgeOn = Math.abs(v[p.normal]) < PAD_EDGE_ON * len
+    this.showMoveHandles()
+    const band = PAD_FLIP_BAND * len
     for (const axis of ['x', 'y', 'z'] as const) {
       if (v[axis] > band) this.padSign[axis] = 1
       else if (v[axis] < -band) this.padSign[axis] = -1
@@ -1000,6 +1033,7 @@ export class TransformGizmo {
   dispose(): void {
     for (const style of this.styles.values()) style.material.dispose()
     this.proxyMaterial.dispose()
+    this.padProxyMaterial.dispose()
     this.trackballMaterial.dispose()
     this.sectorMaterial.dispose()
     this.tickMaterial.dispose()
@@ -1044,17 +1078,10 @@ export class TransformGizmo {
     return mesh
   }
 
-  /** the gizmo's X/Y/Z basis: world axes when global, yawed by the part when local */
+  /** the gizmo's X/Y/Z basis: world axes when global, the part's (or the frame's) when local */
   private localAxes(local: boolean): { x: Vector3; y: Vector3; z: Vector3 } {
-    const f = local ? this.state?.frame : undefined
-    if (f) {
-      const q = new Quaternion(f[0], f[1], f[2], f[3])
-      return { x: new Vector3(1, 0, 0).applyQuaternion(q), y: new Vector3(0, 1, 0).applyQuaternion(q), z: new Vector3(0, 0, 1).applyQuaternion(q) }
-    }
-    const ry = local ? this.state?.rotationY ?? 0 : 0
-    const c = Math.cos(ry)
-    const s = Math.sin(ry)
-    return { x: new Vector3(c, 0, -s), y: new Vector3(0, 1, 0), z: new Vector3(s, 0, c) }
+    const q = this.orientationInto(tmpQuat, local)
+    return { x: new Vector3(1, 0, 0).applyQuaternion(q), y: new Vector3(0, 1, 0).applyQuaternion(q), z: new Vector3(0, 0, 1).applyQuaternion(q) }
   }
 
   /**
@@ -1076,15 +1103,15 @@ export class TransformGizmo {
         break
       case 'x':
         mask = axes.x
-        normal = planeFacingCamera(axes.x, drag.camNormal)
+        normal = planeFacingCamera(axes.x, drag.sight)
         break
       case 'y':
         mask = axes.y
-        normal = planeFacingCamera(axes.y, drag.camNormal)
+        normal = planeFacingCamera(axes.y, drag.sight)
         break
       case 'z':
         mask = axes.z
-        normal = planeFacingCamera(axes.z, drag.camNormal)
+        normal = planeFacingCamera(axes.z, drag.sight)
         break
       case 'yz':
         normal = axes.x
