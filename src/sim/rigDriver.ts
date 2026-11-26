@@ -7,7 +7,7 @@ import { CARGO_CAP_FORK_POCKETS } from '../core/frame'
 import { clamp } from '../core/math'
 import { forkEntryProblem } from '../core/pallet'
 import { reportPartDiagnostic } from '../core/parts/partDiagnostics'
-import { arrayInstanceDeltas, composePartWorldInPlace, jointLimits, parseCopyGripName, posedInstanceInto, linkCollisionBox, POSE_STRIDE, qApply, qConjugate, qFromAxisAngle, qMul, resolvedGrabReach, resolvedGrabZone, rigLinkIndex, rigPoseBuffer, rigWorldPosesInto, shapeHalfExtents } from '../core/rig/rigPose'
+import { arrayInstanceDeltas, composePartWorldInPlace, jointLimits, parseCopyGripName, posedInstanceInto, linkCollisionBox, POSE_STRIDE, qApply, qConjugate, qFromAxisAngle, qMul, resolvedGrabReach, resolvedGrabZone, resolvedGripTakes, rigLinkIndex, rigPoseBuffer, rigWorldPosesInto, shapeHalfExtents, turnBetweenDeg } from '../core/rig/rigPose'
 import type { Quat, Vec3 } from '../core/rig/rigPose'
 import type { BodyHolds } from './bodyHolds'
 import type { CargoRegistry } from './cargoRegistry'
@@ -241,6 +241,10 @@ export class RigDriver {
           const he = shapeHalfExtents(link.shape, linkCollisionBox(link))
           picked = grabbableBoxesInReach(this.boxes, this.holds.holders, this.cargo.stepSnapshot(), gw.pos, (Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, rig.params)) * s)
         }
+        // A gripper made for one part (grip.takes) takes the nearest body of that part its volume holds, and only
+        // if it lies within the limits the gripper sets; it then holds it at its own place, not as it lay.
+        const takes = resolvedGripTakes(link)
+        if (takes) picked = this.pickForTakes(picked, takes, gw, s)
         // a gripper that closes on any piece of a unit load takes the whole unit, held as the one body it is (by its
         // anchor piece, whose body is the unit's)
         if (picked.length) {
@@ -255,8 +259,9 @@ export class RigDriver {
             this.holds.claim(box, { kind: 'grip', rig, gripper: name })
             const bp = box.body.GetPosition()
             const bq = box.body.GetRotation()
-            const offPos = qApply(inv, [bp.GetX() - gw.pos[0], bp.GetY() - gw.pos[1], bp.GetZ() - gw.pos[2]])
-            const offQuat = qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])
+            // held as it lay, or at the gripper's own place for its part: the body is moved there from the next step
+            const offPos: Vec3 = takes ? [takes.at[0] * s, takes.at[1] * s, takes.at[2] * s] : qApply(inv, [bp.GetX() - gw.pos[0], bp.GetY() - gw.pos[1], bp.GetZ() - gw.pos[2]])
+            const offQuat = takes ? takes.quat : qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])
             // how far the load reaches from the gripper along its X, either side, in the rig's own units (the world's
             // over its scale): its extent across X plus how far off centre it sits. A clamp's pads close to this. A
             // box's extent is its half extents through the rotation's first row; a unit load's (one body of several
@@ -300,6 +305,31 @@ export class RigDriver {
     }
     rig.rec.heldGrips = heldNow
     rig.rec.heldWidths = widths
+  }
+
+  /** What a gripper made for one part takes of the bodies in its volume: the nearest one of that part that stands on
+   *  its own and lies within the gripper's limits, or nothing. `gw` is the gripper link's world pose, `s` the rig's
+   *  scale. The nearest by distance, then by id, so the choice is the same on every run. */
+  private pickForTakes(inVolume: readonly LiveBox[], takes: NonNullable<ReturnType<typeof resolvedGripTakes>>, gw: { pos: Vec3; quat: Quat }, s: number): LiveBox[] {
+    const inv = qConjugate(gw.quat)
+    let best: LiveBox | null = null
+    let bestD = Infinity
+    for (const box of inVolume) {
+      if (box.product !== takes.part || box.unit) continue
+      const bp = box.body.GetPosition()
+      const local = qApply(inv, [bp.GetX() - gw.pos[0], bp.GetY() - gw.pos[1], bp.GetZ() - gw.pos[2]])
+      const d = Math.hypot(local[0] - takes.at[0] * s, local[1] - takes.at[1] * s, local[2] - takes.at[2] * s)
+      if (takes.reach !== undefined && d > takes.reach * s) continue
+      if (takes.maxTurn !== undefined) {
+        const bq = box.body.GetRotation()
+        if (turnBetweenDeg(takes.quat, qMul(inv, [bq.GetX(), bq.GetY(), bq.GetZ(), bq.GetW()])) > takes.maxTurn) continue
+      }
+      if (d < bestD || (d === bestD && best !== null && box.id < best.id)) {
+        best = box
+        bestD = d
+      }
+    }
+    return best ? [best] : []
   }
 
   /**

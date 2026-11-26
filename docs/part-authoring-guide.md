@@ -586,7 +586,11 @@ and squares against a side guard. See [sdk-geometry-flexibility.md](sdk-geometry
 **A gripper lifts every cargo body inside its volume**, each held at its own captured offset, so the group
 moves rigidly (a palletizer head taking a formed layer, a fork carrying a pallet and its stack). There is no
 single/multi-pick switch: `grip.zone` is how you say how much the tool holds. Declare a zone on any gripper
-wider than what it grips. The `radius` sphere (measured to the box surface, so a cup that brushes a case
+wider than what it grips. A gripper made for one part says so with `grip.takes: { part, at?, rotation?, reach?,
+maxTurn? }`: it takes the nearest body of that part in its volume and no other cargo, and holds it at `at` /
+`rotation` (Euler XYZ, radians) in the link's frame, moving it there as it takes it. `reach` (m) and `maxTurn`
+(degrees) leave a body that lies further off than that, and `measured.grips` stays false for it. A body in a unit
+load is not taken, and `takes` does not go with `forks`. The `radius` sphere (measured to the box surface, so a cup that brushes a case
 still seals) suits a tool no bigger than one load; on a plate it would lift whatever stands beside the target.
 Use the zone's `offset` when the tool engages away from its frame: the AGV's volume sits 1.1 m out on the
 tines. A pallet's collider is solid, so the tines never enter it. `forkPockets` only checks that the fork spread
@@ -1137,6 +1141,13 @@ The Part Editor writes the same carving for you. Import the model onto a node (*
    The script is written again when the node is renamed, and without the grip area when the area or its node is
    removed. A node that already has a `grip` shows the same section, and a size a param sets (`sizeParams`,
    `radiusParams`) is read-only there.
+9. **Takes** in that section says what the gripper takes. **Anything in the area** is every body in it, as it lies.
+   **One part, held in place** (`grip.takes`) makes the gripper for one cargo part: pick the **Part**, and it is drawn
+   in the gripper while the node is selected, so **Held at** and **Held turn** are set by eye until it sits in the
+   tool as it should. The gripper then takes one body of that part, the nearest to its place, and no other cargo,
+   and moves it to that place and turn as it takes it. **A part that lies off** is **corrected** (taken wherever it
+   lies in the area) or **left**: with a **Max distance** and a **Max turn** it is taken only if it already lies
+   within them, and `Holding` stays FALSE for one that does not.
 
 A piece split under the wrong node can be fixed two ways. **Merge back into model** removes the piece with its
 joint, so the model draws it again, and the pieces under it move up. **Delete** does the same for the node and

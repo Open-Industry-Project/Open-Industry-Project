@@ -330,9 +330,16 @@ export interface IRenderView {
   /** author mode: outline one internal rig link of a custom part (read-only inspection); null clears */
   setRigNodeHighlight(sel: { partId: string; linkName: string } | null): void
   /** author mode: draw one rig node's grip area (its pickup volume, in the node's own frame, metres): a box by its
-   *  half extents and centre, else a sphere of `radius` about the node's origin; null clears */
+   *  half extents and centre, else a sphere of `radius` about the node's origin; and, for a gripper made for one part,
+   *  that part where it is held (`held`: its package, centre and turn in the node's frame); null clears */
   setGripArea(
-    area: { partId: string; linkName: string; box?: { half: readonly [number, number, number]; offset: readonly [number, number, number] }; radius?: number } | null,
+    area: {
+      partId: string
+      linkName: string
+      box?: { half: readonly [number, number, number]; offset: readonly [number, number, number] }
+      radius?: number
+      held?: { packageId: string; at: readonly [number, number, number]; quat: readonly [number, number, number, number] }
+    } | null,
   ): void
   /** author mode: whether grip areas are drawn at all */
   setGripAreaShown(on: boolean): void

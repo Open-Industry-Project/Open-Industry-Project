@@ -1003,6 +1003,25 @@ export function resolvedGrabZone(link: RigLink, params: RigParams): { half: Vec3
   return { half: [s[0] / 2, s[1] / 2, s[2] / 2], offset: o ? [o[0], o[1], o[2]] : [0, 0, 0] }
 }
 
+/** The place a gripper made for one part holds it (`grip.takes`), in the link's frame, and the limits on what it
+ *  takes; null for a gripper that takes whatever is in its volume. */
+export function resolvedGripTakes(link: RigLink): { part: string; at: Vec3; quat: Quat; reach?: number; maxTurn?: number } | null {
+  const t = link.grip?.takes
+  if (!t) return null
+  return {
+    part: t.part,
+    at: t.at ? [t.at[0], t.at[1], t.at[2]] : [0, 0, 0],
+    quat: t.rotation ? qFromEulerXYZ([t.rotation[0], t.rotation[1], t.rotation[2]]) : [0, 0, 0, 1],
+    ...(t.reach !== undefined ? { reach: t.reach } : {}),
+    ...(t.maxTurn !== undefined ? { maxTurn: t.maxTurn } : {}),
+  }
+}
+
+/** the angle between two orientations, degrees (0 to 180) */
+export function turnBetweenDeg(a: Quat, b: Quat): number {
+  const w = Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3])
+  return (2 * Math.acos(Math.min(1, w)) * 180) / Math.PI
+}
 
 /**
  * Host-computed cross-part geometry input for a placed part - the SDK-visible half of the seam-resolver

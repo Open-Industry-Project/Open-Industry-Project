@@ -384,7 +384,7 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
     for (const old of ['grabZone', 'grabRadius', 'grabParams'] as const) {
       if ((l as Record<string, unknown>)[old] !== undefined) add(`${at}.${old}`, `${old} moved into the link's \`grip\` block (package format 4): grip: { zone, radius, radiusParams }`)
     }
-    const grip = (l as { grip?: unknown }).grip as { zone?: { size?: unknown; offset?: unknown; sizeParams?: unknown }; radius?: unknown; radiusParams?: unknown; forks?: unknown } | undefined
+    const grip = (l as { grip?: unknown }).grip as { zone?: { size?: unknown; offset?: unknown; sizeParams?: unknown }; radius?: unknown; radiusParams?: unknown; forks?: unknown; takes?: unknown } | undefined
     if (grip !== undefined) {
       if (typeof grip !== 'object' || grip === null) add(`${at}.grip`, 'grip must be an object: { zone?, radius?, radiusParams? }')
       else {
@@ -395,6 +395,18 @@ export function validateRig(g: { links?: unknown; joints?: unknown; posable?: un
           if (!isVec3(zone.size) || zone.size.some((n) => n <= 0)) add(`${at}.grip.zone.size`, 'grip.zone.size must be 3 positive numbers')
           if (zone.offset !== undefined && !isVec3(zone.offset)) add(`${at}.grip.zone.offset`, 'grip.zone.offset must be 3 finite numbers (link-local metres)')
           validateSizeParams(zone.sizeParams, `${at}.grip.zone.sizeParams`, add)
+        }
+        const takes = grip.takes as { part?: unknown; at?: unknown; rotation?: unknown; reach?: unknown; maxTurn?: unknown } | undefined
+        if (takes !== undefined) {
+          if (typeof takes !== 'object' || takes === null) add(`${at}.grip.takes`, 'grip.takes must be an object: { part, at?, rotation?, reach?, maxTurn? }')
+          else {
+            if (typeof takes.part !== 'string' || takes.part === '') add(`${at}.grip.takes.part`, 'grip.takes.part must be the package id of a cargo part')
+            if (takes.at !== undefined && !isVec3(takes.at)) add(`${at}.grip.takes.at`, 'grip.takes.at must be 3 finite numbers (link-local metres)')
+            if (takes.rotation !== undefined && !isVec3(takes.rotation)) add(`${at}.grip.takes.rotation`, 'grip.takes.rotation must be 3 finite numbers (Euler XYZ, radians)')
+            if (takes.reach !== undefined && (!isFiniteNum(takes.reach) || takes.reach <= 0)) add(`${at}.grip.takes.reach`, 'grip.takes.reach must be a positive number (metres)')
+            if (takes.maxTurn !== undefined && (!isFiniteNum(takes.maxTurn) || takes.maxTurn <= 0 || takes.maxTurn > 180)) add(`${at}.grip.takes.maxTurn`, 'grip.takes.maxTurn must be more than 0 and at most 180 (degrees)')
+            if (grip.forks !== undefined) add(`${at}.grip.takes`, 'grip.takes does not go with grip.forks: forks take a pallet as it stands')
+          }
         }
         const forks = grip.forks as { spread?: unknown; spreadParam?: unknown; bladeWidth?: unknown; bladeThickness?: unknown } | undefined
         if (forks !== undefined) {

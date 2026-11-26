@@ -25,7 +25,7 @@ import type { PartDiagnostic } from '../../sim/validatePart'
 import type { SdkPart } from '../../core/types'
 import type { EditorController } from '../controller'
 import type { EditorState } from '../store/store'
-import { linkCollisionBox, resolvedGrabReach, resolvedGrabZone, shapeHalfExtents, type RigParams } from '../../core/rig/rigPose'
+import { linkCollisionBox, resolvedGrabReach, resolvedGrabZone, resolvedGripTakes, shapeHalfExtents, type RigParams } from '../../core/rig/rigPose'
 
 /** what part authoring reads and drives: the store (packages, selection, undo), the view (the rig gizmo's held pose),
  *  the read-only gate, and opening a definition as its own scene */
@@ -191,10 +191,13 @@ export function selectedGripArea(s: Pick<EditorState, 'selectedRigNode' | 'scene
   const link = geometry?.kind === 'rig' ? geometry.links.find((l) => l.name === sel.linkName) : undefined
   if (!link?.grip) return null
   const params = (part as SdkPart).params as RigParams
+  // the part the gripper is made for, where it holds it; a part that is not loaded is not shown
+  const takes = resolvedGripTakes(link)
+  const held = takes && hasPackage(takes.part) ? { held: { packageId: takes.part, at: takes.at, quat: takes.quat } } : {}
   const zone = resolvedGrabZone(link, params)
-  if (zone) return { ...sel, box: zone }
+  if (zone) return { ...sel, box: zone, ...held }
   const he = shapeHalfExtents(link.shape, linkCollisionBox(link))
-  return { ...sel, radius: Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, params) }
+  return { ...sel, radius: Math.max(he[0], he[1], he[2]) + resolvedGrabReach(link, params), ...held }
 }
 
 /** the side of a new grip area's box (m): a small part's worth, sized afterwards in the Inspector */

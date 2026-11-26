@@ -1168,9 +1168,38 @@
             "bladeWidth",
             "bladeThickness"
           ]
+        },
+        "takes": {
+          "description": "The one part this gripper is made for ({@link RigGripTakes}). With it the gripper takes a single body of that\npart and holds it at a set place, where without it it takes every body in its volume as it lies.",
+          "$ref": "#/$defs/RigGripTakes"
         }
       },
       "additionalProperties": false
+    },
+    "RigGripTakes": {
+      "description": "A gripper made for one part: fingers shaped to a housing, a cup placed for one board. When it closes it takes the\nnearest body of `part` in its volume, and no other cargo, and holds it at `at` / `rotation` in the link's frame:\nthe body is moved there as it is taken, the way real jaws centre what they close on. So a piece picked a little\noff is put down where the gripper is, not off by the same amount.\n\n- `part`: the package id of the cargo part it takes.\n- `at`: where that part's centre is held, in the link's frame (m; a cargo part's origin is its centre). Absent =\n  the link's origin.\n- `rotation`: how the part is turned there, Euler XYZ in radians like a link's. Absent = as the link.\n- `reach`: the furthest the body's centre may be from `at` and still be taken (m). Absent = anywhere in the volume.\n- `maxTurn`: the most it may be turned from `rotation` and still be taken (degrees, about any axis). Absent = any\n  way round.\n\nWith neither limit the gripper corrects whatever it finds. With them it leaves a body that lies too far off, and\n`ctx.measured.grips` stays false, so a program can tell a bad presentation from a good one. A body that is part of\na unit load is not taken: the gripper is made for the part on its own.",
+      "type": "object",
+      "properties": {
+        "part": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/Vec3Tuple"
+        },
+        "rotation": {
+          "$ref": "#/$defs/Vec3Tuple"
+        },
+        "reach": {
+          "type": "number"
+        },
+        "maxTurn": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "part"
+      ]
     },
     "GridAxisSpec": {
       "description": "One axis of a grid array-link (see RigLink.array.grid): the params giving the lattice's full span,\nper-edge inset, and desired spacing along this axis. The static `size`/`pitch`/`margin` are the\nfallbacks when a param is missing or non-numeric (e.g. an instance saved without that param), the\nsame rule as every other param-driven size or offset.",

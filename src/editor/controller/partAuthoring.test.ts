@@ -159,6 +159,15 @@ describe('a grip area', () => {
     expect(selectedGripArea(state())).toEqual({ partId: 'p1', linkName: 'hand', radius: 0.125 })
     ec.store.selectRigNode('p1', 'arm')
     expect(selectedGripArea(state())).toBeNull()
+    // a gripper made for a part: the part is drawn where it is held, when it is one the project has
+    ec.store.selectRigNode('p1', 'grip')
+    const zone = { size: [0.2, 0.1, 0.4] as [number, number, number] }
+    editRigLink(ec, ID, 'grip', { grip: { zone, takes: { part: ID, at: [0, -0.02, 0], rotation: [0, Math.PI, 0] } } })
+    const held = selectedGripArea(state())?.held
+    expect(held).toMatchObject({ packageId: ID, at: [0, -0.02, 0] })
+    expect(held!.quat[1]).toBeCloseTo(1, 9)
+    editRigLink(ec, ID, 'grip', { grip: { zone, takes: { part: 'test.not-loaded' } } })
+    expect(selectedGripArea(state())?.held).toBeUndefined()
   })
 
   it('takes Grip tag, keeps it under a new name when its node is renamed, and loses it with the area', () => {

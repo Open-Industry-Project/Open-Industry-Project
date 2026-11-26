@@ -570,6 +570,7 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
       this.handles.root,
       this.rigGizmoOverlay.root,
       this.gripArea.root,
+      this.gripArea.heldRoot,
       this.overlays.rulerGroup,
       this.walk.presenceGroup,
     )
@@ -850,6 +851,8 @@ export class RenderView implements IRenderView, IRenderViewTestSurface {
    */
   refreshPackage(id: string): void {
     this.beamProbeDirty = true // a package edit can move/resize beam links or cargo bounds
+    // the part a selected gripper is made for is drawn from its package too (gripAreaOverlay.ts)
+    if (this.gripArea.refreshPackage(id)) notifyBundleStructureChanged()
     // revoke the kind's pipeline warmth: the edited/hot-reloaded geometry+materials may need new
     // pipelines, so the next add of this kind goes back through the warm-hold instead of drawing cold
     this.warm.kindWarm.delete(`part:${id}`)

@@ -7,10 +7,16 @@
 // group: that group is under the bundled parts root, where a see-through mesh is painted over, joins the node's
 // outline and may be pooled. The view writes the node's world matrix into it after its matrix walk, so the volume
 // follows a node that is moved, posed or run.
+//
+// A gripper made for one part (RigLink.grip.takes) also shows that part where it will be held: the part's own
+// visual, built as a placed part's is, in a second root that is drawn with the scene (it is solid, so it needs
+// nothing of the overlay pass). It is how the held place and turn are set by eye.
 
-import { BoxGeometry, EdgesGeometry, Group, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from 'three'
+import { BoxGeometry, EdgesGeometry, Group, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, Quaternion, SphereGeometry, Vector3 } from 'three'
 import type { Object3D } from 'three'
+import type { PartInstance } from '../../core/types'
 import { OVERLAY_LAYER } from '../env'
+import { createPartVisual, type PartVisual } from '../parts/registry'
 
 /** A grip area to draw, in its node's own frame (metres). */
 export interface GripAreaView {
@@ -20,6 +26,8 @@ export interface GripAreaView {
   box?: { half: readonly [number, number, number]; offset: readonly [number, number, number] }
   /** without a box: the radius of the sphere about the node's origin */
   radius?: number
+  /** the part the gripper is made for, shown where it is held: its package, and its centre and turn in the node's frame */
+  held?: { packageId: string; at: readonly [number, number, number]; quat: readonly [number, number, number, number] }
 }
 
 const COLOR = 0x21c7a8
@@ -28,6 +36,8 @@ const RENDER_ORDER = 996
 const _local = new Matrix4()
 const _scale = new Vector3()
 const _at = new Vector3()
+const _q = new Quaternion()
+const _one = new Vector3(1, 1, 1)
 
 function overlayObject<T extends Object3D>(o: T, order: number): T {
   o.layers.enable(OVERLAY_LAYER)
@@ -42,6 +52,11 @@ function same(a: GripAreaView | null, b: GripAreaView | null): boolean {
   if (a === b) return true
   if (!a || !b) return false
   if (a.partId !== b.partId || a.linkName !== b.linkName || a.radius !== b.radius || !a.box !== !b.box) return false
+  if (a.held?.packageId !== b.held?.packageId) return false
+  if (a.held && b.held) {
+    for (let k = 0; k < 3; k++) if (a.held.at[k] !== b.held.at[k]) return false
+    for (let k = 0; k < 4; k++) if (a.held.quat[k] !== b.held.quat[k]) return false
+  }
   if (!a.box || !b.box) return true
   for (let k = 0; k < 3; k++) if (a.box.half[k] !== b.box.half[k] || a.box.offset[k] !== b.box.offset[k]) return false
   return true
@@ -59,6 +74,10 @@ export class GripAreaOverlay {
   private readonly box = overlayObject(new Mesh(this.boxGeo, this.fillMat), RENDER_ORDER)
   private readonly edges = overlayObject(new LineSegments(this.edgeGeo, this.lineMat), RENDER_ORDER + 1)
   private readonly sphere = overlayObject(new Mesh(this.sphereGeo, this.fillMat), RENDER_ORDER)
+  /** the held part's visual hangs here; in the scene for the view's lifetime, drawn with it */
+  readonly heldRoot = new Group()
+  private heldVisual: PartVisual | null = null
+  private heldPackage: string | null = null
   private area: GripAreaView | null = null
   private shown = true
 
@@ -66,6 +85,8 @@ export class GripAreaOverlay {
     this.root.visible = false
     this.root.matrixAutoUpdate = false
     this.root.add(this.box, this.edges, this.sphere)
+    this.heldRoot.visible = false
+    this.heldRoot.matrixAutoUpdate = false
   }
 
   /** the area being shown, or null */
@@ -98,15 +119,58 @@ export class GripAreaOverlay {
     this.root.visible = a !== null
     this.box.visible = this.edges.visible = !!a?.box
     this.sphere.visible = !!a && !a.box
+    this.syncHeld(a?.held?.packageId ?? null)
     return was || this.root.visible
+  }
+
+  /** build the held part's visual for `packageId`, or take it down for none; a part that cannot be drawn shows nothing */
+  private syncHeld(packageId: string | null): void {
+    this.heldRoot.visible = packageId !== null
+    if (packageId === this.heldPackage) return
+    this.dropHeld()
+    this.heldPackage = packageId
+    if (packageId === null) return
+    try {
+      const part = { id: 'grip-area-held', type: 'part', packageId, position: [0, 0, 0], rotationY: 0, params: {} } as unknown as PartInstance
+      this.heldVisual = createPartVisual(part)
+      // shown, never picked: it is not one of the view's parts
+      this.heldVisual.object.traverse((o) => void (o.raycast = () => {}))
+      this.heldRoot.add(this.heldVisual.object)
+    } catch {
+      this.heldVisual = null
+    }
+  }
+
+  private dropHeld(): void {
+    if (!this.heldVisual) return
+    this.heldRoot.remove(this.heldVisual.object)
+    this.heldVisual.dispose()
+    this.heldVisual = null
+  }
+
+  /** re-build the held part after its package changed (an edit of the part the gripper is made for) */
+  refreshPackage(packageId: string): boolean {
+    if (this.heldPackage !== packageId) return false
+    this.heldPackage = null
+    this.syncHeld(this.target?.held?.packageId ?? null)
+    return true
   }
 
   /** Lay the area out on its node, whose world matrix is `linkWorld`; with no node (not built yet), draw nothing. */
   layout(linkWorld: Matrix4 | null): void {
     const a = this.target
+    this.heldRoot.visible = !!a?.held && !!linkWorld && this.heldVisual !== null
     if (!a || !linkWorld) {
       this.box.visible = this.edges.visible = this.sphere.visible = false
       return
+    }
+    if (a.held && this.heldVisual) {
+      _at.set(a.held.at[0], a.held.at[1], a.held.at[2])
+      _q.set(a.held.quat[0], a.held.quat[1], a.held.quat[2], a.held.quat[3])
+      _local.compose(_at, _q, _one)
+      this.heldRoot.matrix.multiplyMatrices(linkWorld, _local)
+      // every frame: the part's model arrives after its visual is built, and joins at the root's matrix as it is then
+      this.heldRoot.updateMatrixWorld(true)
     }
     this.box.visible = this.edges.visible = !!a.box
     this.sphere.visible = !a.box
@@ -123,6 +187,7 @@ export class GripAreaOverlay {
   }
 
   dispose(): void {
+    this.dropHeld()
     // overlay pass only, never recorded into a render bundle: a direct free is safe (AGENTS.md, gpuRetire.ts)
     this.boxGeo.dispose()
     this.edgeGeo.dispose()
