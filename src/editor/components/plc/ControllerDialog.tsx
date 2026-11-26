@@ -66,7 +66,15 @@ export function ControllerDialog({ store, state, controller, onClose }: { store:
   const notice = desktopOnly(controller)
   if (wiring) return <PlcConnectionsWindow store={store} state={state} controller={controller} plcName={wiring.plc} onClose={() => setWiring(null)} />
   return createPortal(
-    <div className="author-backdrop" onPointerDown={onClose} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="author-backdrop"
+      // One click on a controller's runs-on label opens this dialog. The second press of a double-click there lands
+      // on the backdrop, and closing on it would shut the dialog as it opens, so only a first press closes.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && e.detail <= 1) onClose()
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <div ref={ref} className="author-dialog controller-dialog" role="dialog" aria-label={t(M.title)} data-testid="controller-props" onPointerDown={(e) => e.stopPropagation()}>
         <div className="author-head">
           <h2>{t(M.title)}</h2>
