@@ -181,8 +181,11 @@ function guardGapRuns(p, sign, lo, hi) {
 // `lip`: draw the top return over the panel. A family whose guard SHEET carries its return (the belt's swept L
 // section, split around the hole with it) needs it; one whose return is its own continuous part (the spurs' lip
 // boxes) must not, or the two coincide face to face and z-fight.
-function holePanel(g, holeY, lip) {
-  var H = 0.15, T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
+//
+// `H`: the guard's height (the part's guardHeight; 0.15 when left out).
+function holePanel(g, holeY, lip, H) {
+  if (typeof H !== 'number') H = 0.15
+  var T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
   var hole = []
   for (var k = 0; k < 16; k++) { var a = (k * Math.PI) / 8; hole.push([R * Math.cos(a), holeY + R * Math.sin(a)]) }
   var sheet = g.extrude([[-PW / 2, -0.005], [PW / 2, -0.005], [PW / 2, H], [-PW / 2, H]], 0, T, { axis: 'z', holes: [hole] })
@@ -532,6 +535,29 @@ function frameBottom(p) {
   return -Math.round((fh + 0.005) * 1e6) / 1e6
 }
 
+// ---- from examples/parts/_shared/guardHeight.js ----
+/** the guard height every conveyor had before it was a setting (core GUARD_HEIGHT), and the default */
+const GUARD_HEIGHT = 0.15
+/** A photo eye seated on a guard stands this far above the conveying surface (its housing is 0.16 m tall, seated
+ *  0.02 m below the surface, plus 5 mm). A guard lower than this has its top return left off where an eye stands, or
+ *  the return would pass through the eye's housing. */
+const EYE_CLEAR = 0.145
+
+function guardHeightParam(group) {
+  return {
+    guardHeight: { type: 'number', default: GUARD_HEIGHT, min: 0.06, max: 0.5, step: 0.01, label: 'Guard height (m)', ...(group ? { group } : {}), desc: 'How far the side guards stand above the conveying surface. Lower them to see and reach a small product, raise them for tall cartons on a fast line. Each conveyor keeps its own height, so two that meet with different heights show a step at the joint. A photo eye mounted on a guard looks across 0.08 m above the surface: over a guard lower than that, through a hole in a taller one.' },
+  }
+}
+
+/** The guard height at these params, rounded to a tenth of a millimetre so the default is the literal 0.15 the pooled
+ *  guard templates are shared by. */
+function guardHeightOf(p) {
+  var h = typeof p.guardHeight === 'number' && p.guardHeight > 0 ? p.guardHeight : GUARD_HEIGHT
+  return Math.round(h * 1e4) / 1e4
+}
+
+/** The underside of the guard's 5 mm top return, rounded so the default is the literal 0.145. */
+
 const drive = conveyorDrive() // the ramp, the pulse and the encoder, remembered between steps
 
 definePart({
@@ -556,6 +582,7 @@ definePart({
     },
     leftGuard: { type: 'boolean', default: true, label: 'Left guard', group: 'Guards', desc: 'Guard wall down the left side, looking along travel. A real barrier, so turning it off lets cargo leave the bed sideways - which on a spur is usually the point.' },
     rightGuard: { type: 'boolean', default: true, label: 'Right guard', group: 'Guards', desc: 'Guard wall down the right side, looking along travel. A real barrier, so turning it off lets cargo leave the bed sideways.' },
+    ...guardHeightParam('Guards'),
     // sensor-beam holes as [x m, y m, side ±1] rows: bed-local X (centre-origin), height above the deck, side −1
     // left / +1 right. HOST-FED (core/guardHoles.ts works them out from the scene's beams), so hidden.
     guardHoles: { type: 'numberList', arity: 3, default: [], hidden: true, label: 'Guard holes [x m, y m, side ±1]', group: 'Guards', desc: 'Where sensor beams cross the side guards. Worked out by the host from the scene; not for editing.' },
@@ -588,7 +615,7 @@ definePart({
     var CLASS = { light: [0.024, 0.075], medium: [0.03, 0.1], heavy: [0.04, 0.13] }
     var cls = CLASS[p.rollerClass] || CLASS.light
     var R = cls[0], PITCH = cls[1]
-    var RAIL_TOP = -0.005, FB = frameBottom(p), FWT = 0.01, FFW = 0.02, FFT = 0.005, GH = 0.15, GT = 0.005
+    var RAIL_TOP = -0.005, FB = frameBottom(p), FWT = 0.01, FFW = 0.02, FFT = 0.005, GH = guardHeightOf(p), GT = 0.005
     // a full roller ends 2 mm inside each frame wall, as the straight roller's does; an end cut short by a splayed
     // face stands CAP_INSET back from that face
     var RAIL_INSET = 0.002, CAP_INSET = 0.01
@@ -705,8 +732,11 @@ definePart({
         // the guard's formed top: a 20 mm OUTWARD return along its top edge (as every conveyor guard has). Its own
         // part with NO collision: the host's collider is this guard part's AABB, and the return would widen it off
         // the one guard cross-section every family shares - the one butted guards merge on (core/guardRuns.ts).
-        var lip = guardBand(g, gLo, gHi, mitreAt(g_sign, gLo), mitreAt(g_sign, gHi), GT, GT + 0.02, GH - GT, GH, g_sign, hw + FWT)
-        guardParts.push({ desc: lip, finish: 'guard' })
+        // It runs whole over the hole panels, unless the guard is lower than an eye's housing: then it stops either
+        // side of each panel, as the sheet does, or it would pass through the eye standing there.
+        var lipRuns = GH < EYE_CLEAR ? gPieces : [[gLo, gHi]]
+        var lips = lipRuns.map(function (pc) { return guardBand(g, pc[0], pc[1], mitreAt(g_sign, pc[0]), mitreAt(g_sign, pc[1]), GT, GT + 0.02, GH - GT, GH, g_sign, hw + FWT) })
+        if (lips.length) guardParts.push({ desc: lips.length === 1 ? lips[0] : g.merge.apply(g, lips), finish: 'guard' })
       }
     }
 
@@ -785,7 +815,7 @@ definePart({
     // hole panels LAST (they come and go with the sensors in the scene; the host reconciles banks by index), one
     // part per hole height. VISUAL ONLY: no collision.
     Object.keys(holePanels).sort().forEach(function (k) {
-      var base = holePanel(g, holePanels[k].y, false)
+      var base = holePanel(g, holePanels[k].y, false, GH)
       var placed = holePanels[k].descs.map(function (d) {
         return d.sign > 0
           ? g.transform(base, { translate: [d.x, 0, hw + FWT] })

@@ -19,6 +19,7 @@ import { guardGapRuns, guardGapsParam } from '../_shared/guardGaps.js'
 import { HOLE_PANEL, holePanel } from '../_shared/guardHolePanel.js'
 import { guardBand, guardMitresParam, mitreLookup, railCutLookup, railCutsParam, spurRailCutter } from '../_shared/guardMitre.js'
 import { LEG_CLEARANCE, LEG_END_INSET, LEG_SPACING, legPieces } from '../_shared/legs.js'
+import { EYE_CLEAR, guardHeightOf, guardHeightParam } from '../_shared/guardHeight.js'
 
 // the baked footprint of the default 2 m / 1.524 m / 30° spur: length + front-splay reach
 const OUTER = 2 + Math.tan((30 * Math.PI) / 180) * 1.524
@@ -65,6 +66,7 @@ definePart({
     },
     leftGuard: { type: 'boolean', default: true, label: 'Left guard', group: 'Guards', desc: 'Guard wall down the left side, looking along travel. A real barrier, so turning it off lets cargo leave the bed sideways - which on a spur is usually the point.' },
     rightGuard: { type: 'boolean', default: true, label: 'Right guard', group: 'Guards', desc: 'Guard wall down the right side, looking along travel. A real barrier, so turning it off lets cargo leave the bed sideways.' },
+    ...guardHeightParam('Guards'),
     // sensor-beam holes as [x m, y m, side ±1] rows: bed-local X (centre-origin), height above the deck, side −1
     // left / +1 right. HOST-FED (core/guardHoles.ts works them out from the scene's beams), so hidden.
     guardHoles: { type: 'numberList', arity: 3, default: [], hidden: true, label: 'Guard holes [x m, y m, side ±1]', group: 'Guards', desc: 'Where sensor beams cross the side guards. Worked out by the host from the scene; not for editing.' },
@@ -106,7 +108,7 @@ definePart({
     var FWT = 0.01 // frame wall thickness
     var FFW = 0.02 // frame flange width
     var FFT = 0.005 // frame flange thickness
-    var GH = 0.15 // guard height (core GUARD_HEIGHT)
+    var GH = guardHeightOf(p) // guard height (the guardHeight param)
     var GT = 0.005 // guard thickness
     var SLOT_MIN = 2 * PR + 0.01 // a strip shorter than its two nose wraps (the loop diameter) is dropped
     function frontX(z) { return L / 2 + tf * z }
@@ -307,8 +309,11 @@ definePart({
         // the guard's formed top: a 20 mm OUTWARD return along its top edge (as every conveyor guard has). Its own
         // part with NO collision: the host's collider is this guard part's AABB, and the return would widen it off
         // the one guard cross-section every family shares - the one butted guards merge on (core/guardRuns.ts).
-        var lip = guardBand(g, gLo, gHi, mitreAt(g_sign, gLo), mitreAt(g_sign, gHi), GT, GT + 0.02, GH - GT, GH, g_sign, hw + FWT)
-        guardParts.push({ desc: lip, finish: 'guard' })
+        // It runs whole over the hole panels, unless the guard is lower than an eye's housing: then it stops either
+        // side of each panel, as the sheet does, or it would pass through the eye standing there.
+        var lipRuns = GH < EYE_CLEAR ? gPieces : [[gLo, gHi]]
+        var lips = lipRuns.map(function (pc) { return guardBand(g, pc[0], pc[1], mitreAt(g_sign, pc[0]), mitreAt(g_sign, pc[1]), GT, GT + 0.02, GH - GT, GH, g_sign, hw + FWT) })
+        if (lips.length) guardParts.push({ desc: lips.length === 1 ? lips[0] : g.merge.apply(g, lips), finish: 'guard' })
       }
     }
 
@@ -387,7 +392,7 @@ definePart({
     // hole panels LAST (they come and go with the sensors in the scene; the host reconciles banks by index), one
     // part per hole height. VISUAL ONLY: no collision.
     Object.keys(holePanels).sort().forEach(function (k) {
-      var base = holePanel(g, holePanels[k].y, false)
+      var base = holePanel(g, holePanels[k].y, false, GH)
       var placed = holePanels[k].descs.map(function (d) {
         return d.sign > 0
           ? g.transform(base, { translate: [d.x, 0, hw + FWT] })

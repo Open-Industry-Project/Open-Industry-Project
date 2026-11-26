@@ -149,8 +149,11 @@ function frictionParam(carton) {
 // `lip`: draw the top return over the panel. A family whose guard SHEET carries its return (the belt's swept L
 // section, split around the hole with it) needs it; one whose return is its own continuous part (the spurs' lip
 // boxes) must not, or the two coincide face to face and z-fight.
-function holePanel(g, holeY, lip) {
-  var H = 0.15, T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
+//
+// `H`: the guard's height (the part's guardHeight; 0.15 when left out).
+function holePanel(g, holeY, lip, H) {
+  if (typeof H !== 'number') H = 0.15
+  var T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
   var hole = []
   for (var k = 0; k < 16; k++) { var a = (k * Math.PI) / 8; hole.push([R * Math.cos(a), holeY + R * Math.sin(a)]) }
   var sheet = g.extrude([[-PW / 2, -0.005], [PW / 2, -0.005], [PW / 2, H], [-PW / 2, H]], 0, T, { axis: 'z', holes: [hole] })
@@ -297,6 +300,29 @@ const LEG_SPACING = 3.05
 // within a metre of an end one (at the old 0.5 a 4 m bed stood a middle leg 0.8 m from its head leg)
 const LEG_CLEARANCE = 1.0
 
+// ---- from examples/parts/_shared/guardHeight.js ----
+/** the guard height every conveyor had before it was a setting (core GUARD_HEIGHT), and the default */
+const GUARD_HEIGHT = 0.15
+/** A photo eye seated on a guard stands this far above the conveying surface (its housing is 0.16 m tall, seated
+ *  0.02 m below the surface, plus 5 mm). A guard lower than this has its top return left off where an eye stands, or
+ *  the return would pass through the eye's housing. */
+const EYE_CLEAR = 0.145
+
+function guardHeightParam(group) {
+  return {
+    guardHeight: { type: 'number', default: GUARD_HEIGHT, min: 0.06, max: 0.5, step: 0.01, label: 'Guard height (m)', ...(group ? { group } : {}), desc: 'How far the side guards stand above the conveying surface. Lower them to see and reach a small product, raise them for tall cartons on a fast line. Each conveyor keeps its own height, so two that meet with different heights show a step at the joint. A photo eye mounted on a guard looks across 0.08 m above the surface: over a guard lower than that, through a hole in a taller one.' },
+  }
+}
+
+/** The guard height at these params, rounded to a tenth of a millimetre so the default is the literal 0.15 the pooled
+ *  guard templates are shared by. */
+function guardHeightOf(p) {
+  var h = typeof p.guardHeight === 'number' && p.guardHeight > 0 ? p.guardHeight : GUARD_HEIGHT
+  return Math.round(h * 1e4) / 1e4
+}
+
+/** The underside of the guard's 5 mm top return, rounded so the default is the literal 0.145. */
+
 const drive = conveyorDrive() // the ramp, the pulse and the encoder, remembered between steps
 
 definePart({
@@ -349,6 +375,7 @@ definePart({
     frameRails: { type: 'boolean', default: true, label: 'Frame rails', group: 'Guards', desc: 'Structural rails down both sides of the bed. Cosmetic - the running surface and its collision are unaffected.' },
     leftGuard: { type: 'boolean', default: true, label: 'Left guard', group: 'Guards', desc: 'Guard wall down the left side, looking along travel. This is a real barrier, so turning it off lets cargo leave the belt sideways.' },
     rightGuard: { type: 'boolean', default: true, label: 'Right guard', group: 'Guards', desc: 'Guard wall down the right side, looking along travel. This is a real barrier, so turning it off lets cargo leave the belt sideways.' },
+    ...guardHeightParam('Guards'),
     // side-guard openings as [start m, end m, side] rows — arc-length from the tail; side −1 = left, +1 =
     // right, 0 = both. Cuts a gap in the guard wall's render AND collision (a sensor, a transfer).
     // Neighbour-auto openings (a guard opening itself where another conveyor butts) stay a host concern.
@@ -689,10 +716,10 @@ definePart({
     // intersected with the run/bend arc-ranges and each overlap emitted through its own channel.
     // the guard section, z measured outward from the guard's inner face: sheet 0..0.005, then the top return
     // out to LIP. Concave (an L), which the capped sweep triangulates properly.
-    var LIP = 0.025, LIP_T = 0.005
+    var LIP = 0.025, LIP_T = 0.005, GH = guardHeightOf(p)
     function guardSection(zIn, sign) {
       var z1 = zIn + sign * 0.005, z2 = zIn + sign * LIP
-      return [[-0.005, zIn], [-0.005, z1], [0.15 - LIP_T, z1], [0.15 - LIP_T, z2], [0.15, z2], [0.15, zIn]]
+      return [[-0.005, zIn], [-0.005, z1], [GH - LIP_T, z1], [GH - LIP_T, z2], [GH, z2], [GH, zIn]]
     }
     var guardTemplate = g.sweep(guardSection(0, 1), UNIT_X, CAPS)
     // point at arc-length s within a straight run (collinear, so linear interpolation is exact)
@@ -711,8 +738,8 @@ definePart({
     function mitreFill(xe, hiEnd, c) {
       var into = hiEnd ? -1 : 1, xs = xe + into * c * LIP, xt = xe + into * c * 0.005
       return g.merge(
-        g.extrude([[xe, 0], [xt, 0.005], [xs, 0.005], [xs, 0]], -0.005, 0.15, { axis: 'y' }),
-        g.extrude([[xt, 0.005], [xs, LIP], [xs, 0.005]], 0.15 - LIP_T, 0.15, { axis: 'y' }),
+        g.extrude([[xe, 0], [xt, 0.005], [xs, 0.005], [xs, 0]], -0.005, GH, { axis: 'y' }),
+        g.extrude([[xt, 0.005], [xs, LIP], [xs, 0.005]], GH - LIP_T, GH, { axis: 'y' }),
       )
     }
     var ops = Array.isArray(p.guardOpenings) ? p.guardOpenings : []
@@ -792,7 +819,7 @@ definePart({
     var guardMitreFill = mitreFills.length ? { desc: g.merge.apply(g, mitreFills), finish: 'guard' } : null
     // the hole panels: one part per hole height, its instances every panel cut at it. VISUAL ONLY (no collision):
     // the host builds the guard's collider without the holes, so cargo still meets a whole wall.
-    var holeParts = Object.keys(holePanels).sort().map(function (k) { return { desc: holePanel(g, holePanels[k].y, true), finish: 'guard', instances: holePanels[k].insts } })
+    var holeParts = Object.keys(holePanels).sort().map(function (k) { return { desc: holePanel(g, holePanels[k].y, !(GH < EYE_CLEAR), GH), finish: 'guard', instances: holePanels[k].insts } })
 
     // deck Y at a plan-X station, interpolated between the bracketing path points: a straight incline run is
     // just its 2 endpoints, so nearest-point would snap a mid-run leg to a run end — out by its whole rise.

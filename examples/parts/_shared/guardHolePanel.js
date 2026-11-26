@@ -18,8 +18,11 @@
 // `lip`: draw the top return over the panel. A family whose guard SHEET carries its return (the belt's swept L
 // section, split around the hole with it) needs it; one whose return is its own continuous part (the spurs' lip
 // boxes) must not, or the two coincide face to face and z-fight.
-export function holePanel(g, holeY, lip) {
-  var H = 0.15, T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
+//
+// `H`: the guard's height (the part's guardHeight; 0.15 when left out).
+export function holePanel(g, holeY, lip, H) {
+  if (typeof H !== 'number') H = 0.15
+  var T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
   var hole = []
   for (var k = 0; k < 16; k++) { var a = (k * Math.PI) / 8; hole.push([R * Math.cos(a), holeY + R * Math.sin(a)]) }
   var sheet = g.extrude([[-PW / 2, -0.005], [PW / 2, -0.005], [PW / 2, H], [-PW / 2, H]], 0, T, { axis: 'z', holes: [hole] })

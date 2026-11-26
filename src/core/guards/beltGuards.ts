@@ -1,5 +1,6 @@
 import type { BeltGuardOpeningSpec, PartInstance } from '../types'
-import { FRAME_WALL_THICKNESS, GUARD_COLLISION_THICKNESS, GUARD_HEIGHT, GUARD_THICKNESS } from '../types'
+import { FRAME_WALL_THICKNESS, GUARD_COLLISION_THICKNESS, GUARD_THICKNESS } from '../types'
+import { guardHeightOf } from './guardHeight'
 import type { PartPackage } from '../parts/partPackage'
 import { bedView } from '../parts/partGeometry'
 import { beltGuardChords, buildBeltPath, manualGuardOpenings, mergeCollinearChords } from '../conveyor/beltPath'
@@ -78,8 +79,8 @@ export function beltGuardWalls(
 
   const path = buildBeltPath(view.segments, view.height)
   const py = part.position[1]
-  const gh = GUARD_HEIGHT
-  // the sheet-metal profile every guard family shares (guardRunMerge.test.ts pins it): a GUARD_HEIGHT rail
+  const gh = guardHeightOf(part)
+  // the sheet-metal profile every guard family shares (guardRunMerge.test.ts pins it): a rail of the guard's height
   // whose collider spans half a sheet past each edge, so its centre sits GUARD_THICKNESS/2 below the top.
   // Named constants, not literals: a heterogeneous butt only merges while all four families agree here.
   const hy = (gh + GUARD_THICKNESS) / 2

@@ -302,6 +302,24 @@ function frameHeightParam(group) {
  *  Rounded to the micrometre exactly as the belt's is, so at the default it is the literal -0.175 the pooled rail
  *  template is shared by value with (0.17 + 0.005 is 0.17500000000000002 in binary). */
 
+// ---- from examples/parts/_shared/guardHeight.js ----
+/** the guard height every conveyor had before it was a setting (core GUARD_HEIGHT), and the default */
+const GUARD_HEIGHT = 0.15
+/** A photo eye seated on a guard stands this far above the conveying surface (its housing is 0.16 m tall, seated
+ *  0.02 m below the surface, plus 5 mm). A guard lower than this has its top return left off where an eye stands, or
+ *  the return would pass through the eye's housing. */
+
+function guardHeightParam(group) {
+  return {
+    guardHeight: { type: 'number', default: GUARD_HEIGHT, min: 0.06, max: 0.5, step: 0.01, label: 'Guard height (m)', ...(group ? { group } : {}), desc: 'How far the side guards stand above the conveying surface. Lower them to see and reach a small product, raise them for tall cartons on a fast line. Each conveyor keeps its own height, so two that meet with different heights show a step at the joint. A photo eye mounted on a guard looks across 0.08 m above the surface: over a guard lower than that, through a hole in a taller one.' },
+  }
+}
+
+/** The guard height at these params, rounded to a tenth of a millimetre so the default is the literal 0.15 the pooled
+ *  guard templates are shared by. */
+
+/** The underside of the guard's 5 mm top return, rounded so the default is the literal 0.145. */
+
 var R = 0.024, PITCH = 0.075 // rendered roller radius (the roller template's 0.12 scaled down), roller pitch (the rig's grid spacing)
 const STUB_R = R * 0.34 //   thin axle-shaft stubs poking through the frame
 
@@ -371,6 +389,7 @@ definePart({
     // not just hidden), so cargo can be diverted off / loaded on. Left = −Z, right = +Z (belt convention).
     leftGuard: { type: 'boolean', default: true, label: 'Left guard', group: 'Guards', desc: 'Guard wall down the left side, looking along travel. This is a real barrier, so turning it off lets cargo leave the bed sideways.' },
     rightGuard: { type: 'boolean', default: true, label: 'Right guard', group: 'Guards', desc: 'Guard wall down the right side, looking along travel. This is a real barrier, so turning it off lets cargo leave the bed sideways.' },
+    ...guardHeightParam('Guards'),
     // side-guard openings as [start m, end m, side] rows — measured from the TAIL (upstream end), side −1 =
     // left, +1 = right, 0 = both. Same rows, same meaning as the belt conveyor's; press G with the bed
     // selected to drag them in the viewport. Cuts a gap in the guard wall's render AND collision (a sensor,

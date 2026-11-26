@@ -14,6 +14,7 @@ import { frictionParam } from '../_shared/conveyorFriction.js'
 import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../_shared/conveyorUnits.js'
 import { rollerBandMaterial, rollerBed } from '../_shared/rollerBed.js'
 import { frameHeightParam } from '../_shared/rollerFrame.js'
+import { guardHeightParam } from '../_shared/guardHeight.js'
 
 var R = 0.024, PITCH = 0.075 // rendered roller radius (the roller template's 0.12 scaled down), roller pitch (the rig's grid spacing)
 const STUB_R = R * 0.34 //   thin axle-shaft stubs poking through the frame
@@ -21,7 +22,6 @@ const WALL = 0.01 //         frame wall thickness
 const FLW = 0.02 //          frame flange width
 const FLT = 0.005 //         frame flange thickness
 const RAIL_TOP = -0.005 //   rail top just under the belt-surface plane y=0
-const GUARD_H = 0.15 //      guard height above the rollers (core GUARD_HEIGHT)
 const GUARD_T = 0.005 //     guard thickness
 const LIP_W = 0.02 //        guard top return: how far it turns OUTWARD from the sheet
 const LIP_T = 0.005 //       ...and its thickness (same sheet)
@@ -84,6 +84,7 @@ definePart({
     // the frameHeight param: the wall's height, its centre (hung from RAIL_TOP), and the legs' frame depth all track
     // it, so a bed butted to a belt of a different Frame height can match its frame
     const wallY = RAIL_TOP - p.frameHeight / 2
+    const GUARD_H = p.guardHeight // guard height above the rollers; read plainly, so the links track the param
     return {
       // `inclineParam` marks this a whole-bed incline conveyor: `tiltDeg` tilts the rigid bed about its centre
       // (±maxInclineDeg) - the host tilts render + collision, regrows the legs, and carries cargo up the slope.
@@ -154,6 +155,7 @@ definePart({
     // not just hidden), so cargo can be diverted off / loaded on. Left = −Z, right = +Z (belt convention).
     leftGuard: { type: 'boolean', default: true, label: 'Left guard', group: 'Guards', desc: 'Guard wall down the left side, looking along travel. This is a real barrier, so turning it off lets cargo leave the bed sideways.' },
     rightGuard: { type: 'boolean', default: true, label: 'Right guard', group: 'Guards', desc: 'Guard wall down the right side, looking along travel. This is a real barrier, so turning it off lets cargo leave the bed sideways.' },
+    ...guardHeightParam('Guards'),
     // side-guard openings as [start m, end m, side] rows — measured from the TAIL (upstream end), side −1 =
     // left, +1 = right, 0 = both. Same rows, same meaning as the belt conveyor's; press G with the bed
     // selected to drag them in the viewport. Cuts a gap in the guard wall's render AND collision (a sensor,

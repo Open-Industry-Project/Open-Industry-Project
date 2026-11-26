@@ -32,7 +32,7 @@ import {
   toWorldXZ,
 } from '../../core/parts/partGeometry'
 import type { CurvedGizmo } from '../../core/parts/partGeometry'
-import { GUARD_HEIGHT } from '../../core/types'
+import { guardHeightOf } from '../../core/guards/guardHeight'
 import type { BeltGuardOpeningSpec, BeltSegmentSpec, PartInstance } from '../../core/types'
 import type { BoxResizeHandle, CurveResizeHandle, FlexResizeHandle, GuardOpeningHandle, ResizeHandle, ScreenProjector } from '../api'
 import { worldPerPixel } from './editorCamera'
@@ -444,7 +444,7 @@ export class ResizeHandles {
       knots = [range.lo, range.hi]
     }
     const halfW = (view ? view.width : straight!.width) / 2 + GUARD_INSET
-    const lift = GUARD_HEIGHT / 2 // the guard's mid-height, along the bed normal: where a person aims at it
+    const lift = guardHeightOf(part) / 2 // the guard's mid-height, along the bed normal: where a person aims at it
     const at = (guard: GuardWall, s: number): Vector3 => {
       const pose = sample(s)
       const lx = pose.x - Math.sin(pose.angle) * lift

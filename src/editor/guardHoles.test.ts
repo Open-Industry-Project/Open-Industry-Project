@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { registerPackage } from '../core/parts/partRegistry'
 import { computeSceneGuardHoles, deriveGuardHoles, beamSegments } from '../core/guards/guardHoles'
-import { GUARD_HOLE_PANEL } from '../core/types'
+import { beltGuardWalls } from '../core/guards/beltGuards'
+import { guardHeightOf } from '../core/guards/guardHeight'
+import { GUARD_HEIGHT, GUARD_HOLE_PANEL } from '../core/types'
 import type { PartInstance, SdkPart } from '../core/types'
 import { buildPackage } from '../sim/buildPackage'
 import { evalPartGeometry } from '../core/geometry/geometryEval'
@@ -140,5 +142,37 @@ describe('sensor-beam guard holes', () => {
   it('two eyes closer than a panel share it: the first keeps the hole', () => {
     const holes = deriveGuardHoles(roller(), [...beamSegments(eye('a', 0)), ...beamSegments(eye('b', 0.05))])!
     expect(holes.right).toHaveLength(1)
+  })
+
+  // The guard's height is the host's `guardHeight` param (core/guards/guardHeight.ts): the same number the part draws
+  // its sheet to, so the holes, the colliders and the picture agree.
+  it('a low guard lets the beam pass over it: nothing is cut', () => {
+    // the beam is 0.08 above the deck; a 70 mm guard ends under it
+    expect(deriveGuardHoles(roller({ guardHeight: 0.07 }), beamSegments(eye('e', 1.2)))).toBeNull()
+  })
+
+  it('a guard only just taller than the beam still holds a whole hole, pulled down under its top return', () => {
+    const holes = deriveGuardHoles(roller({ guardHeight: 0.1 }), beamSegments(eye('e', 1.2)))!
+    expect(holes.right).toHaveLength(1)
+    // 0.1 - the 5 mm return - the 20 mm radius - 5 mm of sheet above the disc
+    expect(holes.right[0]![1]).toBeCloseTo(0.07, 6)
+  })
+
+  it('a tall guard is cut where the beam crosses, as the default one is', () => {
+    const holes = deriveGuardHoles(roller({ guardHeight: 0.4 }), beamSegments(eye('e', 1.2)))!
+    expect(holes.right[0]![1]).toBeCloseTo(0.08, 3)
+    // and a beam 0.3 up, over the default guard, crosses this one
+    expect(deriveGuardHoles(roller(), beamSegments(eye('hi', 1.2, W + 0.04, 0.2)))).toBeNull()
+    expect(deriveGuardHoles(roller({ guardHeight: 0.4 }), beamSegments(eye('hi', 1.2, W + 0.04, 0.2)))!.right[0]![1]).toBeCloseTo(0.3, 3)
+  })
+
+  it("a belt's guard colliders stand to its guard height, and the default is the 0.15 m every guard had", () => {
+    const belt = (params: Record<string, unknown>): PartInstance => part('belt', 'oip.belt-conveyor', [0, Y, 0], 0, { segments: [[4, 0]], width: W, ...params })
+    const pkg = real.find((q) => q.id === 'oip.belt-conveyor')!
+    const top = (b: PartInstance): number => Math.max(...beltGuardWalls(b, pkg).map((w) => w.pos[1] + w.hy)) - Y
+    expect(guardHeightOf(belt({}))).toBe(GUARD_HEIGHT)
+    expect(top(belt({}))).toBeCloseTo(GUARD_HEIGHT, 6)
+    expect(top(belt({ guardHeight: 0.3 }))).toBeCloseTo(0.3, 6)
+    expect(top(belt({ guardHeight: 0.08 }))).toBeCloseTo(0.08, 6)
   })
 })

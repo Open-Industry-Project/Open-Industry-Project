@@ -16,6 +16,7 @@ import type { GuardExtents } from '../../../core/guards/guardExtents'
 import { legRestDyAt } from '../../../core/legRests'
 import type { LegRestRows } from '../../../core/legRests'
 import { guardHolePanelDescription } from '../../../core/guards/guardHoles'
+import { GUARD_EYE_CLEAR } from '../../../core/guards/guardHeight'
 import { extrudeDescription } from '../../../core/geometry/geometryShapes'
 import { cutAt, mitreAt, railFlangeOffset } from '../../../core/guards/guardExtents'
 import type { GuardHoles } from '../../../core/guards/guardHoles'
@@ -139,11 +140,17 @@ export function layoutGuardSplit(gs: GuardSplitLink, params: RigParams, linkByNa
   const open = gs.frame ? [] : ((gs.side === 'left' ? openings?.left : openings?.right) ?? [])
   // sensor-beam holes: only a guard sheet holds one - a link whose height spans the hole's disc (the thin
   // top return above it stays whole) - and only inside the span it keeps after openings and extents
-  const y0 = gs.offsetY - sz[1] / 2, y1 = gs.offsetY + sz[1] / 2
+  // the link's height as it is now: a guard whose height is a param moves with it
+  const offsetY = resolvedOffset((linkByName.get(gs.link.name) ?? gs.link).offset, (linkByName.get(gs.link.name) ?? gs.link).offsetParams, params)[1]
+  const y0 = offsetY - sz[1] / 2, y1 = offsetY + sz[1] / 2
   const sideHoles = gs.frame ? [] : ((gs.side === 'left' ? holes?.left : holes?.right) ?? [])
-  const panelHoles = sideHoles.filter(([hx, hy]) => hy - GUARD_HOLE_RADIUS >= y0 && hy + GUARD_HOLE_RADIUS <= y1
-    && keptSegments(backX, frontX, open).some(([lo, hi]) => hx - GUARD_HOLE_PANEL / 2 >= lo && hx + GUARD_HOLE_PANEL / 2 <= hi))
-  const segs = keptSegments(backX, frontX, [...open, ...panelHoles.map(([hx]): [number, number] => [hx - GUARD_HOLE_PANEL / 2, hx + GUARD_HOLE_PANEL / 2])])
+  const inKept = (hx: number): boolean => keptSegments(backX, frontX, open).some(([lo, hi]) => hx - GUARD_HOLE_PANEL / 2 >= lo && hx + GUARD_HOLE_PANEL / 2 <= hi)
+  const panelHoles = sideHoles.filter(([hx, hy]) => hy - GUARD_HOLE_RADIUS >= y0 && hy + GUARD_HOLE_RADIUS <= y1 && inKept(hx))
+  // The top return of a guard lower than a seated eye's housing stops either side of the eye, with nothing in the
+  // gap: whole, it would pass through the housing. That is a guard link wholly above the hole and under the eye's top.
+  const eyeGaps = sideHoles.filter(([hx, hy]) => y0 > hy && y1 < GUARD_EYE_CLEAR && inKept(hx))
+  const gapAt = ([hx]: readonly [number, number]): [number, number] => [hx - GUARD_HOLE_PANEL / 2, hx + GUARD_HOLE_PANEL / 2]
+  const segs = keptSegments(backX, frontX, [...open, ...panelHoles.map(gapAt), ...eyeGaps.map(gapAt)])
   const proto = gs.children[0]!
   const before = gs.children.length + gs.panels.length + gs.wedges.length
   while (gs.panels.length < panelHoles.length) {
@@ -167,7 +174,7 @@ export function layoutGuardSplit(gs: GuardSplitLink, params: RigParams, linkByNa
     const [hx, hy] = panelHoles[i]!
     const panel = gs.panels[i]!
     // the plate is built in the link's frame: y about its centre, z from 0 through its thickness
-    const py0 = y0 - gs.offsetY, py1 = y1 - gs.offsetY, holeY = hy - gs.offsetY
+    const py0 = y0 - offsetY, py1 = y1 - offsetY, holeY = hy - offsetY
     const geom = acquireHolePanelGeometry(panel, holePanelKey(py0, py1, holeY, sz[2]), py0, py1, holeY, sz[2])
     if (panel.geometry !== geom) { panel.geometry = geom; panelGeometryChanged = true }
     panel.position.set(hx, 0, -sz[2] / 2)

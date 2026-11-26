@@ -1,4 +1,5 @@
-import { FRAME_WALL_THICKNESS, GUARD_HEIGHT, GUARD_HOLE_PANEL, GUARD_HOLE_RADIUS, GUARD_THICKNESS } from '../types'
+import { FRAME_WALL_THICKNESS, GUARD_HOLE_PANEL, GUARD_HOLE_RADIUS, GUARD_THICKNESS } from '../types'
+import { guardHeightOf } from './guardHeight'
 import type { PartInstance } from '../types'
 import type { MeshDescription, ParamValue } from '../parts/partApi'
 import { hostGuardFrame } from './guardOpenings'
@@ -50,7 +51,7 @@ const GUARD_LIP_T = 0.005
 /** the band a hole centre may take, above the running surface: the disc clears the flange below and the top
  *  return above, each by 5 mm */
 const HOLE_Y_MIN = GUARD_HOLE_RADIUS + 0.005
-const HOLE_Y_MAX = GUARD_HEIGHT - GUARD_LIP_T - GUARD_HOLE_RADIUS - 0.005
+const holeYMax = (guardHeight: number): number => guardHeight - GUARD_LIP_T - GUARD_HOLE_RADIUS - 0.005
 
 type V3 = [number, number, number]
 interface BeamSegment {
@@ -116,14 +117,16 @@ function guardUp(host: PartInstance, key: string): boolean {
   return (host.params as Record<string, unknown>)[key] !== false
 }
 
-/** the hole centre's height, pulled into the band where the disc is a hole in the sheet */
-function holeY(rel: number): number {
-  return Math.min(HOLE_Y_MAX, Math.max(HOLE_Y_MIN, rel))
+/** the hole centre's height, pulled into the band where the disc is a hole in a sheet `guardHeight` tall. The lower
+ *  bound wins on a guard too low to hold the band, so the centre is never under the flange */
+function holeY(rel: number, guardHeight: number): number {
+  return Math.max(HOLE_Y_MIN, Math.min(holeYMax(guardHeight), rel))
 }
 
-/** the guard height band a crossing must fall in to be one: from the flange up to the guard top */
-function crossesSheet(rel: number): boolean {
-  return rel >= -0.005 && rel <= GUARD_HEIGHT
+/** the guard height band a crossing must fall in to be one: from the flange up to the guard top. A beam above a
+ *  low guard passes over it and cuts nothing */
+function crossesSheet(rel: number, guardHeight: number): boolean {
+  return rel >= -0.005 && rel <= guardHeight
 }
 
 /** a hole may not overlap one already on that guard (two eyes a panel apart): the first one keeps it */
@@ -137,6 +140,7 @@ function straightHoles(host: PartInstance, beams: readonly BeamSegment[]): Guard
   const frame = hostGuardFrame(host)
   if (!frame) return null
   const { hw, slope, sides } = frame
+  const gh = guardHeightOf(host)
   const belt = bedView(host, 'path')
   const leftUp = belt ? belt.leftGuard : guardUp(host, 'leftGuard')
   const rightUp = belt ? belt.rightGuard : guardUp(host, 'rightGuard')
@@ -158,8 +162,8 @@ function straightHoles(host: PartInstance, beams: readonly BeamSegment[]): Guard
       const [lo, hi] = side < 0 ? sides.left : sides.right
       if (x < lo || x > hi) continue
       const rel = (a[1] + (b[1] - a[1]) * t - hostSurfaceY(host, planX)) * slope
-      if (!crossesSheet(rel)) continue
-      pushHole(side < 0 ? out.left : out.right, x, holeY(rel), GUARD_HOLE_PANEL)
+      if (!crossesSheet(rel, gh)) continue
+      pushHole(side < 0 ? out.left : out.right, x, holeY(rel, gh), GUARD_HOLE_PANEL)
     }
   }
   return out
@@ -169,6 +173,7 @@ function straightHoles(host: PartInstance, beams: readonly BeamSegment[]): Guard
 function curvedHoles(host: PartInstance, beams: readonly BeamSegment[]): GuardHoles | null {
   const arc = curvedGizmoOf(host)
   if (!arc) return null
+  const gh = guardHeightOf(host)
   const hw = arc.width / 2
   const rc = arc.innerRadius + hw
   const sweep = (arc.sweepDeg * Math.PI) / 180
@@ -200,8 +205,8 @@ function curvedHoles(host: PartInstance, beams: readonly BeamSegment[]): GuardHo
         const ang = Math.atan2(-pz, px) // the curve's arc: P(θ) = (r·cos θ, −r·sin θ)
         if (ang < 0 || ang > sweep) continue
         const rel = a[1] + (b[1] - a[1]) * t - surfY
-        if (!crossesSheet(rel)) continue
-        pushHole(side < 0 ? out.left : out.right, ang, holeY(rel), GUARD_HOLE_PANEL / r)
+        if (!crossesSheet(rel, gh)) continue
+        pushHole(side < 0 ? out.left : out.right, ang, holeY(rel, gh), GUARD_HOLE_PANEL / r)
       }
     }
   }

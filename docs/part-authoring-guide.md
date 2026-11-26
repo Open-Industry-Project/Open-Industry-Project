@@ -1354,6 +1354,15 @@ fact your part's own declarations say it needs and it doesn't take
 | `railCuts` | `[x, c, side ±1]` | how a rail end is cut to stop against the host's frame | a straight, spur or belt with rails |
 | `legRests` | `[x0, x1, dy]` | per-leg footing over a platform crossing under the part | a legged part |
 
+**Guard height.** The host builds a belt's and a curve's guard colliders, places a sensor beam's hole and puts the
+opening handles at the height of the part's `guardHeight` number param, in metres above the conveying surface
+([src/core/guards/guardHeight.ts](../src/core/guards/guardHeight.ts)). A part that draws guards of a height the
+user can set declares the param under that name and draws to it:
+[_shared/guardHeight.js](../examples/parts/_shared/guardHeight.js) (`guardHeightParam`, `guardHeightOf`), used by
+every first-party conveyor. A part without the param has the 0.15 m guard. A hole's `y` arrives already pulled under
+the top return of a guard that tall, and a beam above the guard cuts nothing. A photo eye's housing stands 0.145 m
+above the surface, so a lower guard leaves its top return off at each hole panel (`EYE_CLEAR`).
+
 A spur takes end joins only (it is itself the merge), so no conveyor end opens its guards. Only a device mounted on
 one does, through `guardGaps`. Build each solid run of a gapped guard as its own `collision: 'box'` part, so the
 collider stops at the gap as the mesh does: [_shared/guardGaps.js](../examples/parts/_shared/guardGaps.js)

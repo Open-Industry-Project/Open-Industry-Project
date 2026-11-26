@@ -241,6 +241,12 @@
               "axis": 0,
               "param": "length",
               "scale": 1
+            },
+            {
+              "axis": 1,
+              "param": "guardHeight",
+              "scale": 1,
+              "add": 0.005
             }
           ]
         },
@@ -250,6 +256,12 @@
           -0.7745
         ],
         "offsetParams": [
+          {
+            "axis": 1,
+            "param": "guardHeight",
+            "scale": 0.5,
+            "add": -0.0025
+          },
           {
             "axis": 2,
             "param": "width",
@@ -275,6 +287,12 @@
               "axis": 0,
               "param": "length",
               "scale": 1
+            },
+            {
+              "axis": 1,
+              "param": "guardHeight",
+              "scale": 1,
+              "add": 0.005
             }
           ]
         },
@@ -284,6 +302,12 @@
           0.7745
         ],
         "offsetParams": [
+          {
+            "axis": 1,
+            "param": "guardHeight",
+            "scale": 0.5,
+            "add": -0.0025
+          },
           {
             "axis": 2,
             "param": "width",
@@ -319,6 +343,12 @@
         ],
         "offsetParams": [
           {
+            "axis": 1,
+            "param": "guardHeight",
+            "scale": 1,
+            "add": -0.0025
+          },
+          {
             "axis": 2,
             "param": "width",
             "scale": -0.5,
@@ -353,6 +383,12 @@
           0.787
         ],
         "offsetParams": [
+          {
+            "axis": 1,
+            "param": "guardHeight",
+            "scale": 1,
+            "add": -0.0025
+          },
           {
             "axis": 2,
             "param": "width",

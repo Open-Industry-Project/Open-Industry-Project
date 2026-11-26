@@ -1,5 +1,6 @@
 import type { PartInstance } from '../types'
-import { ARC_END_EXT, FRAME_WALL_THICKNESS, GUARD_COLLISION_THICKNESS, GUARD_HEIGHT, GUARD_THICKNESS } from '../types'
+import { ARC_END_EXT, FRAME_WALL_THICKNESS, GUARD_COLLISION_THICKNESS, GUARD_THICKNESS } from '../types'
+import { guardHeightOf } from './guardHeight'
 import { bedView, curvedGizmoOf, DEG, toWorldXZ } from '../parts/partGeometry'
 import { MAX_SEGMENT_DEG } from '../geometry/collisionShapes'
 import type { GuardWall } from './beltGuards'
@@ -28,7 +29,7 @@ export function curvedGuardWalls(part: PartInstance): GuardWall[] {
   const view = bedView(part, 'arc')
   if (!view) return []
   const py = part.position[1]
-  const gh = GUARD_HEIGHT
+  const gh = guardHeightOf(part)
   // the shared sheet-metal profile (see beltGuards.ts) - named constants, so a curve can't drift off the
   // cross-section a butted straight has to match
   const hy = (gh + GUARD_THICKNESS) / 2

@@ -18,6 +18,7 @@ import { arcGuard, arcHolePanels } from '../_shared/guardArc.js'
 import { LEG_CLEARANCE, LEG_END_INSET, LEG_SPACING, legPieces } from '../_shared/legs.js'
 import { rollerBed } from '../_shared/rollerBed.js'
 import { frameBottom, frameHeightParam } from '../_shared/rollerFrame.js'
+import { guardHeightOf, guardHeightParam, guardLipUnder } from '../_shared/guardHeight.js'
 
 // the baked footprint of the default 90° / innerRadius 0.825 / width 1.524 arc: innerRadius + width + stub
 const OUTER = 0.825 + 1.524 + 0.085
@@ -55,6 +56,7 @@ definePart({
     reverse: { type: 'boolean', default: false, hidden: true, label: 'Reversed (snap-owned)' },
     innerGuard: { type: 'boolean', default: true, label: 'Inner guard', group: 'Guards', desc: 'Guard wall along the INNER edge of the curve. A real barrier, so turning it off lets cargo cut the corner and leave the bed.' },
     outerGuard: { type: 'boolean', default: true, label: 'Outer guard', group: 'Guards', desc: 'Guard wall along the OUTER edge, which is the one centrifugal drift pushes product against. A real barrier - turning it off is how you let product leave on the outside of a turn.' },
+    ...guardHeightParam('Guards'),
     // sensor-beam holes as [θ rad, y m, side ±1] rows: arc angle from the inlet, height above the deck, side −1 the
     // inner guard / +1 the outer. HOST-FED (core/guardHoles.ts works them out from the scene's beams), so hidden.
     guardHoles: { type: 'numberList', arity: 3, default: [], hidden: true, label: 'Guard holes [θ rad, y m, side ±1]', group: 'Guards', desc: 'Where sensor beams cross the side guards. Worked out by the host from the scene; not for editing.' },
@@ -122,9 +124,10 @@ definePart({
     // turned OUTWARD (away from the bed) into a 20 mm return so it reads as formed sheet steel. Concave (an L);
     // the capped sweep triangulates it. Visual only: the host builds the arc guard colliders from the shared
     // guard constants (core/curvedGuards.ts), never from this profile.
+    var GH = guardHeightOf(p), GHU = guardLipUnder(GH) // the guard's top, and the underside of its return
     function guardSection(zIn, sign) {
       var z1 = zIn + sign * 0.005, z2 = zIn + sign * 0.025
-      return [[-0.005, zIn], [-0.005, z1], [0.145, z1], [0.145, z2], [0.15, z2], [0.15, zIn]]
+      return [[-0.005, zIn], [-0.005, z1], [GHU, z1], [GHU, z2], [GH, z2], [GH, zIn]]
     }
     // each guard is swept along its own bed edge (edgePath's arc), broken around its sensor-beam holes (host-fed
     // 'guardHoles' rows; the panels that fill the gaps are appended last, below)
@@ -221,7 +224,7 @@ definePart({
     parts.push(legs, bolts)
     parts.push.apply(parts, rollers)
     // hole panels LAST (they come and go with the sensors in the scene); VISUAL ONLY, no collision
-    parts.push.apply(parts, arcHolePanels(g, holePanels))
+    parts.push.apply(parts, arcHolePanels(g, holePanels, GH))
     return parts
   },
   react(ctx) {

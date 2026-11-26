@@ -14,6 +14,7 @@ import { METRIC_ONLY, reportSpeed, speedFpmTagParam, speedUnitParams } from '../
 import { HOLE_PANEL, holePanel } from '../_shared/guardHolePanel.js'
 import { guardMitresParam, mitreLookup, railCutLookup, railCutsParam, railEndBands } from '../_shared/guardMitre.js'
 import { LEG_CLEARANCE, LEG_END_INSET, LEG_SPACING, legPieces } from '../_shared/legs.js'
+import { EYE_CLEAR, guardHeightOf, guardHeightParam } from '../_shared/guardHeight.js'
 
 const drive = conveyorDrive() // the ramp, the pulse and the encoder, remembered between steps
 
@@ -77,6 +78,7 @@ definePart({
     frameRails: { type: 'boolean', default: true, label: 'Frame rails', group: 'Guards', desc: 'Structural rails down both sides of the bed. Cosmetic - the running surface and its collision are unaffected.' },
     leftGuard: { type: 'boolean', default: true, label: 'Left guard', group: 'Guards', desc: 'Guard wall down the left side, looking along travel. This is a real barrier, so turning it off lets cargo leave the belt sideways.' },
     rightGuard: { type: 'boolean', default: true, label: 'Right guard', group: 'Guards', desc: 'Guard wall down the right side, looking along travel. This is a real barrier, so turning it off lets cargo leave the belt sideways.' },
+    ...guardHeightParam('Guards'),
     // side-guard openings as [start m, end m, side] rows — arc-length from the tail; side −1 = left, +1 =
     // right, 0 = both. Cuts a gap in the guard wall's render AND collision (a sensor, a transfer).
     // Neighbour-auto openings (a guard opening itself where another conveyor butts) stay a host concern.
@@ -417,10 +419,10 @@ definePart({
     // intersected with the run/bend arc-ranges and each overlap emitted through its own channel.
     // the guard section, z measured outward from the guard's inner face: sheet 0..0.005, then the top return
     // out to LIP. Concave (an L), which the capped sweep triangulates properly.
-    var LIP = 0.025, LIP_T = 0.005
+    var LIP = 0.025, LIP_T = 0.005, GH = guardHeightOf(p)
     function guardSection(zIn, sign) {
       var z1 = zIn + sign * 0.005, z2 = zIn + sign * LIP
-      return [[-0.005, zIn], [-0.005, z1], [0.15 - LIP_T, z1], [0.15 - LIP_T, z2], [0.15, z2], [0.15, zIn]]
+      return [[-0.005, zIn], [-0.005, z1], [GH - LIP_T, z1], [GH - LIP_T, z2], [GH, z2], [GH, zIn]]
     }
     var guardTemplate = g.sweep(guardSection(0, 1), UNIT_X, CAPS)
     // point at arc-length s within a straight run (collinear, so linear interpolation is exact)
@@ -439,8 +441,8 @@ definePart({
     function mitreFill(xe, hiEnd, c) {
       var into = hiEnd ? -1 : 1, xs = xe + into * c * LIP, xt = xe + into * c * 0.005
       return g.merge(
-        g.extrude([[xe, 0], [xt, 0.005], [xs, 0.005], [xs, 0]], -0.005, 0.15, { axis: 'y' }),
-        g.extrude([[xt, 0.005], [xs, LIP], [xs, 0.005]], 0.15 - LIP_T, 0.15, { axis: 'y' }),
+        g.extrude([[xe, 0], [xt, 0.005], [xs, 0.005], [xs, 0]], -0.005, GH, { axis: 'y' }),
+        g.extrude([[xt, 0.005], [xs, LIP], [xs, 0.005]], GH - LIP_T, GH, { axis: 'y' }),
       )
     }
     var ops = Array.isArray(p.guardOpenings) ? p.guardOpenings : []
@@ -520,7 +522,7 @@ definePart({
     var guardMitreFill = mitreFills.length ? { desc: g.merge.apply(g, mitreFills), finish: 'guard' } : null
     // the hole panels: one part per hole height, its instances every panel cut at it. VISUAL ONLY (no collision):
     // the host builds the guard's collider without the holes, so cargo still meets a whole wall.
-    var holeParts = Object.keys(holePanels).sort().map(function (k) { return { desc: holePanel(g, holePanels[k].y, true), finish: 'guard', instances: holePanels[k].insts } })
+    var holeParts = Object.keys(holePanels).sort().map(function (k) { return { desc: holePanel(g, holePanels[k].y, !(GH < EYE_CLEAR), GH), finish: 'guard', instances: holePanels[k].insts } })
 
     // deck Y at a plan-X station, interpolated between the bracketing path points: a straight incline run is
     // just its 2 endpoints, so nearest-point would snap a mid-run leg to a run end — out by its whole rise.

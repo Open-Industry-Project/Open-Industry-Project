@@ -9,6 +9,7 @@
 // A panel's yaw: its local +x runs along the arc tangent and +z points AWAY from the bed, radially out on the outer
 // guard (yaw t + π/2) and in toward the centre on the inner one (t − π/2) - both proper rotations, never a mirror.
 
+import { EYE_CLEAR } from './guardHeight.js'
 import { holePanel } from './guardHolePanel.js'
 
 function arcP(r, t) { return [r * Math.cos(t), 0, -r * Math.sin(t)] }
@@ -38,9 +39,10 @@ export function arcGuard(g, section, r, rFace, side, holes, sweep, n, stub, pane
   }
   return out
 }
-export function arcHolePanels(g, panels) {
+// `gh`: the guard's height. A panel carries its top return unless the guard is lower than an eye's housing.
+export function arcHolePanels(g, panels, gh) {
   return Object.keys(panels).sort().map(function (k) {
-    var base = holePanel(g, panels[k].y, true)
+    var base = holePanel(g, panels[k].y, !(gh < EYE_CLEAR), gh)
     var placed = panels[k].at.map(function (e) {
       var phi = e.t + e.side * Math.PI / 2
       return g.transform(base, { rotate: [0, Math.sin(phi / 2), 0, Math.cos(phi / 2)], translate: [e.rFace * Math.cos(e.t), 0, -e.rFace * Math.sin(e.t)] })

@@ -131,6 +131,32 @@ function frictionParam(carton) {
   }
 }
 
+// ---- from examples/parts/_shared/guardHeight.js ----
+/** the guard height every conveyor had before it was a setting (core GUARD_HEIGHT), and the default */
+const GUARD_HEIGHT = 0.15
+/** A photo eye seated on a guard stands this far above the conveying surface (its housing is 0.16 m tall, seated
+ *  0.02 m below the surface, plus 5 mm). A guard lower than this has its top return left off where an eye stands, or
+ *  the return would pass through the eye's housing. */
+const EYE_CLEAR = 0.145
+
+function guardHeightParam(group) {
+  return {
+    guardHeight: { type: 'number', default: GUARD_HEIGHT, min: 0.06, max: 0.5, step: 0.01, label: 'Guard height (m)', ...(group ? { group } : {}), desc: 'How far the side guards stand above the conveying surface. Lower them to see and reach a small product, raise them for tall cartons on a fast line. Each conveyor keeps its own height, so two that meet with different heights show a step at the joint. A photo eye mounted on a guard looks across 0.08 m above the surface: over a guard lower than that, through a hole in a taller one.' },
+  }
+}
+
+/** The guard height at these params, rounded to a tenth of a millimetre so the default is the literal 0.15 the pooled
+ *  guard templates are shared by. */
+function guardHeightOf(p) {
+  var h = typeof p.guardHeight === 'number' && p.guardHeight > 0 ? p.guardHeight : GUARD_HEIGHT
+  return Math.round(h * 1e4) / 1e4
+}
+
+/** The underside of the guard's 5 mm top return, rounded so the default is the literal 0.145. */
+function guardLipUnder(gh) {
+  return Math.round((gh - 0.005) * 1e6) / 1e6
+}
+
 // ---- from examples/parts/_shared/guardHolePanel.js ----
 // A side guard's sensor-beam hole panel, drawn once for every function conveyor whose guard is a formed sheet
 // (belt, spur, spur roller, curved, curved roller). The rig roller draws the same plate from core (guardHoles.ts
@@ -152,8 +178,11 @@ function frictionParam(carton) {
 // `lip`: draw the top return over the panel. A family whose guard SHEET carries its return (the belt's swept L
 // section, split around the hole with it) needs it; one whose return is its own continuous part (the spurs' lip
 // boxes) must not, or the two coincide face to face and z-fight.
-function holePanel(g, holeY, lip) {
-  var H = 0.15, T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
+//
+// `H`: the guard's height (the part's guardHeight; 0.15 when left out).
+function holePanel(g, holeY, lip, H) {
+  if (typeof H !== 'number') H = 0.15
+  var T = 0.005, LIP = 0.025, LIP_T = 0.005, R = 0.02, PW = 0.1
   var hole = []
   for (var k = 0; k < 16; k++) { var a = (k * Math.PI) / 8; hole.push([R * Math.cos(a), holeY + R * Math.sin(a)]) }
   var sheet = g.extrude([[-PW / 2, -0.005], [PW / 2, -0.005], [PW / 2, H], [-PW / 2, H]], 0, T, { axis: 'z', holes: [hole] })
@@ -191,9 +220,10 @@ function arcGuard(g, section, r, rFace, side, holes, sweep, n, stub, panels) {
   }
   return out
 }
-function arcHolePanels(g, panels) {
+// `gh`: the guard's height. A panel carries its top return unless the guard is lower than an eye's housing.
+function arcHolePanels(g, panels, gh) {
   return Object.keys(panels).sort().map(function (k) {
-    var base = holePanel(g, panels[k].y, true)
+    var base = holePanel(g, panels[k].y, !(gh < EYE_CLEAR), gh)
     var placed = panels[k].at.map(function (e) {
       var phi = e.t + e.side * Math.PI / 2
       return g.transform(base, { rotate: [0, Math.sin(phi / 2), 0, Math.cos(phi / 2)], translate: [e.rFace * Math.cos(e.t), 0, -e.rFace * Math.sin(e.t)] })
@@ -472,6 +502,7 @@ definePart({
     reverse: { type: 'boolean', default: false, hidden: true, label: 'Reversed (snap-owned)' },
     innerGuard: { type: 'boolean', default: true, label: 'Inner guard', group: 'Guards', desc: 'Guard wall along the INNER edge of the curve. A real barrier, so turning it off lets cargo cut the corner and leave the bed.' },
     outerGuard: { type: 'boolean', default: true, label: 'Outer guard', group: 'Guards', desc: 'Guard wall along the OUTER edge, which is the one centrifugal drift pushes product against. A real barrier - turning it off is how you let product leave on the outside of a turn.' },
+    ...guardHeightParam('Guards'),
     // sensor-beam holes as [θ rad, y m, side ±1] rows: arc angle from the inlet, height above the deck, side −1 the
     // inner guard / +1 the outer. HOST-FED (core/guardHoles.ts works them out from the scene's beams), so hidden.
     guardHoles: { type: 'numberList', arity: 3, default: [], hidden: true, label: 'Guard holes [θ rad, y m, side ±1]', group: 'Guards', desc: 'Where sensor beams cross the side guards. Worked out by the host from the scene; not for editing.' },
@@ -539,9 +570,10 @@ definePart({
     // turned OUTWARD (away from the bed) into a 20 mm return so it reads as formed sheet steel. Concave (an L);
     // the capped sweep triangulates it. Visual only: the host builds the arc guard colliders from the shared
     // guard constants (core/curvedGuards.ts), never from this profile.
+    var GH = guardHeightOf(p), GHU = guardLipUnder(GH) // the guard's top, and the underside of its return
     function guardSection(zIn, sign) {
       var z1 = zIn + sign * 0.005, z2 = zIn + sign * 0.025
-      return [[-0.005, zIn], [-0.005, z1], [0.145, z1], [0.145, z2], [0.15, z2], [0.15, zIn]]
+      return [[-0.005, zIn], [-0.005, z1], [GHU, z1], [GHU, z2], [GH, z2], [GH, zIn]]
     }
     // each guard is swept along its own bed edge (edgePath's arc), broken around its sensor-beam holes (host-fed
     // 'guardHoles' rows; the panels that fill the gaps are appended last, below)
@@ -638,7 +670,7 @@ definePart({
     parts.push(legs, bolts)
     parts.push.apply(parts, rollers)
     // hole panels LAST (they come and go with the sensors in the scene); VISUAL ONLY, no collision
-    parts.push.apply(parts, arcHolePanels(g, holePanels))
+    parts.push.apply(parts, arcHolePanels(g, holePanels, GH))
     return parts
   },
   react(ctx) {
