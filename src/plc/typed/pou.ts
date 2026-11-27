@@ -770,10 +770,43 @@ export class TypedPou implements Pou {
 
   varInfo(name: string): VarInfo | undefined {
     const d = this.env.get(identKey(name)) ?? this.tp.globals?.env.get(identKey(name))
-    if (!d || d.hidden) return undefined
+    if (!d) return this.#placeInfo(name)
+    if (d.hidden) return undefined
     const type = isScalarType(d.type) ? d.type : isEnum(d.type) ? 'ENUM' : null
     if (type === null) return undefined
     return { type, constant: d.constant === true, ...(d.location ? { location: d.location } : {}) }
+  }
+
+  /** varInfo for a value inside a variable, by the watch table's key for it: an array's element, a structure's field
+   *  (`Line[1].Zones[0].Full`). The steps setInput walks, so what this answers for is what a write by that name
+   *  reaches: never a member of a function block, and a constant's are constant. */
+  #placeInfo(name: string): VarInfo | undefined {
+    const head = /^[A-Za-z_][A-Za-z0-9_]*/.exec(name)?.[0] ?? ''
+    if (head === '' || head.length === name.length) return undefined
+    const root = this.#place(head)
+    if (!root || root.decl.hidden || isRef(root.decl.type) || isInterface(root.decl.type)) return undefined
+    let layout: TypeLayout = root.layout
+    const steps = name.slice(head.length).match(/\.[A-Za-z_][A-Za-z0-9_]*|\[[^\]]*\]/g) ?? []
+    if (steps.join('') !== name.slice(head.length)) return undefined
+    for (const step of steps) {
+      if (step.startsWith('[')) {
+        if (layout.kind !== 'array') return undefined
+        const at = step.slice(1, -1).split(',').map((x) => Number(x.trim()))
+        if (at.length !== layout.dims.length) return undefined
+        for (let k = 0; k < at.length; k++) {
+          const dim = layout.dims[k]!
+          if (!Number.isInteger(at[k]) || at[k]! < dim.lo || at[k]! > dim.hi) return undefined
+        }
+        layout = layout.elem
+        continue
+      }
+      if (layout.kind !== 'struct' || layout.block || layout.fb) return undefined
+      const field = layout.byKey.get(identKey(step.slice(1)))
+      if (!field) return undefined
+      layout = field.layout
+    }
+    if (layout.kind !== 'scalar') return undefined
+    return { type: layout.enumerated ? 'ENUM' : layout.scalar, constant: root.decl.constant === true }
   }
 
   typeOf(name: string): DataType | undefined {

@@ -286,6 +286,9 @@ END_PROGRAM</code></pre>
           <dt>OPC UA: a tag is read only.</dt>
           <dd>The simulator writes the sensors, so their variables must be writable, which means a plain variable rather than a located input.</dd>
 
+          <dt>OPC UA: a tag names one element of an array, like <code>Lane[3]</code>.</dt>
+          <dd>Where the PLC's server lists each element as a tag of its own, the index is the PLC's own. Where the array is a single tag, the index counts from 0 whatever bounds the program declares, and the status says <code>element 3, counted from 0</code> beside the tag. If the PLC refuses a write to one element, wire the part to a plain variable and copy it into the array in the program.</dd>
+
           <dt>OPC UA: connecting takes long, or "a branch of the PLC's tags did not answer in time".</dt>
           <dd>The server's tree is large, or part of it answers slowly. Set <span class="ui">Browse from</span> (see <a href="#opcua">B2</a>) to the folder that holds the program's variables.</dd>
 

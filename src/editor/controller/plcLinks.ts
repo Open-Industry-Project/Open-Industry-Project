@@ -19,7 +19,7 @@ import { checkWiring } from '../../plc/wiring'
 import { adsEndpoint, eipEndpoint, eipTarget, EXTERNAL_PLC_OFF, flattenFrameTags } from '../links/externalPlcStatus'
 import type { ExternalPlcLink, ExternalPlcStatus, PlcTagList } from '../links/externalPlcStatus'
 import { adsForLink, controllerLink, eipForLink, opcUaForLink, opcUaServerForLink, plcIoForLink } from '../links/linkHosts'
-import { OPC_UA_SERVER_OFF, OpcUaServerSession, publishedVariables } from '../links/opcUaServer'
+import { OPC_UA_SERVER_OFF, OpcUaServerSession, publishedArrays, publishedVariables } from '../links/opcUaServer'
 import type { OpcUaServerStatus, PublishedProgram, ServerNode } from '../links/opcUaServer'
 import { parseMqttUrl } from '../../core/io/mqtt'
 // the publisher's session is loaded when it is switched on (syncMqtt): only its "Off" is static
@@ -298,7 +298,8 @@ export function publishNamedUaServers(l: PlcLinkState, p: ProgramState, ec: Pick
     }
     if (!program) continue
     const feeds = new Set(checkWiring(partsForController(s.scene.parts, name)).tags.filter((t) => t.writers.length > 0).map((t) => t.name))
-    entry.session.publish(publishedVariables(program, feeds))
+    const nodes = publishedVariables(program, feeds)
+    entry.session.publish(nodes, publishedArrays(program, nodes))
   }
 }
 
@@ -347,7 +348,7 @@ function documentProgram(store: EditorStore): PublishedProgram | null {
 export function publishToUaServer(l: PlcLinkState, store: EditorStore, program: PublishedProgram): void {
   if (!l.uaServer && !l.mqtt) return
   const nodes = programNodes(store, program)
-  l.uaServer?.publish(nodes)
+  l.uaServer?.publish(nodes, publishedArrays(program, nodes))
   l.mqtt?.publish(nodes)
 }
 

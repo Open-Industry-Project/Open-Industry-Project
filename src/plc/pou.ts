@@ -10,7 +10,7 @@ import type { WatchRange } from '../core/watchTable'
 import { controllerTags, identKey, isScalarType, passOrder, taskTable } from './program'
 import { bigOf, bool, is64, isInt, isString, low32, nsOf, num, roundEven, str, stringToBig, strLimit, tagOfBig, wrap, wrap64 } from './runtime'
 import type { Ast, CompiledProgram, DataType, Decl, Expr, ScalarType, SourcePos, Stmt, TagPort, TagValue, Value, VarInfo, WatchPlan } from './types'
-import { isEnum, StError, isStringType } from './types'
+import { isArray, isEnum, isStruct, StError, isStringType } from './types'
 
 /** A stored value as a surface answers it (get, the watch table, outputs): a scalar, a 64-bit integer in the form a
  *  TagValue carries it, or undefined for an aggregate or nothing. Every surface that flattens the image goes through
@@ -19,6 +19,39 @@ export const tagOf = (v: unknown): TagValue | undefined => (typeof v === 'bigint
 
 export function isTagValue(v: unknown): v is TagValue {
   return typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string'
+}
+
+/**
+ * Pou.varInfo for a value inside a variable, by the watch table's key for it: an array's element, a structure's field
+ * (`Line[1].Zones[0].Full`), walked down the declared type. The steps setInput walks, so what this answers for is what
+ * a write by that name reaches: never a member of a function block, and a constant's are constant. For an engine that
+ * keeps declared types (the walker); the typed engine walks its layout the same way (typed/pou.ts).
+ */
+export function placeInfo(name: string, declared: (head: string) => Decl | undefined, fieldsOf: (struct: string) => readonly { name: string; type: DataType }[] | undefined): VarInfo | undefined {
+  const head = /^[A-Za-z_][A-Za-z0-9_]*/.exec(name)?.[0] ?? ''
+  if (head === '' || head.length === name.length) return undefined
+  const root = declared(head)
+  if (!root || root.hidden) return undefined
+  let at: DataType | undefined = root.type
+  const steps = name.slice(head.length).match(/\.[A-Za-z_][A-Za-z0-9_]*|\[[^\]]*\]/g) ?? []
+  if (steps.join('') !== name.slice(head.length)) return undefined
+  for (const step of steps) {
+    if (step.startsWith('[')) {
+      if (!at || !isArray(at)) return undefined
+      const index = step.slice(1, -1).split(',').map((x) => Number(x.trim()))
+      if (index.length !== at.dims.length) return undefined
+      for (let k = 0; k < index.length; k++) {
+        const dim = at.dims[k]!
+        if (!Number.isInteger(index[k]) || index[k]! < dim.lo || index[k]! > dim.hi) return undefined
+      }
+      at = at.elem
+      continue
+    }
+    if (!at || !isStruct(at)) return undefined
+    at = fieldsOf(at.struct)?.find((f) => identKey(f.name) === identKey(step.slice(1)))?.type
+  }
+  const leaf = at && isScalarType(at) ? at : at && isEnum(at) ? 'ENUM' : null
+  return leaf === null ? undefined : { type: leaf, constant: root.constant === true }
 }
 
 /** A scalar as the walker's records hold one: a TagValue, or a 64-bit integer's bigint. */

@@ -192,6 +192,7 @@ END_PROGRAM</code></pre>
           <li>A NodeId is the variable's name, so a tag you set up keeps working across runs, program edits and machines. The program's folders follow its dots, so a timer's outputs sit in a folder named after the timer.</li>
           <li>What an operator could change is writable, like a Start button or a setpoint. A variable a part feeds (the sensor), a constant and a timer's outputs are read only, and a write to one is refused with <code>BadNotWritable</code>.</li>
           <li>Types follow the declarations. BOOL is Boolean, INT is Int16, DINT is Int32, REAL is Float, LREAL is Double, STRING is String, and a TIME is a Double of milliseconds.</li>
+          <li>An array is one node holding every element, which a client reads and writes whole or by index range. An index range counts from 0, so index 0 of an array declared <code>ARRAY[1..8]</code> is its first element. An array of up to 512 elements also has a node per element under it, named by the program's own index, such as <code>ns=1;s=Main.Enable[3]</code>. A structure's fields are variables in a folder named after it.</li>
         </ul>
         <p>
           Subscribe to <code>Eye</code> and <code>Run</code>. Back in the simulator, the status line now names your client:

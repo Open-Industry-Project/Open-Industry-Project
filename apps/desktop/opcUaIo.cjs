@@ -48,6 +48,12 @@ const PROGRESS_MS = 250
 const ENUMERATION = 29
 const ABSTRACT = new Set([24, 26, 27, 28])
 
+/** The typed array a number type's elements travel in; a Boolean's travel in a plain array. */
+const TYPED = { 2: Int8Array, 3: Uint8Array, 4: Int16Array, 5: Uint16Array, 6: Int32Array, 7: Uint32Array, 10: Float32Array, 11: Float64Array }
+
+/** One element's index range as the app sends it: an index per dimension, each counted from 0. */
+const INDEX_RANGE = /^\d+(,\d+)*$/
+
 /** `items` in runs of at most `size` (0: one run), for a server's per-request node limit. */
 function chunks(items, size) {
   if (!(size > 0) || items.length <= size) return [items]
@@ -347,26 +353,35 @@ class OpcUaLink {
   }
 
   /**
-   * The DataType of each node, the built-in type it comes down to (0 when none), and the user's access level,
-   * for the app to bind against.
+   * The DataType of each node, the built-in type it comes down to (0 when none), the user's access level, and
+   * whether it holds one value or an array (ValueRank, and each dimension's length where the server gives it),
+   * for the app to bind against. An array node's type is its elements'.
    */
   async describe(nodeIds) {
     const ua = opcua()
     if (nodeIds.length === 0) return []
+    const PER = 4
     const reads = nodeIds.flatMap((nodeId) => [
       { nodeId, attributeId: ua.AttributeIds.DataType },
       { nodeId, attributeId: ua.AttributeIds.UserAccessLevel },
+      { nodeId, attributeId: ua.AttributeIds.ValueRank },
+      { nodeId, attributeId: ua.AttributeIds.ArrayDimensions },
     ])
     const dv = await this.read(reads)
     const nodes = []
     for (let i = 0; i < nodeIds.length; i++) {
-      const type = dv[i * 2]
-      const access = dv[i * 2 + 1]
+      const type = dv[i * PER]
+      const access = dv[i * PER + 1]
+      const rank = dv[i * PER + 2]
+      const dims = dv[i * PER + 3]
       const dataType = type.statusCode.isGood() ? type.value.value : null
       nodes.push({
         dataType: dataType?.toString() ?? '',
         builtin: dataType ? await this.builtinOf(dataType) : 0,
         access: access.statusCode.isGood() ? Number(access.value.value) : 0,
+        // a server that does not answer for the rank is taken to hold one value there
+        rank: rank.statusCode.isGood() ? Number(rank.value.value) : -1,
+        dims: dims.statusCode.isGood() && dims.value.value ? Array.from(dims.value.value, Number) : [],
       })
     }
     // an abstract DataType (Number, BaseDataType) does not say what the value is, so the value's own type does
@@ -377,7 +392,8 @@ class OpcUaLink {
       for (const n of nodes) {
         if (n.dataType === '' || n.builtin !== 0) continue
         const v = values[k++]
-        if (v.statusCode.isGood() && v.value.arrayType === ua.VariantArrayType.Scalar) n.builtin = v.value.dataType
+        // (an array's value says its elements' type)
+        if (v.statusCode.isGood() && v.value.dataType !== ua.DataType.Null) n.builtin = v.value.dataType
       }
     }
     return nodes
@@ -410,14 +426,43 @@ class OpcUaLink {
     return found
   }
 
-  /** One cycle: the writes, then the reads. Per-item statuses come back by name ("Good", "BadNotWritable"). */
+  /**
+   * One cycle: the writes, then the reads. Per-item statuses come back by name ("Good", "BadNotWritable").
+   *
+   * An item with an `indexRange` (`3`, `2,3`, counted from 0) is one element of a node that holds a whole array. It
+   * is written as an array of one value, which is the form a range write takes, and read back as the one value. A
+   * read is a node id, or `{nodeId, indexRange}` for an element.
+   */
   async exchange(writes, reads) {
     const ua = opcua()
-    const w = await this.write(writes.map((x) => ({ nodeId: x.nodeId, attributeId: ua.AttributeIds.Value, value: { value: { dataType: x.builtin, value: x.value } } })))
-    const r = await this.read(reads.map((nodeId) => ({ nodeId, attributeId: ua.AttributeIds.Value })))
+    const ranged = (x) => {
+      if (x === null || typeof x !== 'object' || x.indexRange === undefined) return null
+      if (typeof x.indexRange !== 'string' || !INDEX_RANGE.test(x.indexRange)) throw new Error(`${String(x.indexRange)} is not the index of an array element`)
+      return x.indexRange
+    }
+    const variant = (x, range) => {
+      if (range === null) return { dataType: x.builtin, value: x.value }
+      const rank = range.split(',').length
+      const value = TYPED[x.builtin] ? TYPED[x.builtin].of(x.value) : [x.value]
+      return rank === 1 ? { dataType: x.builtin, arrayType: ua.VariantArrayType.Array, value } : { dataType: x.builtin, arrayType: ua.VariantArrayType.Matrix, dimensions: new Array(rank).fill(1), value }
+    }
+    const w = await this.write(
+      writes.map((x) => {
+        const range = ranged(x)
+        return { nodeId: x.nodeId, attributeId: ua.AttributeIds.Value, ...(range !== null && { indexRange: range }), value: { value: variant(x, range) } }
+      }),
+    )
+    const ranges = reads.map(ranged)
+    const r = await this.read(
+      reads.map((x, i) => ({ nodeId: ranges[i] === null ? x : x.nodeId, attributeId: ua.AttributeIds.Value, ...(ranges[i] !== null && { indexRange: ranges[i] }) })),
+    )
     return {
       writes: w.map((s) => s.name),
-      reads: r.map((d) => ({ value: d.value?.value ?? null, status: d.statusCode.name })),
+      reads: r.map((d, i) => {
+        const value = d.value?.value ?? null
+        // a range read answers with an array of the one element
+        return { value: ranges[i] === null || value === null ? value : (value[0] ?? null), status: d.statusCode.name }
+      }),
     }
   }
 
@@ -487,8 +532,9 @@ async function withLink(event, opts, fn) {
  *                                                                   every variable under Objects, or under the start
  *                                                                   points roots names ([{path} | {nodeId}]); skipped:
  *                                                                   the paths of nodes that never answered in time
- *   opcua:describe {nodeIds} -> {error, nodes: [{dataType, builtin, access}]}
- *   opcua:exchange {writes: [{nodeId, builtin, value}], reads: [nodeId]} -> {error, writes: [status], reads: [{value, status}]}
+ *   opcua:describe {nodeIds} -> {error, nodes: [{dataType, builtin, access, rank, dims}]}
+ *   opcua:exchange {writes: [{nodeId, builtin, value, indexRange?}], reads: [nodeId | {nodeId, indexRange}]}
+ *                                    -> {error, writes: [status], reads: [{value, status}]}
  *   opcua:close                                                     end the session
  * and pushes
  *   opcua:closed {link, why}                                        the PLC went away

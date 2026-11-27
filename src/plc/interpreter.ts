@@ -16,7 +16,7 @@ import { comparisonArgs, comparisonMode, evalBuiltin, isBuiltinFunc } from './bu
 import { parseAndCheck } from './checker'
 import { FAULT, StFault } from './faults'
 import { containsFb, controllerTags, type EnumDefMap, type Env, fbDecls, type FbDefMap, funcDecls, type FuncDefMap, identKey, implementationOf, isFb, isScalarType, literal64, methodDecls, type StructDefMap } from './program'
-import { checkRange, coerceScalar, coercerFor, configuredProgram, fits, implicitProgram, isValue, placeMaxLen, type Pou, type PouBuilder, tagOf, WATCH_ARRAY_MAX } from './pou'
+import { checkRange, coerceScalar, coercerFor, configuredProgram, fits, implicitProgram, isValue, placeInfo, placeMaxLen, type Pou, type PouBuilder, tagOf, WATCH_ARRAY_MAX } from './pou'
 import type { GenInternals } from './scanCodegen'
 import { compileTyped } from './typed/compile'
 import { TypedUnsupported } from './typed/layout'
@@ -1269,7 +1269,8 @@ function buildPou(declared: Decl[], body: Stmt[], fbDefs: FbDefMap, funcs: FuncD
     },
     varInfo(name: string): VarInfo | undefined {
       const d = env.get(identKey(name)) ?? globals?.env.get(identKey(name))
-      if (!d || d.hidden) return undefined
+      if (!d) return placeInfo(name, (head) => env.get(identKey(head)) ?? globals?.env.get(identKey(head)), (struct) => structDefs.get(identKey(struct))?.fields)
+      if (d.hidden) return undefined
       const type = isScalarType(d.type) ? d.type : isEnum(d.type) ? 'ENUM' : null
       if (type === null) return undefined
       return { type, constant: d.constant === true, ...(d.location ? { location: d.location } : {}) }

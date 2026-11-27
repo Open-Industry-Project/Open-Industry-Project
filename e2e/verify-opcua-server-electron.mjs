@@ -10,6 +10,8 @@
 // the program as it compiles; stopped, the values read out of service and a write is refused; on Play they go live
 // with no new subscription; a client's write drives the line; an input the scene feeds is read-only; Stop and Play
 // again keep the client's subscription; Controller Properties names the client. A browser tab cannot listen, and says so.
+// An array is written by element both ways a client can: the element's own node, and an index range of the array's
+// node, which is the only way into an array too long to have a node per element.
 //
 //   node e2e/verify-opcua-server-electron.mjs
 /* global process, console, window, localStorage, setTimeout, URL */
@@ -49,8 +51,17 @@ VAR
   Eye : BOOL;
   Run : BOOL;
   Speed : REAL := 0.5;
+  Bypass : ARRAY[1..4] OF BOOL;
+  Bypassed : INT;
+  Recipe : ARRAY[1..600] OF INT;
+  Last : INT;
 END_VAR
 Run := Start AND NOT Eye;
+Bypassed := 0;
+IF Bypass[1] THEN Bypassed := Bypassed + 1; END_IF;
+IF Bypass[3] THEN Bypassed := Bypassed + 30; END_IF;
+IF Bypass[4] THEN Bypassed := Bypassed + 400; END_IF;
+Last := Recipe[600];
 END_PROGRAM
 `
 
@@ -109,7 +120,8 @@ try {
   await page.waitForFunction(() => window.__oip.controller.opcUaServerStatus.state === 'serving' && window.__oip.controller.opcUaServerStatus.variables > 0, null, { timeout: 30000, polling: 100 })
   const st0 = await serverStatus(page)
   expect(st0.endpoint === `opc.tcp://127.0.0.1:${port}`, `it listens on this machine (${st0.endpoint})`)
-  expect(st0.variables === 4 && st0.writable === 3, `and publishes the program before Play: 4 variables, 3 writable (${st0.variables}, ${st0.writable})`)
+  // Start, Eye, Run, Speed, Bypassed, Last, the four elements of Bypass, and the two arrays as a node each
+  expect(st0.variables === 12 && st0.writable === 11, `and publishes the program before Play: 12 variables, 11 writable (${st0.variables}, ${st0.writable})`)
 
   // the SCADA connects and finds the program where a PLC's server keeps it
   client = new OpcUaLink(join(profileDir, 'scada-pki'), () => {})
@@ -117,16 +129,21 @@ try {
   expect(connected.error === '', `a client connects (${connected.error})`)
   const { variables } = await client.browse()
   const paths = variables.map((v) => v.path.join('.')).sort()
-  expect(JSON.stringify(paths) === JSON.stringify(['PLC.Main.Eye', 'PLC.Main.Run', 'PLC.Main.Speed', 'PLC.Main.Start']), `it browses the program under Objects / PLC (${paths.join(', ')})`)
+  const wantPaths = ['Bypass', 'Bypass.[1]', 'Bypass.[2]', 'Bypass.[3]', 'Bypass.[4]', 'Bypassed', 'Eye', 'Last', 'Recipe', 'Run', 'Speed', 'Start'].map((n) => `PLC.Main.${n}`)
+  expect(JSON.stringify(paths) === JSON.stringify(wantPaths), `it browses the program under Objects / PLC, an array's elements under the array (${paths.join(', ')})`)
   const id = (name) => variables.find((v) => v.path.join('.') === `PLC.Main.${name}`)?.nodeId
   expect(id('Start') === 'ns=1;s=Main.Start', `a variable's NodeId is its name (${id('Start')})`)
   const types = await client.describe([id('Start'), id('Eye'), id('Speed')])
-  expect(JSON.stringify(types) === JSON.stringify([{ dataType: 'ns=0;i=1', builtin: 1, access: 3 }, { dataType: 'ns=0;i=1', builtin: 1, access: 1 }, { dataType: 'ns=0;i=10', builtin: 10, access: 3 }]), `types and access follow the declarations, the eye the scene feeds read-only (${JSON.stringify(types)})`)
+  const one = { rank: -1, dims: [] }
+  expect(JSON.stringify(types) === JSON.stringify([{ dataType: 'ns=0;i=1', builtin: 1, access: 3, ...one }, { dataType: 'ns=0;i=1', builtin: 1, access: 1, ...one }, { dataType: 'ns=0;i=10', builtin: 10, access: 3, ...one }]), `types and access follow the declarations, the eye the scene feeds read-only (${JSON.stringify(types)})`)
+  expect(id('Bypass.[3]') === 'ns=1;s=Main.Bypass[3]', `an element's NodeId is its name, with the program's own index (${id('Bypass.[3]')})`)
+  const shapes = await client.describe([id('Bypass'), id('Bypass.[3]'), id('Recipe')])
+  expect(JSON.stringify(shapes) === JSON.stringify([{ dataType: 'ns=0;i=1', builtin: 1, access: 3, rank: 1, dims: [4] }, { dataType: 'ns=0;i=1', builtin: 1, access: 3, ...one }, { dataType: 'ns=0;i=4', builtin: 4, access: 3, rank: 1, dims: [600] }]), `an array is one writable node of its length, and an element a writable bit (${JSON.stringify(shapes)})`)
   let r = await client.exchange([{ nodeId: id('Start'), builtin: 1, value: true }], [id('Eye')])
   expect(r.reads?.[0]?.status === 'BadOutOfService' && r.writes?.[0] === 'BadInvalidState', `stopped, a read is out of service and a write refused (${JSON.stringify(r)})`)
   await page.waitForFunction(() => window.__oip.controller.opcUaServerStatus.clients.length === 1, null, { timeout: 5000, polling: 100 })
   const said = await page.locator('[data-testid="opcua-server-status"]').innerText()
-  expect(/^Serving opc\.tcp:\/\/127\.0\.0\.1:\d+: 1 connected \(Open Industry Project \(127\.0\.0\.1\)\), 4 variables, 3 writable\. Stopped: they read as out of service until Play\.$/.test(said), `Controller Properties names the client (${said})`)
+  expect(/^Serving opc\.tcp:\/\/127\.0\.0\.1:\d+: 1 connected \(Open Industry Project \(127\.0\.0\.1\)\), 12 variables, 11 writable\. Stopped: they read as out of service until Play\.$/.test(said), `Controller Properties names the client (${said})`)
   await page.locator('[data-testid="controller-props-close"]').click()
 
   // a subscription, as a SCADA keeps one: it must see the eye change, across Stop and Play, without being made again
@@ -168,6 +185,40 @@ try {
   const lastWrite = await page.locator('[data-testid="opcua-server-last-write"]').innerText()
   expect(lastWrite === 'Last write from a client: Main.Start := TRUE', `Controller Properties shows the last write (${lastWrite})`)
   await page.locator('[data-testid="controller-props-close"]').click()
+
+  console.log('--- an array, written by element ---')
+  // the element's own node, which carries the program's index
+  r = await client.exchange([{ nodeId: id('Bypass.[3]'), builtin: 1, value: true }], [])
+  expect(r.writes?.[0] === 'Good', `the client writes Bypass[3] by its own node (${JSON.stringify(r.writes)})`)
+  const programSaw = async (want) => {
+    const until = Date.now() + 5000
+    let got = null
+    while (Date.now() < until) {
+      got = (await client.exchange([], [id('Bypassed')])).reads?.[0]?.value
+      if (got === want) break
+      await sleep(100)
+    }
+    return got
+  }
+  let saw = await programSaw(30)
+  expect(saw === 30, `and the program reads it in its next scans (Bypassed = ${saw})`)
+  // an index range of the array's node counts from 0: offset 3 is Bypass[4], offset 0 Bypass[1]
+  r = await client.exchange([{ nodeId: id('Bypass'), builtin: 1, value: true, indexRange: '3' }], [{ nodeId: id('Bypass'), indexRange: '2' }])
+  expect(r.writes?.[0] === 'Good' && r.reads?.[0]?.value === true, `the client writes one element by index range, and reads another (${JSON.stringify(r)})`)
+  saw = await programSaw(430)
+  expect(saw === 430, `the program reads that one too, and keeps the first (Bypassed = ${saw})`)
+  const shown = await page.evaluate(() => [1, 2, 3, 4].map((i) => window.__oip.controller.plcWatch?.[`Main.Bypass[${i}]`]))
+  expect(JSON.stringify(shown) === JSON.stringify([false, false, true, true]), `the watch table shows both writes (${JSON.stringify(shown)})`)
+  // an array too long to have a node per element: only the index range reaches it
+  r = await client.exchange([{ nodeId: id('Recipe'), builtin: 4, value: 42, indexRange: '599' }, { nodeId: id('Recipe'), builtin: 4, value: 7, indexRange: '0' }], [])
+  expect(JSON.stringify(r.writes) === JSON.stringify(['Good', 'Good']), `the client writes two elements of a 600-element array (${JSON.stringify(r.writes)})`)
+  let last = null
+  for (const until = Date.now() + 5000; Date.now() < until && last !== 42; await sleep(100)) last = (await client.exchange([], [id('Last')])).reads?.[0]?.value
+  expect(last === 42, `the program reads Recipe[600] (Last = ${last})`)
+  r = await client.exchange([], [{ nodeId: id('Recipe'), indexRange: '599' }, { nodeId: id('Recipe'), indexRange: '0' }, { nodeId: id('Recipe'), indexRange: '300' }])
+  expect(JSON.stringify(r.reads?.map((x) => x.value)) === JSON.stringify([42, 7, 0]), `and the array reads back by element (${JSON.stringify(r.reads)})`)
+  r = await client.exchange([{ nodeId: id('Recipe'), builtin: 4, value: 1, indexRange: '600' }], [])
+  expect(r.writes?.[0] === 'BadIndexRangeNoData', `an element past the end is refused (${JSON.stringify(r.writes)})`)
 
   console.log('--- Stop and Play again ---')
   await page.evaluate(() => window.__oip.controller.stop())

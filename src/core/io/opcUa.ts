@@ -13,6 +13,13 @@
 // when both exist. A tag that matches more than one variable is refused with the candidates named, rather
 // than bound to whichever the server listed first. A NodeId written out (`ns=4;s=...`, `ns=3;i=...`) is taken as it is.
 //
+// An array element (`Lane[3]`, `Grid[2,3]`). A server publishes an array one of two ways, and the standard allows
+// both. Where each element is a node of its own, the browse lists it under some spelling of its index (`[3]`, `3`,
+// `Lane[3]`), and the tag binds to that node like any other: the index is the PLC's own. Where the array is one node
+// holding every element, the tag binds to that node with an index range, which OPC UA counts from 0 whatever bounds
+// the PLC declared. The first is preferred when a server offers both, because its index needs no translating. Reading
+// an index as an offset from 0 is this link's rule: a server does not say what an array's lower bound is.
+//
 // Where the browse starts. Objects by default, or the start points a link names (OpcUaBrowseRoot). A variable found
 // under a path start point keeps its whole path from Objects, so a tag binds the same with start points as without.
 //
@@ -42,8 +49,15 @@ export interface OpcUaVariable {
 
 /** What the shell reads about a matched node before the link uses it. */
 export interface OpcUaNodeInfo {
-  /** the DataType attribute, as a NodeId string (`ns=0;i=1` is Boolean) */
+  /** the DataType attribute, as a NodeId string (`ns=0;i=1` is Boolean); an array node's is its elements' */
   dataType: string
+  /**
+   * the ValueRank attribute: -1 one value, 1 and up an array of that many dimensions, 0 an array of any number,
+   * -2 and -3 either. Absent from a shell that does not read it, and then the node is taken as one value.
+   */
+  rank?: number
+  /** the ArrayDimensions attribute: each dimension's length, 0 where the server does not fix it; empty when it gave none */
+  dims?: number[]
   /**
    * the built-in type id the DataType comes down to, which the shell finds by following its supertypes (a
    * PLC's enumeration is an Int32, its alias of INT an Int16); 0 or absent when it found none
@@ -59,6 +73,8 @@ export interface OpcUaBinding extends OpcUaPoint {
   path: string[]
   /** the OPC UA built-in type id (1 Boolean ... 11 Double) */
   builtin: number
+  /** for one element of a node that holds a whole array: its index range, counted from 0 (`3`, `2,3`) */
+  indexRange?: string
 }
 
 /** The tags a scene's wiring carries: the shape plc/wiring.ts reports, without importing it. */
@@ -149,33 +165,110 @@ export function tagSegments(tag: string): string[] {
   return out.map((s) => s.trim())
 }
 
-/** The variable a tag names, or why it names none (or several). */
-export function matchOpcUaTag(tag: string, variables: readonly OpcUaVariable[]): { variable: OpcUaVariable } | { error: string } {
+/**
+ * One step of a name: a browse name, or one index of an array element. `key` is what two steps are compared by: a
+ * name without its case, an index as its number behind a character no browse name starts with.
+ */
+interface NameToken {
+  key: string
+  /** the name as the server spells it; undefined for an index */
+  name?: string
+  index?: number
+}
+
+const INDEXED = /^(.*?)((?:\[\s*-?\d+(?:\s*,\s*-?\d+)*\s*\])+)$/
+const indexToken = (n: number): NameToken => ({ key: `\u0000${n}`, index: n })
+
+/**
+ * A path of browse names as steps, so the spellings servers give an element compare equal: `Lane` then `[3]`,
+ * `Lane` then `3`, `Lane` then `Lane[3]`, and `Lane[3]` alone are all Lane, index 3. `[2,3]` and `[2][3]` are two
+ * indexes. A tag is read the same way, so `Lane[3]` finds any of them.
+ */
+function nameTokens(segments: readonly string[]): NameToken[] {
+  const out: NameToken[] = []
+  for (const seg of segments) {
+    if (out.length > 0 && /^-?\d+$/.test(seg)) {
+      out.push(indexToken(Number(seg)))
+      continue
+    }
+    const m = seg.includes('[') ? INDEXED.exec(seg) : null
+    if (!m) {
+      out.push({ key: seg.toLowerCase(), name: seg })
+      continue
+    }
+    const name = m[1]!.trim()
+    // an element named with its array's name again (`Lane[3]` under `Lane`) is that array's element
+    if (name !== '' && out.at(-1)?.key !== name.toLowerCase()) out.push({ key: name.toLowerCase(), name })
+    for (const n of m[2]!.match(/-?\d+/g) ?? []) out.push(indexToken(Number(n)))
+  }
+  return out
+}
+
+// each browsed variable's steps, kept for the list they came from: a bind matches every point against every variable
+const tokensOf = new WeakMap<readonly OpcUaVariable[], NameToken[][]>()
+function variableTokens(variables: readonly OpcUaVariable[]): NameToken[][] {
+  let t = tokensOf.get(variables)
+  if (!t) {
+    t = variables.map((v) => nameTokens(v.path))
+    tokensOf.set(variables, t)
+  }
+  return t
+}
+
+/** A tag's node: the variable it names and, when that node holds a whole array, which element of it. */
+export type OpcUaMatch = { variable: OpcUaVariable; index?: number[] } | { error: string }
+
+/** The variables whose path ends in `want`, ignoring case; the exactly spelled ones alone when there are any. */
+function endingIn(want: readonly NameToken[], variables: readonly OpcUaVariable[]): OpcUaVariable[] {
+  const all = variableTokens(variables)
+  const ends = (path: readonly NameToken[], exact: boolean): boolean => {
+    const from = path.length - want.length
+    if (from < 0) return false
+    for (let i = 0; i < want.length; i++) {
+      const p = path[from + i]!
+      if (p.key !== want[i]!.key || (exact && p.name !== want[i]!.name)) return false
+    }
+    return true
+  }
+  const found: number[] = []
+  for (let i = 0; i < all.length; i++) if (ends(all[i]!, false)) found.push(i)
+  const exact = found.length > 1 ? found.filter((i) => ends(all[i]!, true)) : []
+  return (exact.length > 0 ? exact : found).map((i) => variables[i]!)
+}
+
+/**
+ * The variable a tag names, or why it names none (or several). An element's own node is taken where the browse found
+ * one. Otherwise `Lane[3]` is element 3 of the node `Lane`, which the bind then checks is an array.
+ */
+export function matchOpcUaTag(tag: string, variables: readonly OpcUaVariable[]): OpcUaMatch {
   if (NODE_ID.test(tag)) return { variable: { path: [tag], nodeId: tag } }
-  if (/\[/.test(tag)) return { error: `${tag}: an array element does not travel over OPC UA yet; wire the part to a plain variable` }
-  const want = tagSegments(tag)
-  if (want.some((s) => s === '')) return { error: `${tag} is not a tag name` }
-  const endsWith = (path: readonly string[], exact: boolean): boolean => {
-    if (path.length < want.length) return false
-    const tail = path.slice(path.length - want.length)
-    return tail.every((seg, i) => (exact ? seg === want[i] : seg.toLowerCase() === want[i]!.toLowerCase()))
+  const segments = tagSegments(tag)
+  if (segments.some((s) => s === '')) return { error: `${tag} is not a tag name` }
+  const want = nameTokens(segments)
+  const several = (found: readonly OpcUaVariable[]): { error: string } => {
+    const shown = found.slice(0, 3).map((v) => v.path.join('.'))
+    return { error: `${tag} names ${found.length} tags on the PLC (${shown.join(', ')}${found.length > 3 ? ', ...' : ''}): name it by more of its path` }
   }
-  let found = variables.filter((v) => endsWith(v.path, false))
-  if (found.length > 1) {
-    const exact = found.filter((v) => endsWith(v.path, true))
-    if (exact.length > 0) found = exact
-  }
+  const found = endingIn(want, variables)
   if (found.length === 1) return { variable: found[0]! }
-  if (found.length === 0) return { error: `the PLC has no tag named ${tag}` }
-  const shown = found.slice(0, 3).map((v) => v.path.join('.'))
-  return { error: `${tag} names ${found.length} tags on the PLC (${shown.join(', ')}${found.length > 3 ? ', ...' : ''}): name it by more of its path` }
+  if (found.length > 1) return several(found)
+  // no node of its own: the element of a node that holds the whole array
+  let end = want.length
+  while (end > 0 && want[end - 1]!.index !== undefined) end--
+  if (end > 0 && end < want.length) {
+    const holders = endingIn(want.slice(0, end), variables)
+    if (holders.length === 1) return { variable: holders[0]!, index: want.slice(end).map((t) => t.index!) }
+    if (holders.length > 1) return several(holders)
+  }
+  return { error: `the PLC has no tag named ${tag}` }
 }
 
 /**
  * The name a tag picker offers for each variable a browse found: the shortest end of its path that
  * {@link matchOpcUaTag} resolves to that variable alone (`Main.Eye` where two programs hold an `Eye`, a
  * bare `Eye` where one does), so a pick can never be ambiguous. Unique ignoring case, which is stricter than
- * the match needs. Left out: array elements and their members (the link refuses them), structures, and variables whose
+ * the match needs. An array element with a node of its own is offered as `Lanes[3]`, however the server spells it.
+ * Left out: structures, an array whose elements are listed under it, and variables whose
  * names a tag field cannot hold (whitespace, `/`, a quote) or would read as something else (an address, a
  * NodeId). A browse name holding a dot is quoted, so it reads back as one segment. Sorted.
  */
@@ -198,27 +291,48 @@ export function opcUaVariableGroups(variables: readonly OpcUaVariable[]): PlcVar
   return groupVariables(named, (v) => folder.get(v.name) ?? '')
 }
 
+/** Steps as a tag is typed: names joined by dots, a run of indexes in one pair of brackets after the name it follows. */
+function tokensName(tokens: readonly NameToken[]): string {
+  let out = ''
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]!
+    if (t.name !== undefined) {
+      out += `${out === '' ? '' : '.'}${t.name.includes('.') ? `"${t.name}"` : t.name}`
+      continue
+    }
+    const run = [t.index!]
+    while (tokens[i + 1]?.index !== undefined) run.push(tokens[++i]!.index!)
+    out += `[${run.join(',')}]`
+  }
+  return out
+}
+
 function opcUaNamed(variables: readonly OpcUaVariable[]): { name: string; variable: OpcUaVariable }[] {
-  const key = (segs: readonly string[]): string => segs.join('\u0000').toLowerCase()
-  // how many variables' paths end in each run of segments: a run held by one variable names it
+  const all = variableTokens(variables)
+  const key = (tokens: readonly NameToken[]): string => tokens.map((t) => t.key).join('\u0001')
+  // how many variables' paths end in each run of steps: a run held by one variable names it
   const ends = new Map<string, number>()
-  for (const v of variables) {
-    for (let k = 1; k <= v.path.length; k++) {
-      const s = key(v.path.slice(v.path.length - k))
+  for (const tokens of all) {
+    for (let k = 1; k <= tokens.length; k++) {
+      const s = key(tokens.slice(tokens.length - k))
       ends.set(s, (ends.get(s) ?? 0) + 1)
     }
   }
-  // a variable with members under it is a structure, never the single bit or number a part carries
+  // a variable with members under it is a structure, or an array whose elements are listed, never the single bit or
+  // number a part carries
   const parents = new Set(variables.map((v) => v.path.slice(0, -1).join('\u0000')))
-  // only the segments a name uses must be typeable: a path may run through a device name holding spaces
-  const spellable = (seg: string): boolean => seg !== '' && !/[\s/"]/.test(seg)
+  // only the names a tag uses must be typeable: a path may run through a device name holding spaces
+  const spellable = (t: NameToken): boolean => t.name === undefined || (t.name !== '' && !/[\s/"[\]]/.test(t.name))
   const out: { name: string; variable: OpcUaVariable }[] = []
-  for (const v of variables) {
-    if (v.path.some((seg) => /[[\]]/.test(seg)) || parents.has(v.path.join('\u0000'))) continue
-    for (let k = 1; k <= v.path.length; k++) {
-      const tail = v.path.slice(v.path.length - k)
-      if (ends.get(key(tail)) !== 1) continue
-      const name = tail.map((seg) => (seg.includes('.') ? `"${seg}"` : seg)).join('.')
+  for (let i = 0; i < variables.length; i++) {
+    const v = variables[i]!
+    const tokens = all[i]!
+    if (parents.has(v.path.join('\u0000'))) continue
+    for (let k = 1; k <= tokens.length; k++) {
+      const tail = tokens.slice(tokens.length - k)
+      // a name starts at a name: an index alone names nothing
+      if (tail[0]!.name === undefined || ends.get(key(tail)) !== 1) continue
+      const name = tokensName(tail)
       if (tail.every(spellable) && !NODE_ID.test(name) && !looksLikeAddress(name)) out.push({ name, variable: v })
       break
     }
@@ -311,7 +425,8 @@ export function builtinName(id: number): string {
 /**
  * Bind the points to their nodes, given what the browse found and, for each match, what the node says of
  * itself. Refused, one problem each: a name the server does not hold (or holds more than once), a node that
- * is not a bit or number, a bit on a number and the reverse, and a node the simulator may not write (or read).
+ * is not a bit or number, an array named without an element (or an element of a node that holds one value, or one
+ * past its end), a bit on a number and the reverse, and a node the simulator may not write (or read).
  */
 export function bindOpcUaPoints(
   points: readonly OpcUaPoint[],
@@ -338,6 +453,33 @@ export function bindOpcUaPoints(
       problems.push(`${p.tag}: ${where} is not a single bit or number (its type is ${type})`)
       continue
     }
+    // what the node holds: one value, or an array the tag must name one element of
+    const rank = info.rank ?? -1
+    const index = m.index
+    if (index === undefined && rank >= 0) {
+      const first = `[${Array.from({ length: Math.max(rank, 1) }, () => 0).join(',')}]`
+      // a NodeId names the whole node, and may itself end in brackets, so an element is asked for by the tag's name
+      problems.push(NODE_ID.test(p.tag) ? `${p.tag} is an array; wire the part by the tag's name with an index, like Lane${first}` : `${p.tag}: ${where} is an array; name one element of it, like ${p.tag}${first}`)
+      continue
+    }
+    if (index !== undefined) {
+      if (rank === -1) {
+        problems.push(`${p.tag}: ${where} is a single value, not an array`)
+        continue
+      }
+      if (rank >= 1 && index.length !== rank) {
+        problems.push(`${p.tag}: ${where} has ${rank} ${rank === 1 ? 'dimension' : 'dimensions'}, and the tag gives ${index.length} ${index.length === 1 ? 'index' : 'indexes'}`)
+        continue
+      }
+      // an index range counts from 0, whatever bounds the PLC declared
+      const dims = info.dims ?? []
+      const past = index.findIndex((n, k) => n < 0 || (dims.length === index.length && dims[k]! > 0 && n >= dims[k]!))
+      if (past >= 0) {
+        const size = index[past]! < 0 ? 'no element before 0' : `${dims[past]} elements`
+        problems.push(`${p.tag}: ${where} has ${size}${index.length > 1 ? ` in dimension ${past + 1}` : ''}; over OPC UA an index counts from 0, whatever the PLC declares`)
+        continue
+      }
+    }
     const kind = BUILTIN[builtin]!.kind
     if ((p.type === 'BOOL') !== (kind === 'bool') && p.type !== null) {
       problems.push(`${p.tag}: the parts carry a ${p.type === 'BOOL' ? 'bit' : 'number'}, and ${where} is ${builtinName(builtin)}`)
@@ -348,7 +490,7 @@ export function bindOpcUaPoints(
       problems.push(`${p.tag}: the PLC does not let this client ${p.dir === 'toPlc' ? 'write' : 'read'} ${where}${p.dir === 'toPlc' ? ' (a PLC\'s own inputs usually cannot be written: give the program a variable for the simulator to write)' : ''}`)
       continue
     }
-    bindings.push({ ...p, nodeId: m.variable.nodeId, path: m.variable.path, builtin })
+    bindings.push({ ...p, nodeId: m.variable.nodeId, path: m.variable.path, builtin, ...(index !== undefined ? { indexRange: index.join(',') } : {}) })
   }
   return { bindings, problems }
 }

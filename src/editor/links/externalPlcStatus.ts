@@ -44,7 +44,10 @@ export interface OpcUaHost {
   /** under Objects, or under `roots`; `skipped`: the paths of nodes that never answered in time, left out of `variables` */
   browse(opts?: { roots?: OpcUaBrowseRoot[] } & LinkOpt): Promise<{ error: string; variables?: OpcUaVariable[]; truncated?: boolean; skipped?: string[] }>
   describe(opts: { nodeIds: string[] } & LinkOpt): Promise<{ error: string; nodes?: OpcUaNodeInfo[] }>
-  exchange(opts: { writes: { nodeId: string; builtin: number; value: boolean | number }[]; reads: string[] } & LinkOpt): Promise<{ error: string; writes?: string[]; reads?: { value: unknown; status: string }[] }>
+  /** `indexRange`: one element of a node that holds a whole array, counted from 0 (`3`, `2,3`); a read of one is `{nodeId, indexRange}` */
+  exchange(
+    opts: { writes: { nodeId: string; builtin: number; value: boolean | number; indexRange?: string }[]; reads: (string | { nodeId: string; indexRange: string })[] } & LinkOpt,
+  ): Promise<{ error: string; writes?: string[]; reads?: { value: unknown; status: string }[] }>
   close(opts?: LinkOpt): Promise<void>
   onClosed(cb: (e: { why: string } & LinkOpt) => void): () => void
   /** a browse under way, and how many variables it has found; absent on a host that does not say */

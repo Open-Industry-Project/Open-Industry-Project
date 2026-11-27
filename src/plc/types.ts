@@ -877,9 +877,11 @@ export interface CompiledProgram {
   port(name: string): TagPort
   /**
    * What a variable is, by the name the watch table keys it by: its declared type (an enumeration reads
-   * `ENUM`), whether it is a constant, and its address when it is located. Undefined for a function block's
-   * member (`T1.Q`) and for anything that is not a single bit, number or string. For a surface that publishes
-   * the variables by name and has to say what each one holds (editor/links/opcUaServer.ts).
+   * `ENUM`), whether it is a constant, and its address when it is located. An array's element and a structure's
+   * field answer too (`Lane[3]`, `Motor1.Run`), with the type of the value there and whether the variable they are
+   * in is a constant. Undefined for a function block's member (`T1.Q`) and for anything that is not a single bit,
+   * number or string. For a surface that publishes the variables by name and has to say what each one holds
+   * (editor/links/opcUaServer.ts).
    */
   varInfo(name: string): VarInfo | undefined
   /**

@@ -1,7 +1,8 @@
 // Smoke test for opcUaIo.cjs - the node-opcua half of an OPC UA link. Runs with plain Node (no Electron):
 // `node apps/desktop/opcUaIo.test.cjs`. The mapping (which tag is which node) is tested in
 // src/core/io/opcUa.test.ts. Here a real node-opcua server tests the service calls: connect, browse,
-// describe, a write-then-read cycle, the PLC going away, and a server that refuses an unsecured client.
+// describe, a write-then-read cycle, the PLC going away, a server that refuses an unsecured client, and one
+// element of an array read and written by index range.
 
 const assert = require('node:assert/strict')
 const { mkdtempSync, rmSync } = require('node:fs')
@@ -77,6 +78,41 @@ async function ownTypes(port, pki) {
 }
 
 /**
+ * A server holding arrays the way the library itself holds them, with nothing of this app's server in it: Main.Lanes
+ * (four Booleans) and Main.Counts (five Int16s) each one node, Main.Grid two by three, Main.Level an array under an
+ * abstract type, and Main.Stops with a node per element under it.
+ */
+async function withArrays(port, pki) {
+  const server = new OPCUAServer({
+    port,
+    serverCertificateManager: new OPCUACertificateManager({ rootFolder: join(pki, `server-${port}`) }),
+    securityPolicies: [SecurityPolicy.None],
+    securityModes: [MessageSecurityMode.None],
+    allowAnonymous: true,
+  })
+  await server.initialize()
+  const ns = server.engine.addressSpace.getOwnNamespace()
+  const main = ns.addObject({ organizedBy: server.engine.addressSpace.rootFolder.objects, browseName: 'Main' })
+  const array = (browseName, dataType, type, value, dims = [value.length]) =>
+    ns.addVariable({
+      componentOf: main,
+      browseName,
+      dataType,
+      valueRank: dims.length,
+      arrayDimensions: dims,
+      value: { dataType: type, arrayType: dims.length === 1 ? VariantArrayType.Array : VariantArrayType.Matrix, ...(dims.length > 1 && { dimensions: dims }), value },
+    })
+  array('Lanes', 'Boolean', DataType.Boolean, [false, true, false, false])
+  array('Counts', 'Int16', DataType.Int16, Int16Array.of(10, 11, 12, 13, 14))
+  array('Grid', 'Int16', DataType.Int16, Int16Array.of(0, 1, 2, 10, 11, 12), [2, 3])
+  array('Level', 'Number', DataType.Float, Float32Array.of(0.5, 1.5))
+  const stops = array('Stops', 'Boolean', DataType.Boolean, [false, false])
+  for (const i of [0, 1]) ns.addVariable({ componentOf: stops, browseName: `Stops[${i}]`, dataType: 'Boolean', value: { dataType: 'Boolean', value: i === 1 } })
+  await server.start()
+  return server
+}
+
+/**
  * A server laid out as a controller with more than a PLC: DeviceSet.PLC.Programs.Main holds Eye and Run, and beside it
  * DeviceSet.Cnc holds an axis. Under Twins are two folders whose names differ only in case. Returns the Programs NodeId.
  */
@@ -122,8 +158,8 @@ async function main() {
     // 2. describe: types and access, as the app binds against them
     const nodes = await link.describe([id('Eye'), id('Speed')])
     assert.deepEqual(nodes, [
-      { dataType: 'ns=0;i=1', builtin: 1, access: 3 },
-      { dataType: 'ns=0;i=10', builtin: 10, access: 3 },
+      { dataType: 'ns=0;i=1', builtin: 1, access: 3, rank: -1, dims: [] },
+      { dataType: 'ns=0;i=10', builtin: 10, access: 3, rank: -1, dims: [] },
     ])
 
     // 3. one cycle: write the eye, read what the PLC's rung made of it
@@ -318,6 +354,46 @@ async function main() {
       await link.close()
     } finally {
       await tree.server.shutdown(0)
+    }
+    // 15. arrays on a server that is not this app's: an element by index range, and a node per element in the browse
+    const arrayed = await withArrays(48420, pki)
+    try {
+      const link = new OpcUaLink(join(pki, 'client'), () => {})
+      assert.deepEqual(await link.connect('opc.tcp://127.0.0.1:48420'), { error: '' })
+      const { variables } = await link.browse()
+      const paths = variables.map((v) => v.path.join('.')).sort()
+      assert.deepEqual(paths, ['Main.Counts', 'Main.Grid', 'Main.Lanes', 'Main.Level', 'Main.Stops', 'Main.Stops.Stops[0]', 'Main.Stops.Stops[1]'])
+      const id = (path) => variables.find((v) => v.path.join('.') === path).nodeId
+      const nodes = await link.describe([id('Main.Lanes'), id('Main.Counts'), id('Main.Grid'), id('Main.Level'), id('Main.Stops.Stops[1]')])
+      assert.deepEqual(nodes.map((n) => [n.builtin, n.rank, n.dims]), [
+        [1, 1, [4]],
+        [4, 1, [5]],
+        [4, 2, [2, 3]],
+        [10, 1, [2]], // an abstract type, by its elements' own
+        [1, -1, []],
+      ])
+      let r = await link.exchange(
+        [
+          { nodeId: id('Main.Lanes'), builtin: 1, value: true, indexRange: '3' },
+          { nodeId: id('Main.Counts'), builtin: 4, value: 99, indexRange: '0' },
+          { nodeId: id('Main.Level'), builtin: 10, value: 2.5, indexRange: '1' },
+        ],
+        [{ nodeId: id('Main.Lanes'), indexRange: '1' }, { nodeId: id('Main.Lanes'), indexRange: '3' }, { nodeId: id('Main.Counts'), indexRange: '0' }, { nodeId: id('Main.Counts'), indexRange: '4' }, { nodeId: id('Main.Grid'), indexRange: '1,2' }, { nodeId: id('Main.Level'), indexRange: '1' }, id('Main.Stops.Stops[1]')],
+      )
+      assert.deepEqual(r.writes, ['Good', 'Good', 'Good'])
+      assert.deepEqual(r.reads.map((x) => x.value), [true, true, 99, 14, 12, 2.5, true])
+      // only the element written changed
+      const whole = await link.session.read([id('Main.Lanes'), id('Main.Counts')].map((nodeId) => ({ nodeId, attributeId: 13 })))
+      assert.deepEqual(Array.from(whole[0].value.value), [false, true, false, true])
+      assert.deepEqual(Array.from(whole[1].value.value), [99, 11, 12, 13, 14])
+      // past the end is a per-item status, and an index that is not one fails the call in words
+      r = await link.exchange([{ nodeId: id('Main.Lanes'), builtin: 1, value: true, indexRange: '9' }], [{ nodeId: id('Main.Lanes'), indexRange: '9' }])
+      assert.match(r.writes[0], /^BadIndexRange/)
+      assert.match(r.reads[0].status, /^BadIndexRange/)
+      await assert.rejects(link.exchange([], [{ nodeId: id('Main.Lanes'), indexRange: '1:2' }]), /is not the index of an array element/)
+      await link.close()
+    } finally {
+      await arrayed.shutdown(0)
     }
     console.log('opcUaIo: all checks passed')
   } finally {

@@ -90,6 +90,8 @@ interface WatchSource {
   elementsUnder?(name: string, max: number): { keys: string[]; more: number } | null
   /** whether `key` is one of `keys`, when the source can say without searching them ({@link watchLists}) */
   lists?(key: string): boolean
+  /** every value of an unlisted array of single values into `out` ({@link readUnlistedArray}) */
+  readArray?(name: string, out: WatchValue[]): boolean
 }
 
 // a layout's ranges by the upper-case key their elements are under, and by that key without its program instance
@@ -273,6 +275,26 @@ class MemorySource implements WatchSource {
     return { keys, more: valueCount(at.shape) - keys.length }
   }
 
+  readArray(name: string, out: WatchValue[]): boolean {
+    const at = placeOf(this.#layout, name, false)
+    if (!at || !('dims' in at.shape) || !('kind' in at.shape.elem)) return false
+    const { dims, elem } = at.shape
+    // each element at its address, the last index fastest: no key is built or parsed for it
+    const idx = dims.map(() => 0)
+    let n = 0
+    for (;;) {
+      let addr = at.addr
+      for (let k = 0; k < dims.length; k++) addr += idx[k]! * dims[k]!.stride
+      out[n++] = this.#read(addr, elem.kind)
+      let k = dims.length - 1
+      while (k >= 0 && idx[k] === dims[k]!.hi - dims[k]!.lo) idx[k--] = 0
+      if (k < 0) break
+      idx[k]!++
+    }
+    out.length = n
+    return true
+  }
+
   put(key: string, value: WatchValue): boolean {
     const i = indexOf(this.#layout).get(key)
     const at = i === undefined ? locate(this.#layout, key, false) : null
@@ -366,6 +388,10 @@ class OverlaySource implements WatchSource {
   elementsUnder(name: string, max: number): { keys: string[]; more: number } | null {
     return watchElementsUnder(this.over, name, max)
   }
+
+  readArray(name: string, out: WatchValue[]): boolean {
+    return readUnlistedArray(this.over, name, out)
+  }
 }
 
 const SOURCE = Symbol('watch source')
@@ -423,6 +449,9 @@ class LazySource implements WatchSource {
   }
   elementKey(name: string): string | null {
     return watchElementKey(this.#built(), name)
+  }
+  readArray(name: string, out: WatchValue[]): boolean {
+    return readUnlistedArray(this.#built(), name, out)
   }
 }
 
@@ -492,6 +521,16 @@ export function watchElementKey(table: Readonly<Record<string, WatchValue>>, nam
  *  more there are. Null for anything else. `name` is read as {@link watchElementKey} reads one. */
 export function watchElementsUnder(table: Readonly<Record<string, WatchValue>>, name: string, max: number): { keys: string[]; more: number } | null {
   return sources.get(table)?.elementsUnder?.(name, max) ?? null
+}
+
+/**
+ * Every value of an array the table answers but does not list (one too long to list), into `out`, in the order a
+ * listed array's keys run: the last index fastest. For a reader that takes the whole array on every update, where
+ * asking for each element by name would build and parse a key apiece. False, and `out` untouched, when `name` is
+ * not such an array of single values in the table's own spelling, and for a table that is a plain object.
+ */
+export function readUnlistedArray(table: Readonly<Record<string, WatchValue>>, name: string, out: WatchValue[]): boolean {
+  return sources.get(table)?.readArray?.(name, out) ?? false
 }
 
 /** `table` with `key` already in it set to `value`, as a new table: written in place when the table is a copy of

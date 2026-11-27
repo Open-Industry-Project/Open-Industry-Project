@@ -115,9 +115,20 @@ export function describeOpcUaPoint(p: OpcUaPoint): string {
   return `${p.tag}  ${p.dir === 'toPlc' ? 'written to the PLC' : 'read from the PLC'}${p.type ? `  ${p.type}` : ''}`
 }
 
-/** "Eye  Main.Eye  Boolean": an OPC UA point bound to the node it found. */
+/** "Eye  Main.Eye  Boolean": an OPC UA point bound to the node it found, and to which element of it when the node holds an array. */
 export function describeOpcUaBinding(b: OpcUaBinding): string {
-  return `${b.tag}  ${b.path.join('.')}  ${builtinName(b.builtin)}`
+  const element = b.indexRange === undefined ? '' : ` element ${b.indexRange}, counted from 0`
+  return `${b.tag}  ${b.path.join('.')}${element}  ${builtinName(b.builtin)}`
+}
+
+/** Why the PLC refused one element of an array, where its status alone would not say what to do about it. */
+function elementRefusal(b: OpcUaBinding, status: string, what: 'write' | 'read'): string | null {
+  if (b.indexRange === undefined) return null
+  const where = b.path.join('.')
+  if (status === 'BadIndexRangeNoData') return `${b.tag}: ${where} has no element ${b.indexRange} (over OPC UA an index counts from 0, whatever the PLC declares)`
+  if (status === 'BadIndexRangeInvalid' || (what === 'write' && (status === 'BadWriteNotSupported' || status === 'BadNotSupported')))
+    return `${b.tag}: the PLC does not ${what} one element of ${where} on its own (${status}): give the program a plain variable for the simulator to ${what}`
+  return null
 }
 
 /** The tags a scene carries over EtherNet/IP: every tag a part is wired to by name, written or read by the controller. */
@@ -581,8 +592,8 @@ export class ExternalPlcOpcUaSession extends NamedLink<OpcUaPoint, OpcUaBinding>
 
   protected async cycle(writing: OpcUaBinding[], reading: OpcUaBinding[]): Promise<void> {
     const r = await this.host.exchange({
-      writes: writing.map((b) => ({ nodeId: b.nodeId, builtin: b.builtin, value: toOpcUaValue(b.builtin, this.sim[b.tag]) })),
-      reads: reading.map((b) => b.nodeId),
+      writes: writing.map((b) => ({ nodeId: b.nodeId, builtin: b.builtin, value: toOpcUaValue(b.builtin, this.sim[b.tag]), ...(b.indexRange !== undefined ? { indexRange: b.indexRange } : {}) })),
+      reads: reading.map((b) => (b.indexRange !== undefined ? { nodeId: b.nodeId, indexRange: b.indexRange } : b.nodeId)),
     })
     if (this.closed) return
     if (r.error) {
@@ -591,9 +602,10 @@ export class ExternalPlcOpcUaSession extends NamedLink<OpcUaPoint, OpcUaBinding>
       else this.setError(r.error)
       return
     }
-    const bad = (tag: string, status: string | undefined, what: string): string | null => (status !== undefined && status !== 'Good' ? `${tag}: the PLC answered the ${what} with ${status}` : null)
+    const bad = (b: OpcUaBinding, status: string | undefined, what: 'write' | 'read'): string | null =>
+      status !== undefined && status !== 'Good' ? (elementRefusal(b, status, what) ?? `${b.tag}: the PLC answered the ${what} with ${status}`) : null
     this.cycled(
-      [...writing.map((b, i) => [b.tag, bad(b.tag, r.writes?.[i], 'write')] as const), ...reading.map((b, i) => [b.tag, bad(b.tag, r.reads?.[i]?.status, 'read')] as const)],
+      [...writing.map((b, i) => [b.tag, bad(b, r.writes?.[i], 'write')] as const), ...reading.map((b, i) => [b.tag, bad(b, r.reads?.[i]?.status, 'read')] as const)],
       reading.flatMap((b, i) => {
         const got = r.reads?.[i]
         return got && got.status === 'Good' ? [[b.tag, fromOpcUaValue(b.builtin, got.value)] as const] : []

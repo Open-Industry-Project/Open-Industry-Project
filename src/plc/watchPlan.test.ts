@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { withWatchValue } from '../core/watchKeys'
-import { forEachWatchValue, memoryTable, watchElementKey, watchElementsUnder } from '../core/watchTable'
+import { forEachWatchValue, memoryTable, overlayTable, readUnlistedArray, watchElementKey, watchElementsUnder } from '../core/watchTable'
 import { CONFORMANCE_CASES } from './conformanceCases'
 import { compile, setScanEngine } from './interpreter'
 import type { CompiledProgram, TagValue } from './types'
@@ -217,6 +217,33 @@ Wide[1].Grid[2,0] := 9;`)
     expect(watchElementsUnder(table, 'Wide[1].Grid', 64)).toEqual({ keys: ['Wide[1].Grid[1,0]', 'Wide[1].Grid[1,1]', 'Wide[1].Grid[2,0]', 'Wide[1].Grid[2,1]'], more: 0 })
     expect(watchElementsUnder(table, 'Wide[1].Ok', 64)).toBeNull()
     expect(watchElementsUnder(table, 'n', 64)).toBeNull()
+  })
+
+  it('reads an array too long to list whole, in the order its keys would run', () => {
+    const program = compile(`VAR
+  Big : ARRAY[1..600] OF INT;
+  Grid : ARRAY[0..29, 1..20] OF REAL;
+  Flags : ARRAY[0..599] OF BOOL;
+  Short : ARRAY[0..3] OF INT;
+END_VAR
+Big[1] := 11; Big[600] := 66; Grid[1,2] := 1.5; Grid[29,20] := 2.5; Flags[599] := TRUE;`)
+    program.scan(0.1)
+    const plan = program.watchPlan!()!
+    const table = memoryTable(plan.layout, plan.memory.slice(0))
+    const out: TagValue[] = []
+    expect(readUnlistedArray(table, 'Big', out)).toBe(true)
+    expect([out.length, out[0], out[1], out[599]]).toEqual([600, 11, 0, 66])
+    // two dimensions: the last index fastest, each from its own lower bound
+    expect(readUnlistedArray(table, 'Grid', out)).toBe(true)
+    expect([out.length, out[20 + 1], out[599], out[0]]).toEqual([600, 1.5, 2.5, 0])
+    expect(readUnlistedArray(table, 'Flags', out)).toBe(true)
+    expect([out[0], out[599]]).toEqual([false, true])
+    // through a table laid over it, as the editor's is while a written value shows early
+    expect(readUnlistedArray(overlayTable({ Other: 1 }, table), 'Big', out)).toBe(true)
+    expect(out[599]).toBe(66)
+    // not an array the table leaves unlisted: a short one, one element, a name it does not hold, a plain object
+    for (const name of ['Short', 'Big[3]', 'Nope']) expect(readUnlistedArray(table, name, out), name).toBe(false)
+    expect(readUnlistedArray({ Big: 1 }, 'Big', out)).toBe(false)
   })
 
   it('has no plan on the walker, whose memory is not one buffer', () => {

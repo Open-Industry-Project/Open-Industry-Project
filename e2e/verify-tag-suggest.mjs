@@ -125,8 +125,8 @@ async function main() {
     await read.click()
     await page.waitForFunction(() => /On the PLC \(\d+ tags?\)/.test(document.querySelector('[data-testid="tag-suggest-plc"]')?.textContent ?? ''), { timeout: 5000 }).catch(() => {})
     const plcText = (await list.getByTestId('tag-suggest-plc').textContent()) ?? ''
-    // Motor3, Line2.Motor1, Line3.Motor1, PhotoEye_1, Drive.Run: the array element and the structure are left out
-    check('the PLC\'s bindable tags were read', /On the PLC \(5 tags\)/.test(plcText), plcText.slice(0, 120))
+    // Motor3, Line2.Motor1, Line3.Motor1, PhotoEye_1, Lanes[0], Drive.Run: the structure is left out
+    check('the PLC\'s bindable tags were read', /On the PLC \(6 tags\)/.test(plcText), plcText.slice(0, 120))
     check('nothing typed: the PLC\'s tags are not listed yet', (await names('plc')).length === 0)
     const fake = await page.evaluate(() => window.__fakeUa)
     check('the read connected once and let go', fake.connects === 1 && fake.closes === 1, JSON.stringify(fake))

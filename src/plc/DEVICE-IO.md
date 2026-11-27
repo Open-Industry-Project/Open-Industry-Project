@@ -352,6 +352,22 @@ more than one variable is refused with the candidates listed; a NodeId written o
 is checked before use: a bit on a Boolean, a number on a numeric type, and the user's access level allowing
 the write or the read. The dock lists every tag against the node it found.
 
+**An array element** (`Lane[3]`, `Grid[2,3]`, `Recs[2].Ok`). OPC UA lets a server publish an array two ways, and
+the link takes both. Where each element is a node of its own, the browse lists it under some spelling of its index
+(`[3]`, `3`, or `Lane[3]`, under the array's node or beside it), and the tag binds to that node like any other: the
+index is the PLC's own, and a member of an element (`Recs[2].Ok`) is found the same way. Where the array is one node
+holding every element, the tag binds to that node with an index range, and each cycle reads or writes that one
+element. The element's own node is preferred when a server offers both, because its index needs no translating.
+
+Two rules here are ours. An index range counts from 0, as OPC UA defines it, and a server does not say what
+lower bound the PLC declared, so against an array that is one node `Lane[3]` is the fourth element whatever the
+program's bounds are; the dock says `element 3, counted from 0` beside such a tag. And a PLC that refuses a write
+to one element is reported by tag with that said: the link never reads the whole array, changes one element and
+writes it all back, which would overwrite whatever the PLC changed in between. At bind the node's ValueRank and
+ArrayDimensions are read, so an array named without an index, an index on a single value, the wrong number of
+indexes and an element past a known length are each refused by name before the first cycle. A NodeId names the
+whole node (it may itself end in brackets), so an element of an array node is asked for by the tag's name.
+
 **Where the browse starts.** Objects, unless the link names start points in "Browse from": paths of browse names
 from Objects (`DeviceSet.PLC.Programs`) or NodeIds, set per link on this computer like its address. A controller
 that also runs a CNC or drives can hold tens of thousands of variables a program never uses, and reading them all
@@ -372,8 +388,10 @@ the scene's tags, the program's (of the field's type), and, in this mode, the PL
 browsed, kept after Stop (`controller.plcTagList`), or a one-shot connect-browse-close from the list's "Read the
 PLC's tags" while stopped (`readOpcUaTagList`; the shell holds one link per window, so a run that starts meanwhile
 takes it over and the read never closes it). Each variable is offered by the shortest end of its path that names
-it ALONE (`opcUaTagNames`), so a pick always binds; array elements and structures are left out, since neither
-binds. The PLC's names are listed only once something is typed, best 50 first, because a large program's tree
+it ALONE (`opcUaTagNames`), so a pick always binds. An array element that has a node of its own is offered as
+`Lanes[3]`, however the server spells it, and the array above it is left out, as a structure is. An array that is
+one node is offered by its name, since a browse does not say what a node holds: its element is typed by hand. The
+PLC's names are listed only once something is typed, best 50 first, because a large program's tree
 runs to thousands. A typed tag the PLC does not hold gets a "not on PLC" chip naming the closest names
 (`closestOpcUaTagNames`), the verdict Play would give, before Play. Not filtered by type: the browse carries no
 data types, and reading 20,000 of them for a suggestion list is not worth a connect's time. The list stays a
@@ -410,7 +428,9 @@ PROGRAM is stopped still looks alive; only a lost connection or a silent server 
 
 `e2e/verify-external-plc-electron.mjs` drives it in the real desktop shell against a node-opcua server holding a
 `MAIN` object with `Eye` and `Run` under Objects, including the PLC going away mid-run and coming back, when the
-tags are found anew.
+tags are found anew. Array elements are held by `core/io/opcUa.test.ts` (which node a tag names),
+`externalPlc.test.ts` (the session, on a fake host) and `apps/desktop/opcUaIo.test.cjs` (index ranges on the wire,
+against a node-opcua server that holds its arrays the library's own way).
 
 **Connecting to a PLC runtime's OPC UA server:** publish the program's variables to its OPC UA server (how is the
 vendor's to document), and wire the parts to the variables' names. If a discovery server already holds port 4840
@@ -579,6 +599,27 @@ function block's output (`T1.Q`), and a variable the SCENE feeds, by name or by 
 since the next scan takes the part's value again. A write crosses to the worker as `writePlcVars` and lands
 before the next scan (`LocalPlcLink.write`), so the program sees it exactly as it sees a part's tag.
 
+**Arrays and structures.** An array's element and a structure's field are variables like any other
+(`Lane[3]`, `Motor1.Run`), with the type their declaration gives and the same write rule: `varInfo` answers for
+a value inside a variable by walking the steps a write by that name walks. An array of bits, numbers or strings
+is also ONE node holding every element (`publishedArrays`), as a real PLC's server publishes it, with its
+ValueRank and ArrayDimensions, which a client reads and writes whole or by index range. An element's own node
+sits under the array's, named by the index the program declares (`[3]`, NodeId `ns=1;s=Main.Lane[3]`). An index
+range counts from 0, as OPC UA defines it, so offset 0 of `ARRAY[1..4]` is `Lane[1]`. The two stay in step, and a
+write to either reaches the program as a write to the element by its own name.
+
+An array longer than the watch table lists (512 elements) has only the one node, so a client reaches its
+elements by index range. Its values are not in a frame's keys: each update reads the whole array where the table
+keeps it (`readUnlistedArray`) and sends what changed by element name. That needs the table to be a copy of the
+program's memory, which the typed engine's is for one controller; on the walker, or with several controllers,
+such an array reads `BadWaitingForInitialData` and refuses a write. Not published as one node: an array of
+structures or function blocks (its fields are variables), an array inside another array's element, a 64-bit one,
+and one of more than 65,536 elements.
+
+node-opcua hands a bound variable's setter the written elements without their index range, and merges them into
+the value it last read. So the shell takes a write to an array node itself, at the node's `writeAttribute`, and
+answers a range that is not one, or runs past the end, with the status OPC UA gives for each.
+
 **Out of service, not gone.** The server lives for as long as it is switched on, not for one run, because a
 SCADA stays connected across Stop and Play. While nothing runs the program here (stopped, faulted, or an
 external PLC running the scene) every variable reads `BadOutOfService` and a write is refused with
@@ -598,7 +639,9 @@ node-opcua runs the server in the desktop shell's main process
 ([`apps/desktop/opcUaServer.cjs`](../../apps/desktop/opcUaServer.cjs)); a browser tab cannot listen on a port, and
 Controller Properties says so. `e2e/verify-opcua-server-electron.mjs` plays the SCADA against the real desktop
 shell: it browses, subscribes to the eye, presses Start, and the belt has to run and stop the box at the eye; Stop
-and Play again must keep the same subscription.
+and Play again must keep the same subscription. It writes an array's elements both ways, by the element's own node
+and by index range (the only way into its 600-element array), and the program has to read each one.
+`apps/desktop/opcUaServer.test.cjs` holds the nodes themselves, with the shell's own client.
 
 A SCADA or HMI connects as to any OPC UA server: add an OPC UA connection to this endpoint (security None,
 anonymous), browse PLC / Main, and subscribe.

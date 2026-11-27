@@ -65,7 +65,51 @@ describe('finding a tag\'s node by name', () => {
     expect(matchOpcUaTag('Missing', DEEP)).toEqual({ error: 'the PLC has no tag named Missing' })
     expect(matchOpcUaTag('ns=4;s=Main.Eye', [])).toEqual({ variable: { path: ['ns=4;s=Main.Eye'], nodeId: 'ns=4;s=Main.Eye' } })
     expect(matchOpcUaTag('ns=3;i=1007', [])).toEqual({ variable: { path: ['ns=3;i=1007'], nodeId: 'ns=3;i=1007' } })
-    expect(matchOpcUaTag('Lane[3]', DEEP)).toHaveProperty('error', expect.stringContaining('array element'))
+    expect(matchOpcUaTag('Lane[3]', DEEP)).toEqual({ error: 'the PLC has no tag named Lane[3]' })
+  })
+})
+
+describe('finding an array element', () => {
+  const at = ['Device1', 'Main']
+  it('takes the element\'s own node, however the server spells its index', () => {
+    for (const spelled of [['Lanes', '[3]'], ['Lanes', '3'], ['Lanes', 'Lanes[3]'], ['Lanes[3]'], ['Lanes', '[ 3 ]']]) {
+      const vars: OpcUaVariable[] = [
+        { path: [...at, 'Lanes'], nodeId: 'whole' },
+        { path: [...at, ...spelled], nodeId: 'three' },
+        { path: [...at, 'Lanes', '[4]'], nodeId: 'four' },
+      ]
+      expect(matchOpcUaTag('Lanes[3]', vars), spelled.join('/')).toEqual({ variable: vars[1] })
+      expect(matchOpcUaTag('main.lanes[3]', vars), spelled.join('/')).toEqual({ variable: vars[1] })
+    }
+  })
+
+  it('reads two indexes from one pair of brackets or two, and a member after an element', () => {
+    const vars: OpcUaVariable[] = [
+      { path: [...at, 'Grid', '[1,2]'], nodeId: 'g12' },
+      { path: [...at, 'Grid', '[1]', '[3]'], nodeId: 'g13' },
+      { path: [...at, 'Recs', '[2]', 'Ok'], nodeId: 'ok' },
+    ]
+    expect(matchOpcUaTag('Grid[1,2]', vars)).toEqual({ variable: vars[0] })
+    expect(matchOpcUaTag('Grid[1][2]', vars)).toEqual({ variable: vars[0] })
+    expect(matchOpcUaTag('Grid[1,3]', vars)).toEqual({ variable: vars[1] })
+    expect(matchOpcUaTag('Recs[2].Ok', vars)).toEqual({ variable: vars[2] })
+  })
+
+  it('names the element of a node that holds the whole array, when no node is the element\'s own', () => {
+    const vars: OpcUaVariable[] = [
+      { path: [...at, 'Lanes'], nodeId: 'whole' },
+      { path: [...at, 'Grid'], nodeId: 'grid' },
+      { path: ['Device1', 'Packer', 'Lanes', '[0]'], nodeId: 'p0' },
+    ]
+    expect(matchOpcUaTag('Main.Lanes[3]', vars)).toEqual({ variable: vars[0], index: [3] })
+    expect(matchOpcUaTag('Grid[1,2]', vars)).toEqual({ variable: vars[1], index: [1, 2] })
+    // an element's own node wins over an index into another array of the same name
+    expect(matchOpcUaTag('Lanes[0]', vars)).toEqual({ variable: vars[2] })
+    // a member of an element is found only where the element is a node
+    expect(matchOpcUaTag('Lanes[3].Run', vars)).toEqual({ error: 'the PLC has no tag named Lanes[3].Run' })
+    expect(matchOpcUaTag('Nope[3]', vars)).toEqual({ error: 'the PLC has no tag named Nope[3]' })
+    const two: OpcUaVariable[] = [vars[0]!, { path: ['Device1', 'Packer', 'Lanes'], nodeId: 'other' }]
+    expect(matchOpcUaTag('Lanes[3]', two)).toHaveProperty('error', expect.stringMatching(/^Lanes\[3\] names 2 tags on the PLC/))
   })
 })
 
@@ -94,16 +138,33 @@ describe('the names a tag picker offers', () => {
     expect(names).toHaveLength(vars.length)
   })
 
-  it('leaves out array elements, structures and names a tag field cannot hold', () => {
+  it('leaves out structures and names a tag field cannot hold', () => {
     const vars: OpcUaVariable[] = [
-      { path: ['Device1', 'Main', 'Lanes', '[0]'], nodeId: 'a0' },
-      { path: ['Device1', 'Main', 'Lanes', '[1]', 'Run'], nodeId: 'a1' },
       { path: ['Device1', 'Main', 'Motor'], nodeId: 's' },
       { path: ['Device1', 'Main', 'Motor', 'Run'], nodeId: 's1' },
       { path: ['Device1', 'Main', 'Has Space'], nodeId: 'w' },
+      { path: ['Device1', 'Main', 'Odd[x]'], nodeId: 'o' },
       { path: ['Device1', 'Main', 'Eye'], nodeId: 'e' },
     ]
-    expect(opcUaTagNames(vars)).toEqual(['Eye', 'Motor.Run'])
+    expect(opcUaTagNames(vars)).toEqual(['Eye', 'Run'])
+  })
+
+  it('offers an element that has a node of its own by the tag\'s spelling, and not the array above it', () => {
+    const vars: OpcUaVariable[] = [
+      { path: ['Device1', 'Main', 'Lanes'], nodeId: 'a' },
+      { path: ['Device1', 'Main', 'Lanes', '[0]'], nodeId: 'a0' },
+      { path: ['Device1', 'Main', 'Lanes', '[1]'], nodeId: 'a1' },
+      { path: ['Device1', 'Main', 'Recs', 'Recs[2]', 'Ok'], nodeId: 'r' },
+      { path: ['Device1', 'Main', 'Recs', 'Recs[3]', 'Ok'], nodeId: 'r3' },
+      { path: ['Device1', 'Main', 'Grid', '[1]', '[2]'], nodeId: 'g' },
+      { path: ['Device1', 'Packer', 'Lanes', '0'], nodeId: 'p0' },
+      // an array that is one node reads as any variable: a browse does not say what a node holds
+      { path: ['Device1', 'Main', 'Counts'], nodeId: 'c' },
+    ]
+    const names = opcUaTagNames(vars)
+    expect(names).toEqual(['Counts', 'Grid[1,2]', 'Lanes[1]', 'Main.Lanes[0]', 'Packer.Lanes[0]', 'Recs[2].Ok', 'Recs[3].Ok'])
+    for (const name of names) expect(matchOpcUaTag(name, vars), name).toHaveProperty('variable')
+    expect(new Set(names.map((name) => (matchOpcUaTag(name, vars) as { variable: OpcUaVariable }).variable.nodeId)).size).toBe(names.length)
   })
 })
 
@@ -155,6 +216,38 @@ describe('binding points to nodes', () => {
     expect(r.problems).toEqual([expect.stringMatching(/carry a bit, and .*Packer\.Run is Float/), expect.stringMatching(/does not let this client write .*Main\.Run \(a PLC's own inputs usually cannot be written/)])
     const odd = bindOpcUaPoints([{ tag: 'Eye', dir: 'toPlc', type: null }], SHALLOW, () => ({ dataType: 'ns=0;i=12', access: 3 }))
     expect(odd.problems).toEqual([expect.stringMatching(/not a single bit or number \(its type is ns=0;i=12\)/)])
+  })
+
+  it('binds one element of an array node by an index range counted from 0, and refuses what is not an element', () => {
+    const vars: OpcUaVariable[] = [
+      { path: ['Main', 'Lanes'], nodeId: 'lanes' },
+      { path: ['Main', 'Grid'], nodeId: 'grid' },
+      { path: ['Main', 'Eye'], nodeId: 'eye' },
+      { path: ['Main', 'Open'], nodeId: 'open' },
+    ]
+    const nodes: Record<string, OpcUaNodeInfo> = {
+      lanes: { dataType: 'ns=0;i=1', access: 3, rank: 1, dims: [4] },
+      grid: { dataType: 'ns=0;i=4', access: 3, rank: 2, dims: [2, 3] },
+      eye: { dataType: 'ns=0;i=1', access: 3, rank: -1, dims: [] },
+      // an array whose length the server does not fix
+      open: { dataType: 'ns=0;i=4', access: 3, rank: 1, dims: [0] },
+    }
+    const bind = (tag: string, type: 'BOOL' | 'INT' = 'BOOL') => bindOpcUaPoints([{ tag, dir: 'toPlc', type }], vars, (id) => nodes[id])
+    expect(bind('Lanes[3]').bindings).toEqual([{ tag: 'Lanes[3]', dir: 'toPlc', type: 'BOOL', nodeId: 'lanes', path: ['Main', 'Lanes'], builtin: 1, indexRange: '3' }])
+    expect(bind('Grid[1,2]', 'INT').bindings.map((b) => b.indexRange)).toEqual(['1,2'])
+    expect(bind('Open[700]', 'INT').bindings.map((b) => b.indexRange)).toEqual(['700'])
+    expect(bind('Lanes').problems).toEqual(['Lanes: Main.Lanes is an array; name one element of it, like Lanes[0]'])
+    expect(bind('Grid', 'INT').problems).toEqual(['Grid: Main.Grid is an array; name one element of it, like Grid[0,0]'])
+    // a NodeId names the whole node, so an element of it is asked for by the tag's name
+    expect(bindOpcUaPoints([{ tag: 'ns=4;s=Lanes', dir: 'toPlc', type: 'BOOL' }], vars, () => nodes.lanes).problems).toEqual(['ns=4;s=Lanes is an array; wire the part by the tag\'s name with an index, like Lane[0]'])
+    expect(bind('Eye[0]').problems).toEqual(['Eye[0]: Main.Eye is a single value, not an array'])
+    expect(bind('Lanes[4]').problems).toEqual(['Lanes[4]: Main.Lanes has 4 elements; over OPC UA an index counts from 0, whatever the PLC declares'])
+    expect(bind('Lanes[-1]').problems).toEqual(['Lanes[-1]: Main.Lanes has no element before 0; over OPC UA an index counts from 0, whatever the PLC declares'])
+    expect(bind('Grid[1,3]', 'INT').problems).toEqual(['Grid[1,3]: Main.Grid has 3 elements in dimension 2; over OPC UA an index counts from 0, whatever the PLC declares'])
+    expect(bind('Grid[1]', 'INT').problems).toEqual(['Grid[1]: Main.Grid has 2 dimensions, and the tag gives 1 index'])
+    expect(bind('Lanes[0]', 'INT').problems).toEqual([expect.stringMatching(/carry a number, and Main\.Lanes is Boolean/)])
+    // a shell that reads no rank: every node is one value, as before
+    expect(bindOpcUaPoints([{ tag: 'Lanes', dir: 'toPlc', type: 'BOOL' }], vars, () => ({ dataType: 'ns=0;i=1', access: 3 })).problems).toEqual([])
   })
 
   it('binds a PLC\'s own type by the built-in it comes down to, and names a refused one', () => {

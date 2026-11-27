@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { setScanEngine } from '../../plc/interpreter'
 import { LocalPlcLink } from '../../plc/link/plcLink'
 import type { TagValue } from '../../plc/types'
-import { builtinFor, fromClientValue, OpcUaServerSession, publishedVariables, serverStatusHint, serverStatusLine } from './opcUaServer'
-import type { OpcUaServerHost, ServerNode } from './opcUaServer'
+import { memoryTable } from '../../core/watchTable'
+import { builtinFor, fromClientValue, OpcUaServerSession, publishedArrays, publishedVariables, serverStatusHint, serverStatusLine } from './opcUaServer'
+import type { OpcUaServerHost, ServerArray, ServerNode } from './opcUaServer'
 
 const PROGRAM = `PROGRAM Main
 VAR
@@ -92,15 +94,131 @@ END_CONFIGURATION`
   })
 })
 
+/** Arrays and a structure: short ones, one of two dimensions, one too long to list, and what is no array of single values. */
+const ARRAYS = `TYPE Motor : STRUCT
+  Run : BOOL;
+  Speed : REAL;
+  Samples : ARRAY[0..2] OF INT;
+END_STRUCT END_TYPE
+PROGRAM Main
+VAR
+  Enable : ARRAY[1..4] OF BOOL;
+  Counts : ARRAY[0..2] OF DINT;
+  Grid : ARRAY[0..1, 0..2] OF INT;
+  M1 : Motor;
+  Big : ARRAY[1..600] OF INT;
+  Wide : ARRAY[0..1] OF LINT;
+  Recs : ARRAY[0..1] OF Motor;
+  Timers : ARRAY[0..1] OF TON;
+END_VAR
+VAR CONSTANT
+  Table : ARRAY[0..1] OF INT := [3, 4];
+END_VAR
+Counts[0] := Counts[0] + 1;
+Big[600] := Table[1];
+END_PROGRAM`
+
+describe('arrays and structures', () => {
+  it('publishes an element and a field as its declaration says, writable as a variable is', () => {
+    const nodes = byName(publishedVariables(new LocalPlcLink(ARRAYS), new Set(['Enable[2]'])))
+    expect(nodes['Enable[3]']).toEqual({ builtin: 1, writable: true, value: false })
+    // what a part writes, the next scan overwrites: that one element is read-only
+    expect(nodes['Enable[2]']).toMatchObject({ builtin: 1, writable: false })
+    // typed by the declaration, not by the number the watch table shows
+    expect(nodes['Counts[1]']).toMatchObject({ builtin: 6, writable: true })
+    expect(nodes['Grid[1,2]']).toMatchObject({ builtin: 4, writable: true })
+    expect(nodes['M1.Run']).toMatchObject({ builtin: 1, writable: true })
+    expect(nodes['M1.Speed']).toMatchObject({ builtin: 10, writable: true })
+    expect(nodes['M1.Samples[2]']).toMatchObject({ builtin: 4, writable: true })
+    expect(nodes['Recs[1].Speed']).toMatchObject({ builtin: 10, writable: true })
+    expect(nodes['Table[1]']).toEqual({ builtin: 4, writable: false, value: 4 })
+    // a 64-bit element is not published, as a 64-bit variable is not
+    expect('Wide[0]' in nodes).toBe(false)
+    // too long for the watch table to list: no variable per element
+    expect('Big[1]' in nodes).toBe(false)
+  })
+
+  it("a client's write to an element or a field lands in the program, in both engines", () => {
+    for (const engine of ['typed', 'walker'] as const) {
+      const was = setScanEngine(engine)
+      const link = new LocalPlcLink(ARRAYS)
+      setScanEngine(was)
+      link.write({ 'Enable[3]': true, 'Grid[1,2]': 7, 'M1.Run': true, 'Recs[1].Speed': 2.5, 'Big[2]': 9, 'Table[0]': 99, 'M1.Samples[1]': 5 })
+      link.step({}, 0.01)
+      expect(link.watch, engine).toMatchObject({ 'Enable[3]': true, 'Enable[1]': false, 'Grid[1,2]': 7, 'M1.Run': true, 'Recs[1].Speed': 2.5, 'Table[0]': 3, 'M1.Samples[1]': 5 })
+      expect(link.memory['Big[2]'], engine).toBe(9)
+      expect(link.varInfo('Enable[3]'), engine).toEqual({ type: 'BOOL', constant: false })
+      expect(link.varInfo('Table[1]'), engine).toEqual({ type: 'INT', constant: true })
+      expect(link.varInfo('Recs[1].Samples[2]'), engine).toEqual({ type: 'INT', constant: false })
+      // not a value: an array, a structure, an index out of its bounds, a function block's member
+      for (const name of ['Enable', 'M1', 'Recs[1]', 'Enable[5]', 'Enable[0]', 'Grid[1]', 'Timers[0].Q', 'Enable[1].x', 'Nope[1]']) expect(link.varInfo(name), `${engine} ${name}`).toBeUndefined()
+    }
+  })
+
+  it('publishes an array of single values as one node too, with the bounds the program declares', () => {
+    const link = new LocalPlcLink(ARRAYS)
+    const nodes = publishedVariables(link, new Set(['Enable[2]']))
+    expect(publishedArrays(link, nodes)).toEqual<ServerArray[]>([
+      { name: 'Big', builtin: 4, writable: true, dims: [{ lo: 1, hi: 600 }], listed: false },
+      { name: 'Counts', builtin: 6, writable: true, dims: [{ lo: 0, hi: 2 }], listed: true },
+      { name: 'Enable', builtin: 1, writable: true, dims: [{ lo: 1, hi: 4 }], listed: true },
+      { name: 'Grid', builtin: 4, writable: true, dims: [{ lo: 0, hi: 1 }, { lo: 0, hi: 2 }], listed: true },
+      { name: 'M1.Samples', builtin: 4, writable: true, dims: [{ lo: 0, hi: 2 }], listed: true },
+      { name: 'Table', builtin: 4, writable: false, dims: [{ lo: 0, hi: 1 }], listed: true },
+    ])
+  })
+
+  it('reads an array too long to list where the table keeps it, and sends what changed by element name', async () => {
+    const link = new LocalPlcLink(ARRAYS)
+    const nodes = publishedVariables(link, new Set())
+    const arrays = publishedArrays(link, nodes)
+    const h = fakeHost()
+    const written: Record<string, TagValue>[] = []
+    const s = new OpcUaServerSession(h.host, { port: 4843, network: false }, (v) => written.push(v), () => {})
+    await s.start()
+    s.publish(nodes, arrays)
+    await Promise.resolve()
+    expect(h.calls.arrays.at(-1)).toEqual(arrays)
+    expect(s.status()).toMatchObject({ variables: nodes.length + arrays.length })
+    // the table a running program sends: a copy of its memory, which lists no element of Big
+    const frame = () => {
+      const plan = link.watchPlan()!
+      return memoryTable(plan.layout, plan.memory.slice(0))
+    }
+    link.step({}, 0.01)
+    s.update(frame(), true)
+    const first = h.calls.updates.at(-1)!.values
+    expect(first['Big[600]']).toBe(4)
+    expect(first['Big[1]']).toBe(0)
+    expect(Object.keys(first).filter((k) => k.startsWith('Big[')).length).toBe(600)
+    link.write({ 'Big[7]': 70 })
+    link.step({}, 0.01)
+    s.update(frame(), true)
+    expect(h.calls.updates.at(-1)!.values).toEqual({ 'Big[7]': 70, 'Counts[0]': 2 })
+    // a client's write to an element that has no variable of its own
+    h.write('Big[9]', 90)
+    h.write('Big[601]', 1) // outside the bounds
+    h.write('Enable[1]', true)
+    h.write('Table[0]', 5) // a constant
+    expect(written).toEqual([{ 'Big[9]': 90 }, { 'Enable[1]': true }])
+    link.write({ 'Big[9]': 90, 'Enable[1]': true })
+    link.step({}, 0.01)
+    s.update(frame(), true)
+    // the program confirming them sends neither back
+    expect(h.calls.updates.at(-1)!.values).toEqual({ 'Counts[0]': 3 })
+  })
+})
+
 /** A shell that records what it is told, and lets a test play the client. */
 function fakeHost(startError = '') {
-  const calls: { defined: ServerNode[][]; updates: { values: Record<string, TagValue>; running: boolean }[]; stopped: number } = { defined: [], updates: [], stopped: 0 }
+  const calls: { defined: ServerNode[][]; arrays: (ServerArray[] | undefined)[]; updates: { values: Record<string, TagValue>; running: boolean }[]; stopped: number } = { defined: [], arrays: [], updates: [], stopped: 0 }
   let write: ((e: { name: string; value: unknown }) => void) | null = null
   let clients: ((e: { clients: string[] }) => void) | null = null
   const host: OpcUaServerHost = {
     start: async ({ port }) => (startError ? { error: startError, endpoint: '' } : { error: '', endpoint: `opc.tcp://127.0.0.1:${port}` }),
-    define: async ({ nodes }) => {
+    define: async ({ nodes, arrays }) => {
       calls.defined.push(nodes)
+      calls.arrays.push(arrays)
       return { error: '' }
     },
     update: (u) => calls.updates.push(u),

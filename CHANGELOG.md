@@ -52,5 +52,9 @@ The first public source release. The [README](README.md#features) lists what it 
   their tag fields. They come from the simulator's own program, or are read from a TwinCAT PLC over ADS, a Logix
   controller over EtherNet/IP or an OPC UA server. Picking a field and a variable wires them, writing the name into the
   field as the Inspector's Comms group would.
+- Arrays over OPC UA, both ways. The simulated PLC's OPC UA server publishes an array as one node a client reads and
+  writes whole or by index range, an array's elements and a structure's fields are typed from their declarations, and
+  a client may write them as it writes any variable. The external PLC link carries a tag that names one element
+  (`Lane[3]`): by the element's own node where the PLC's server lists one, else by an index range, which counts from 0.
 
 Earlier development history is not part of this repository.

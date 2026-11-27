@@ -445,7 +445,12 @@ export class LocalPlcLink implements PlcLink {
   /** The declared type of a value `varInfo` does not answer for: a function block's member (`C1.CV`), by its
    *  watch-table name. Worked out for the whole program on first use. */
   memberType(name: string): string | undefined {
-    return (this.#memberTypes ??= this.prog.memoryTypes)[this.#resolve(name)]
+    return this.memoryTypes[this.#resolve(name)]
+  }
+  /** The declared type of every value the program holds, by its watch-table name, with no array left out for being
+   *  long (CompiledProgram.memoryTypes). Worked out on first use. For a reader that needs each array's whole extent. */
+  get memoryTypes(): Readonly<Record<string, string>> {
+    return (this.#memberTypes ??= this.prog.memoryTypes)
   }
   /**
    * Write variables by name between scans, as an HMI or SCADA writes a PLC's tags: a Start button, a

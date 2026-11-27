@@ -11,6 +11,12 @@
 //     photo eye), which the next scan would overwrite anyway; writable otherwise
 //   - its NodeId is its name, `ns=1;s=Main.Start`, so the same tag reaches it on every run and machine
 //
+// An array's element and a structure's field are variables like any other (`Lane[3]`, `Motor1.Run`), typed and
+// writable by the same rules. An array of bits, numbers or strings is also one node holding every element, as a real
+// PLC's server publishes it, which a client reads and writes whole or by index range. An index range counts from 0,
+// where an element's own node carries the index the program declares. An array too long for the watch table to list
+// has only the one node.
+//
 // While the simulation is stopped, or no program runs here (an external PLC runs the scene, or the program
 // faulted), every variable reads BadOutOfService and a write is refused: a SCADA must not show a motor
 // running on a line that is not. The nodes stay, so a client's subscriptions survive Stop and Play.
@@ -20,7 +26,7 @@
 
 import type { TagValue, VarInfo } from '../../plc/types'
 import type { LinkOpt } from './externalPlcStatus'
-import { forEachWatchValue } from '../../core/watchTable'
+import { forEachWatchValue, readUnlistedArray } from '../../core/watchTable'
 
 /** A variable as the shell publishes it. */
 export interface ServerNode {
@@ -32,12 +38,24 @@ export interface ServerNode {
   value: boolean | number | string
 }
 
-/** What the desktop shell offers (`window.oipOpcUaServer`, apps/desktop/opcUaServer.cjs). */
+/** An array as the shell publishes it: one node holding every element. */
+export interface ServerArray {
+  /** the variable's name in the watch table, without an index: `Main.Lane` */
+  name: string
+  /** its elements' OPC UA built-in type id */
+  builtin: number
+  writable: boolean
+  /** each dimension's bounds as the program declares them: an element's name carries these indexes */
+  dims: { lo: number; hi: number }[]
+  /** whether each element is one of the published variables too, with a node of its own under the array's */
+  listed: boolean
+}
+
 /** The desktop shell's OPC UA servers, one per controller in a window: `link` is the controller's number, as its PLC
  *  link's (links/linkHosts.ts opcUaServerForLink), 0 for the default controller and when absent. */
 export interface OpcUaServerHost {
   start(opts: { port: number; network: boolean } & LinkOpt): Promise<{ error: string; endpoint: string }>
-  define(opts: { nodes: ServerNode[] } & LinkOpt): Promise<{ error: string }>
+  define(opts: { nodes: ServerNode[]; arrays?: ServerArray[] } & LinkOpt): Promise<{ error: string }>
   update(opts: { values: Record<string, TagValue>; running: boolean } & LinkOpt): void
   stop(opts?: LinkOpt): Promise<void>
   onWrite(cb: (e: { name: string; value: unknown } & LinkOpt) => void): () => void
@@ -123,6 +141,9 @@ export interface PublishedProgram {
   memberType?(name: string): string | undefined
   /** bare scene tag -> the variable it names (plc/link/plcLink.ts soleInstanceAliases): a part feeding `Go` feeds `Line.Go` */
   readonly aliases?: ReadonlyMap<string, string>
+  /** the declared type of every value the program holds, by its watch-table name, long arrays included
+   *  (LocalPlcLink.memoryTypes): where {@link publishedArrays} learns each array's extent */
+  readonly memoryTypes?: Readonly<Record<string, string>>
 }
 
 /**
@@ -142,6 +163,88 @@ export function publishedVariables(program: PublishedProgram, sceneFeeds: Readon
     const builtin = builtinFor(name, info, value, counts)
     const fromScene = fed.has(name.toLowerCase()) || (info?.location !== undefined && fed.has(info.location.toLowerCase()))
     out.push({ name, builtin, writable: info !== undefined && !info.constant && !fromScene, value: toServerValue(builtin, value) })
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** An array may hold this many elements and be one node (apps/desktop/opcUaServer.cjs MAX_ARRAY_ELEMENTS). */
+export const MAX_ARRAY_ELEMENTS = 65536
+
+const ELEMENT = /^(.+)\[(-?\d+(?:,-?\d+)*)\]$/
+
+/** How many elements an array holds. */
+const elementCount = (a: Pick<ServerArray, 'dims'>): number => a.dims.reduce((n, d) => n * (d.hi - d.lo + 1), 1)
+
+/** The name of the element at `off` of an array's values, which run with the last index fastest: `Main.Lane[3]`. */
+function elementKey(a: Pick<ServerArray, 'name' | 'dims'>, off: number): string {
+  const at = new Array<number>(a.dims.length)
+  for (let k = a.dims.length - 1; k >= 0; k--) {
+    const size = a.dims[k]!.hi - a.dims[k]!.lo + 1
+    at[k] = a.dims[k]!.lo + (off % size)
+    off = Math.floor(off / size)
+  }
+  return `${a.name}[${at.join(',')}]`
+}
+
+/** Where the element `name` is in the values of the array it belongs to, or null when it is no element of one of `arrays`. */
+function elementAt(name: string, arrays: ReadonlyMap<string, ServerArray>): { array: ServerArray; off: number } | null {
+  const m = ELEMENT.exec(name)
+  const array = m ? arrays.get(m[1]!) : undefined
+  if (!array) return null
+  const at = m![2]!.split(',').map(Number)
+  if (at.length !== array.dims.length) return null
+  let off = 0
+  for (let k = 0; k < at.length; k++) {
+    const d = array.dims[k]!
+    if (!(at[k]! >= d.lo && at[k]! <= d.hi)) return null
+    off = off * (d.hi - d.lo + 1) + (at[k]! - d.lo)
+  }
+  return { array, off }
+}
+
+/**
+ * The program's arrays of bits, numbers and strings, each as the one node the server publishes for it beside its
+ * elements: `nodes` is what {@link publishedVariables} gave for the same program. An array's extent is read off the
+ * program's whole memory, so one too long for the watch table to list is published too. It has no node per element,
+ * and a client reaches an element of it by index range. Left out: an array inside another array's element (its
+ * elements are still variables), an array of structures or function blocks, a 64-bit one, and one of more than
+ * {@link MAX_ARRAY_ELEMENTS} elements. Sorted by name.
+ */
+export function publishedArrays(program: PublishedProgram, nodes: readonly ServerNode[]): ServerArray[] {
+  const byName = new Map(nodes.map((n) => [n.name, n]))
+  // each array's bounds, from the indexes its elements are listed under
+  const found = new Map<string, { lo: number[]; hi: number[]; count: number }>()
+  const see = (key: string): void => {
+    if (!key.endsWith(']')) return
+    const m = ELEMENT.exec(key)
+    if (!m || m[1]!.includes('[')) return
+    const at = m[2]!.split(',').map(Number)
+    const known = found.get(m[1]!)
+    if (!known) {
+      found.set(m[1]!, { lo: [...at], hi: [...at], count: 1 })
+      return
+    }
+    if (known.lo.length !== at.length) return
+    known.count++
+    for (let k = 0; k < at.length; k++) {
+      if (at[k]! < known.lo[k]!) known.lo[k] = at[k]!
+      if (at[k]! > known.hi[k]!) known.hi[k] = at[k]!
+    }
+  }
+  if (program.memoryTypes) for (const key in program.memoryTypes) see(key)
+  else for (const n of nodes) see(n.name)
+  const out: ServerArray[] = []
+  for (const [name, f] of found) {
+    const dims = f.lo.map((lo, k) => ({ lo, hi: f.hi[k]! }))
+    const count = elementCount({ dims })
+    // every index between the bounds is an element, or this is not one array of single values
+    if (count !== f.count || count > MAX_ARRAY_ELEMENTS || byName.has(name)) continue
+    const first = elementKey({ name, dims }, 0)
+    const info = program.varInfo(first)
+    if (!info || isWide(info.type)) continue
+    const node = byName.get(first)
+    // an element the scene feeds stays read-only as its own node; the array is writable when the program's variable is
+    out.push({ name, builtin: BUILTIN_OF[info.type], writable: !info.constant, dims, listed: node !== undefined })
   }
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -185,6 +288,11 @@ export class OpcUaServerSession {
   private started: Promise<void> | null = null
   /** what is published, by name */
   private nodes = new Map<string, ServerNode>()
+  /** the arrays published as one node each, by name */
+  private arrays = new Map<string, ServerArray>()
+  /** for each array whose elements are not variables of their own: the values the shell was last told, in the array's order */
+  private readonly sentArrays = new Map<string, TagValue[]>()
+  private readonly scratch: TagValue[] = []
   /** what the shell was last told: each value, and whether the values were live */
   private readonly sent = new Map<string, TagValue>()
   private sentLive: boolean | null = null
@@ -192,7 +300,7 @@ export class OpcUaServerSession {
   /** the watch object last read, so a frame that carries the same one is not diffed again */
   private lastWatch: object | null = null
   private lastWrite: string | null = null
-  private pending: ServerNode[] | null = null
+  private pending: { nodes: ServerNode[]; arrays: ServerArray[] } | null = null
   private readonly unsubscribe: (() => void)[] = []
 
   constructor(
@@ -227,26 +335,31 @@ export class OpcUaServerSession {
     this.state = 'serving'
     this.endpoint = endpoint
     this.onChange()
-    const nodes = this.pending
+    const pending = this.pending
     this.pending = null
-    if (nodes) await this.define(nodes)
+    if (pending) await this.define(pending.nodes, pending.arrays)
   }
 
-  /** Publish exactly these variables (a node kept by name and type keeps its subscriptions). */
-  publish(nodes: ServerNode[]): void {
+  /**
+   * Publish exactly these variables, and these arrays as one node each ({@link publishedArrays}). A node kept by name
+   * and type keeps its subscriptions.
+   */
+  publish(nodes: ServerNode[], arrays: ServerArray[] = []): void {
     if (this.state !== 'serving') {
-      this.pending = nodes
+      this.pending = { nodes, arrays }
       return
     }
-    void this.define(nodes)
+    void this.define(nodes, arrays)
   }
 
-  private async define(nodes: ServerNode[]): Promise<void> {
+  private async define(nodes: ServerNode[], arrays: ServerArray[]): Promise<void> {
     this.nodes = new Map(nodes.map((n) => [n.name, n]))
+    this.arrays = new Map(arrays.map((a) => [a.name, a]))
     this.sent.clear()
+    this.sentArrays.clear()
     for (const n of nodes) this.sent.set(n.name, n.value)
     this.lastWatch = null
-    const { error } = await this.host.define({ nodes })
+    const { error } = await this.host.define(arrays.length > 0 ? { nodes, arrays } : { nodes })
     if (this.closed) return
     this.error = error ? `could not publish the program's variables: ${error}` : null
     this.onChange()
@@ -274,6 +387,19 @@ export class OpcUaServerSession {
         this.sent.set(name, value)
         values[name] = value
       })
+      // an array too long to list: its elements are in no frame's keys, so the whole array is read where the table
+      // keeps it, and what changed travels by element name
+      for (const a of this.arrays.values()) {
+        if (a.listed || !readUnlistedArray(watch, a.name, this.scratch)) continue
+        let last = this.sentArrays.get(a.name)
+        if (!last) this.sentArrays.set(a.name, (last = []))
+        for (let off = 0; off < this.scratch.length; off++) {
+          const value = toServerValue(a.builtin, this.scratch[off])
+          if (last[off] === value) continue
+          last[off] = value
+          values[elementKey(a, off)] = value
+        }
+      }
     }
     if (!liveChanged && Object.keys(values).length === 0) return
     this.sentLive = live
@@ -281,11 +407,17 @@ export class OpcUaServerSession {
   }
 
   private written(name: string, raw: unknown): void {
-    const node = this.nodes.get(name)
+    // a variable, or an element of an array that has no variable per element
+    const element = this.nodes.has(name) ? null : elementAt(name, this.arrays)
+    const node = this.nodes.get(name) ?? (element && !element.array.listed ? element.array : undefined)
     if (!node || !node.writable || !this.live) return
     const value = fromClientValue(node.builtin, raw)
     if (value === null) return
-    this.sent.set(name, value) // the node holds it already; the frame that confirms it need not send it back
+    // the node holds it already; the frame that confirms it need not send it back
+    if (element) {
+      const last = this.sentArrays.get(element.array.name)
+      if (last) last[element.off] = value
+    } else this.sent.set(name, value)
     this.lastWrite = `${name} := ${literal(value)}`
     this.onWrite({ [name]: value })
     this.onChange()
@@ -299,7 +431,8 @@ export class OpcUaServerSession {
   }
 
   status(): OpcUaServerStatus {
-    const nodes = [...this.nodes.values()]
+    // an array's one node is a variable a client sees too
+    const nodes = [...this.nodes.values(), ...this.arrays.values()]
     return {
       state: this.closed ? 'off' : this.state,
       endpoint: this.endpoint,

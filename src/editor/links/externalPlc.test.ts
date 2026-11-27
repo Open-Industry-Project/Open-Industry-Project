@@ -436,7 +436,8 @@ describe('an OPC UA session', () => {
     nodeId: string
     dataType: string
     access: number
-    value: boolean | number
+    /** an array node holds a value per element */
+    value: boolean | number | (boolean | number)[]
   }
 
   function uaServer() {
@@ -448,7 +449,9 @@ describe('an OPC UA session', () => {
     const byId = (id: string) => nodes.find((n) => n.nodeId === id)
     const closed = new Set<(e: { why: string }) => void>()
     const ctl = { refuse: 0, connects: 0, closes: 0, browses: 0, up: false }
-    const log = { writes: [] as { nodeId: string; builtin: number; value: boolean | number }[] }
+    const log = { writes: [] as { nodeId: string; builtin: number; value: boolean | number; indexRange?: string }[] }
+    /** an array node's rank and length, as a server's ValueRank and ArrayDimensions say them */
+    const shape = (n: Node | undefined): { rank?: number; dims?: number[] } => (n && Array.isArray(n.value) ? { rank: 1, dims: [n.value.length] } : {})
     const host: OpcUaHost = {
       connect: async () => {
         ctl.connects++
@@ -463,19 +466,37 @@ describe('an OPC UA session', () => {
         ctl.browses++
         return ctl.up ? { error: '', variables: nodes.map((n) => ({ path: n.path, nodeId: n.nodeId })) } : { error: 'not connected' }
       },
-      describe: async ({ nodeIds }) => ({ error: '', nodes: nodeIds.map((id) => ({ dataType: byId(id)?.dataType ?? '', access: byId(id)?.access ?? 0 })) }),
+      describe: async ({ nodeIds }) => ({ error: '', nodes: nodeIds.map((id) => ({ dataType: byId(id)?.dataType ?? '', access: byId(id)?.access ?? 0, ...shape(byId(id)) })) }),
       exchange: async ({ writes, reads }) => {
         if (!ctl.up) return { error: 'not connected' }
         const statuses = writes.map((w) => {
           log.writes.push(w)
           const n = byId(w.nodeId)
           if (!n || (n.access & 2) === 0) return 'BadNotWritable'
+          if (Array.isArray(n.value)) {
+            // one element by index range, counted from 0; this server takes no write past the end
+            const at = Number(w.indexRange)
+            if (w.indexRange === undefined) return 'BadTypeMismatch'
+            if (!(at < n.value.length)) return 'BadIndexRangeNoData'
+            n.value[at] = w.value
+            return 'Good'
+          }
           n.value = w.value
           // the PLC's scan
           if (n.path.at(-1) === 'Eye') byId('ns=4;s=Main.Run')!.value = !w.value
           return 'Good'
         })
-        return { error: '', writes: statuses, reads: reads.map((id) => ({ value: byId(id)?.value ?? null, status: byId(id) ? 'Good' : 'BadNodeIdUnknown' })) }
+        return {
+          error: '',
+          writes: statuses,
+          reads: reads.map((r) => {
+            const n = byId(typeof r === 'string' ? r : r.nodeId)
+            if (!n) return { value: null, status: 'BadNodeIdUnknown' }
+            if (typeof r === 'string' || !Array.isArray(n.value)) return { value: n.value as boolean | number, status: 'Good' }
+            const v = n.value[Number(r.indexRange)]
+            return v === undefined ? { value: null, status: 'BadIndexRangeNoData' } : { value: v, status: 'Good' }
+          }),
+        }
       },
       close: async () => {
         ctl.closes++
@@ -530,6 +551,61 @@ describe('an OPC UA session', () => {
     expect(problems).toContainEqual('the PLC has no tag named Missing')
     expect(problems).toContainEqual(expect.stringMatching(/^Eye: the PLC does not let this client write .*Main\.Eye/))
     expect(session.exchange({})).toEqual({ 'Main.Run': true, Speed: 0.5, Missing: false })
+  })
+
+  it('carries one element of an array: by index range where the array is one node, by its own node where it has one', async () => {
+    const ua = uaServer()
+    const at = ['DeviceSet', 'PLC', 'Programs', 'Main']
+    ua.nodes.push(
+      // one node holding every element
+      { path: [...at, 'Enable'], nodeId: 'ns=4;s=Main.Enable', dataType: 'ns=0;i=1', access: 3, value: [false, false, false, false] },
+      { path: [...at, 'Counts'], nodeId: 'ns=4;s=Main.Counts', dataType: 'ns=0;i=4', access: 3, value: [10, 11, 12] },
+      // a node per element under the array's, each named by the PLC's own index
+      { path: [...at, 'Stops'], nodeId: 'ns=4;s=Main.Stops', dataType: 'ns=0;i=1', access: 3, value: [false, true] },
+      { path: [...at, 'Stops', '[1]'], nodeId: 'ns=4;s=Main.Stops[1]', dataType: 'ns=0;i=1', access: 3, value: false },
+      { path: [...at, 'Stops', '[2]'], nodeId: 'ns=4;s=Main.Stops[2]', dataType: 'ns=0;i=1', access: 3, value: true },
+    )
+    const points: OpcUaPoint[] = [
+      { tag: 'Enable[2]', dir: 'toPlc', type: 'BOOL' },
+      { tag: 'Main.Counts[1]', dir: 'fromPlc', type: 'INT' },
+      { tag: 'Stops[2]', dir: 'fromPlc', type: 'BOOL' },
+      // refused at bind: the whole array, an element of one value, and one past the end
+      { tag: 'Counts', dir: 'fromPlc', type: 'INT' },
+      { tag: 'Speed[0]', dir: 'fromPlc', type: 'REAL' },
+      { tag: 'Enable[4]', dir: 'toPlc', type: 'BOOL' },
+    ]
+    const session = new ExternalPlcOpcUaSession(ua.host, 'opc.tcp://127.0.0.1:4840', points, [], () => {})
+    await session.start({ 'Enable[2]': true })
+    expect(ua.log.writes).toEqual([{ nodeId: 'ns=4;s=Main.Enable', builtin: 1, value: true, indexRange: '2' }])
+    expect(ua.byId('ns=4;s=Main.Enable')!.value).toEqual([false, false, true, false])
+    expect(session.exchange({ 'Enable[2]': true })).toMatchObject({ 'Main.Counts[1]': 11, 'Stops[2]': true })
+    const status = session.status()
+    expect(status.points).toEqual(
+      expect.arrayContaining([
+        'Enable[2]  DeviceSet.PLC.Programs.Main.Enable element 2, counted from 0  Boolean',
+        'Main.Counts[1]  DeviceSet.PLC.Programs.Main.Counts element 1, counted from 0  Int16',
+        'Stops[2]  DeviceSet.PLC.Programs.Main.Stops.[2]  Boolean',
+      ]),
+    )
+    expect(status.problems).toEqual([
+      expect.stringMatching(/^Counts: .*Main\.Counts is an array; name one element of it, like Counts\[0\]$/),
+      expect.stringMatching(/^Speed\[0\]: .*Main\.Speed is a single value, not an array$/),
+      expect.stringMatching(/^Enable\[4\]: .*Main\.Enable has 4 elements; over OPC UA an index counts from 0/),
+    ])
+  })
+
+  it('says what to do when the PLC refuses one element of an array', async () => {
+    const ua = uaServer()
+    // a server that does not say how long its array is: the bind cannot tell the element is past the end
+    ua.nodes.push({ path: ['DeviceSet', 'PLC', 'Programs', 'Main', 'Enable'], nodeId: 'ns=4;s=Main.Enable', dataType: 'ns=0;i=1', access: 3, value: [false, false] })
+    const describe = ua.host.describe
+    ua.host.describe = async (opts) => {
+      const r = await describe(opts)
+      return { ...r, nodes: r.nodes?.map((n) => (n.rank === 1 ? { ...n, dims: [0] } : n)) }
+    }
+    const session = new ExternalPlcOpcUaSession(ua.host, 'opc.tcp://127.0.0.1:4840', [{ tag: 'Enable[5]', dir: 'toPlc', type: 'BOOL' }], [], () => {})
+    await session.start({ 'Enable[5]': true })
+    expect(session.status().problems).toContainEqual(expect.stringMatching(/^Enable\[5\]: .*Main\.Enable has no element 5 \(over OPC UA an index counts from 0, whatever the PLC declares\)$/))
   })
 
   it('keeps trying a PLC that is not up yet, and says why it waits', async () => {
