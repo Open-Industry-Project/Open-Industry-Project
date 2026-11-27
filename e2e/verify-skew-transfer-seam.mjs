@@ -1,19 +1,14 @@
-// Verify: the skew transfer plate meets a butted neighbour at every roller-grid phase.
+// Verify: a skewed roller bed's seam strip meets a butted neighbour at every roller-grid phase.
 //
-// Two butted roller beds look like one bed because both place rollers on the same world pitch grid, so the
-// pair either side of the seam is always exactly one pitch apart: the clear gap there is pitch − 2R wherever
-// in world X the pair sits. A skewed bed ends in the transfer plate instead of a roller, and a plate that stops
-// flush at the frame breaks that: the neighbour's first roller is still on the shared grid, so the bare deck
-// after the plate depends on the phase, up to pitch − R (~51 mm), nearly twice the normal gap, right at the
-// transfer point.
+// Two butted roller beds place rollers on the same world pitch grid, so the neighbour's first roller is on the
+// next grid line past this bed's end, wherever in world X the pair sits. A skewed bed ends in a cross member,
+// not a roller (its short end rollers mount on it). At a butt it draws one
+// full-width strip from its end to that roller's face (GeometryContext: the host-resolved grid + which ends
+// abut), bounded by R so the strip can never cut through a roller that sits near the seam.
 //
-// So the plate laps across the seam to that roller's face (GeometryContext: the host-resolved grid + which
-// ends abut), bounded by R so the lip can never cut through a roller that sits near the seam, and only when
-// butted, so a free end stays flush with the frame.
-//
-// Asserts, sweeping A through a whole pitch: (a) the bare deck after the plate never exceeds the normal roller
-// gap, (b) the lip never reaches into the neighbour's first roller, (c) a free-ended skewed bed grows no lip,
-// (d) an unskewed bed is untouched (no plate at all).
+// Asserts, sweeping A through a whole pitch: (a) the bare deck between the strip and the neighbour's first roller
+// never exceeds the normal roller gap, (b) the strip never reaches into that roller, (c) a free-ended skewed bed
+// draws no sheet steel at all, (d) nor does an unskewed bed.
 // Run: node e2e/verify-skew-transfer-seam.mjs
 /* global process, console, window */
 import { startServer } from './_server.mjs'
@@ -26,7 +21,7 @@ const PITCH = 0.075 // the roller bed's declared world grid pitch (examples/part
 const R = 0.024 //     rendered roller radius
 const NORMAL_GAP = PITCH - 2 * R // 0.027 m - the clear gap between any two adjacent rollers
 const TOL = 0.002 //   FP + a 2 mm slack, well under the 24 mm the bug opened up
-const SKEW = 35
+const SKEW = 15
 const A_LEN = 4
 const PHASES = [0, 0.012, 0.026, 0.038, 0.05, 0.063] // a whole pitch, sampled
 
@@ -97,7 +92,8 @@ async function main() {
     let sawLip = false
     for (const ax of PHASES) {
       const m = await measure(page, ax, SKEW, true)
-      if (!m.hasPlate || m.firstRollerX === null) { ok(`phase ${ax}: plate + neighbour rollers present`, false, JSON.stringify(m)); continue }
+      if (m.firstRollerX === null) { ok(`phase ${ax}: neighbour rollers present`, false, JSON.stringify(m)); continue }
+      if (!m.hasPlate) m.plateMaxX = m.head // no strip at this phase: the neighbour's roller is already at the seam
       const lip = m.plateMaxX - m.head
       const rollerFace = m.firstRollerX - R
       const bare = rollerFace - m.plateMaxX
@@ -126,18 +122,33 @@ async function main() {
     console.log('\nFREE end (no neighbour), skew ' + SKEW + ':')
     const free = await measure(page, 0.026, SKEW, false)
     console.log('   ', JSON.stringify({ head: free.head, plateMaxX: free.plateMaxX, tris: free.plateTris }))
-    ok('a free-ended skewed bed grows no lip (plate flush with the frame)', free.hasPlate && Math.abs(free.plateMaxX - free.head) <= 1e-4, `plate ${free.plateMaxX?.toFixed(4)} vs head ${free.head}`)
-    ok('the free-end plate is the plain 4-corner plate (20 tris)', free.plateTris === 20, `${free.plateTris} tris`)
+    ok('a free-ended skewed bed draws no sheet steel', !free.hasPlate, `${free.plateTris} tris`)
+
+    // A neighbour arriving makes the strip appear. Adding a mesh to the scene graph is not enough: a recorded
+    // WebGPU render bundle bakes the draw list, so realizeProceduralGeometry must bump the visual root's
+    // structureVersion (the counter view.syncBundleInvalidation polls), or the strip stays invisible until
+    // something unrelated re-records. structureVersion is backend-independent, so this is real on headless WebGL.
+    const arrive = await page.evaluate(async ([ax, aLen]) => {
+      const groupA = () => { let g = null; window.__oip.view.scene.traverse((o) => { if (o.userData?.partId === 'A') g = o }); return g }
+      const strip = () => { let m = null; groupA()?.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && o.material?.side === 2 && o.castShadow === false) m = o }); return !!m }
+      const before = groupA()?.userData.structureVersion ?? 0
+      const scene = window.__oip.store.getState().scene
+      const b = { id: 'B', type: 'part', packageId: 'oip.roller-conveyor', name: 'B', position: [ax + aLen / 2 + 1.5, 1, 0], rotationY: 0, params: { length: 3, width: 1.524, skew: 0, leftGuard: false, rightGuard: false } }
+      window.__oip.store.commit('add neighbour', { ...scene, parts: [...scene.parts, b] })
+      for (let i = 0; i < 40 && !strip(); i++) await new Promise((r) => setTimeout(r, 150))
+      return { strip: strip(), before, after: groupA()?.userData.structureVersion ?? 0 }
+    }, [0.026, A_LEN])
+    ok('a neighbour butting the free end makes the seam strip appear', arrive.strip)
+    ok('the strip appearing bumps structureVersion (bundle re-record)', arrive.after > arrive.before, `${arrive.before} -> ${arrive.after}`)
 
     // (d) an unskewed bed is untouched: no plate at all, butted or not.
     console.log('\nUNSKEWED control:')
     const straight = await measure(page, 0.026, 0, true)
     ok('an unskewed butted bed emits no transfer plate at all', !straight.hasPlate)
 
-    // (e) cost. The seam is part of geometry()'s re-emit key, so sliding a bed along its own axis re-emits the
-    // plate on every step (its grid phase really moves). That must stay a buffer rewrite: a structureVersion
+    // (e) cost. The seam is part of geometry()'s re-emit key, so sliding a bed along its own axis re-emits its
+    // geometry on every step (its grid phase really moves). That must stay a buffer rewrite: a structureVersion
     // bump is a WebGPU render-bundle re-record, and one per pointer-move is a recurring drag-perf regression.
-    // Same topology ⇒ rewriteMeshDescription recycles ⇒ no bump.
     console.log('\nDRAG cost (free-standing skewed bed slid 0.3 m in 20 steps):')
     await measure(page, 0.026, SKEW, false) // a free skewed bed: the realistic drag, where the lap stays 0
     const churn = await page.evaluate(async () => {
@@ -152,10 +163,10 @@ async function main() {
       return { before, after: rev() }
     })
     console.log('   ', JSON.stringify(churn))
-    ok('sliding a skewed bed re-emits the plate WITHOUT re-recording (structureVersion steady)', churn.after - churn.before <= 1, `${churn.after - churn.before} bumps over 20 moves`)
+    ok('sliding a skewed bed re-emits WITHOUT re-recording (structureVersion steady)', churn.after - churn.before <= 1, `${churn.after - churn.before} bumps over 20 moves`)
 
     const allPass = checks.every(Boolean)
-    console.log(`\nVERDICT: ${allPass ? 'PASS - the transfer plate meets the neighbour at every grid phase, and stays flush at a free end' : 'FAIL - see checks above'}`)
+    console.log(`\nVERDICT: ${allPass ? 'PASS - the seam strip meets the neighbour at every grid phase, and a free end draws none' : 'FAIL - see checks above'}`)
     if (!allPass) process.exitCode = 1
   } finally {
     await browser.close()

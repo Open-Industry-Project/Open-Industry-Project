@@ -836,8 +836,8 @@ geometry(g, p, ctx) {
 `frame` link that exists only to declare the grid, so the host can resolve it across butted beds. Two butted
 beds share one world pitch grid, so `deltas` also locates the neighbour's rollers: the next grid line past your
 head is `deltas[last][0] + pitch`. `butt` says whether anything is there at all. The shipped case is the roller
-conveyor's skew transfer plate: it replaces the rollers the skew clips away, laps across a butt seam to the
-neighbour roller's face, and stays flush at a free end
+conveyor's seam strip: a skewed bed ends in a cross member, not a roller, so at a butt it draws a strip from its
+end to the neighbour roller's face, and none at a free end
 ([roller-conveyor](../examples/parts/roller-conveyor/part.js)).
 
 Every field is optional and `ctx` may be empty (a headless call passes nothing), so write the placement-free

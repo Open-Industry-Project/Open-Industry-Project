@@ -325,17 +325,26 @@ const STUB_R = R * 0.34 //   thin axle-shaft stubs poking through the frame
 
 const drive = conveyorDrive() // the ramp, the pulse and the encoder, remembered between steps
 
+const SHORT_MIN = 0.1 //     the shortest roller drawn in a skewed bed's end gap
+const END_BAR = 0.02 //      thickness of the cross member at each end of a skewed bed
+const TAB_GAP = 0.0005 //    clearance between a cut roller's end face and its housing
+
 // Each roller's placement, from the grid the host resolved (ctx.deltas: the world-phased pitch grid shared with
-// butted beds). Straight: full-length rollers (yaw 0) at every grid line. Skewed: rotate each about +Y by `skew`,
-// lengthen to axle/cos so it spans the bed, and clip to the frame corners. With no grid (a headless call), a
-// centred one at the same pitch.
-function layoutRollers(deltas, p) {
+// butted beds). Straight: a full-length roller (yaw 0) at every grid line. Skewed: every roller is turned about +Y by
+// `skew` and lengthened to axle/cos, so it runs wall to wall. The full rollers stop short of each end on one side
+// and leave a triangular gap there, width * tan(skew) long. Shorter rollers on the same pitch fill it. Each runs
+// from the side frame to the cross member at the bed end (END_BAR), where a housing carries its end (geometry() draws
+// both). Their grid lines run on past the bed end, so the grid is carried on by `pitch`. A roller cut at an end
+// says which in `cut`: [t, dir], the cut's place along its axle from its centre and the bed end it is at (+1 the
+// head, -1 the tail). Each skewed roller keeps its grid line as `dx` (a cut roller's centre is not on it). With no grid (a headless call), a centred one at the same pitch.
+function layoutRollers(deltas, p, pitch) {
   var skewRad = (typeof p.skew === 'number' ? p.skew : 0) * Math.PI / 180
   var width = typeof p.width === 'number' ? p.width : 1.524
   var length = typeof p.length === 'number' ? p.length : 4
   var axle = width - 0.004 // the body recessed just behind the frame walls
-  if (!deltas || deltas.length === 0) {
+  if (!deltas || deltas.length === 0 || !(pitch > 0)) {
     deltas = []
+    pitch = PITCH
     var n = Math.max(1, Math.floor((length - 2 * R) / PITCH) + 1)
     for (var d = 0; d < n; d++) deltas.push([(d - (n - 1) / 2) * PITCH, 0, 0])
   }
@@ -345,22 +354,27 @@ function layoutRollers(deltas, p) {
     for (var i = 0; i < deltas.length; i++) out.push({ x: deltas[i][0], z: 0, yaw: 0, length: axle })
     return out
   }
-  // skewed: the rotated shaft is parameterised by t in [-full/2, full/2]; clip t to BOTH the shaft extent and the
-  // frame ends X = +-halfLen (X = dx + t*sin). The visible segment's length + centre offset give the roller.
+  // The turned axle is the points dx + t*sin along the bed, for t in [-full/2, full/2]. Cut t to the axle and to
+  // X = +-halfLen, where the roller's end face meets the cross member. What is left gives the roller's length and
+  // how far its centre moved.
   var cos = Math.cos(skewRad)
-  var full = axle / Math.abs(cos) // width/cos - spans wall-to-wall when rotated
+  var full = axle / Math.abs(cos) // wall to wall when turned
   var halfShaft = full / 2
-  var halfLen = length / 2 - R * Math.abs(cos) // effective half-length (inset a roller radius)
-  for (var k = 0; k < deltas.length; k++) {
-    var dx = deltas[k][0]
-    var tPos = (halfLen - dx) / sin, tNeg = (-halfLen - dx) / sin
-    var tMin, tMax
-    if (sin > 0) { tMax = Math.min(halfShaft, tPos); tMin = Math.max(-halfShaft, tNeg) }
-    else { tMax = Math.min(halfShaft, tNeg); tMin = Math.max(-halfShaft, tPos) }
-    var clipLen = tMax - tMin
-    if (clipLen <= 0.02) continue // a sliver at the very corner - drop it
-    var offset = (tMax + tMin) / 2
-    out.push({ x: dx + offset * sin, z: offset * cos, yaw: skewRad, length: clipLen })
+  var halfLen = length / 2 - END_BAR - R * Math.abs(cos) - 0.002
+  var extra = Math.ceil(2 * halfShaft * Math.abs(sin) / pitch) + 1 // grid lines past each end that can still reach in
+  var x0 = deltas[0][0] - extra * pitch, count = deltas.length + 2 * extra
+  for (var k = 0; k < count; k++) {
+    var dx = k < extra ? x0 + k * pitch : k < extra + deltas.length ? deltas[k - extra][0] : deltas[deltas.length - 1][0] + (k - extra - deltas.length + 1) * pitch
+    var tHead = (halfLen - dx) / sin, tTail = (-halfLen - dx) / sin
+    var tHi = sin > 0 ? tHead : tTail, tLo = sin > 0 ? tTail : tHead // the bed end each direction of the axle runs to
+    var tMax = Math.min(halfShaft, tHi), tMin = Math.max(-halfShaft, tLo)
+    var len = tMax - tMin
+    if (len < SHORT_MIN) continue
+    var mid = (tMax + tMin) / 2
+    var roller = { x: dx + mid * sin, z: mid * cos, yaw: skewRad, length: len, dx: dx }
+    if (tHi < halfShaft) roller.cut = [tMax - mid, sin > 0 ? 1 : -1]
+    else if (tLo > -halfShaft) roller.cut = [tMin - mid, sin > 0 ? -1 : 1]
+    out.push(roller)
   }
   return out
 }
@@ -376,10 +390,11 @@ definePart({
     speed: { type: 'number', unit: 'm/s', ...METRIC_ONLY, default: 1.0, min: -3, max: 3, step: 0.1, label: 'Speed', desc: 'Surface speed carried along the bed. Negative runs the rollers backwards, which is the ONLY way to reverse flow - rotating the part 180 degrees moves its ends instead. A program can command this through the speed tag below.' },
     ...driveRampParams(0.2, 0.2),
     ...frictionParam(0.42),
-    // skew — angle the rollers for angled product movement: cargo tracks across the bed and squares against
-    // a side guard. layoutRollers() rotates the rollers (lengthened to width/cos, clipped to the frame
-    // corners) and step() angles the surface velocity to match; the guard collision does the squaring.
-    skew: { type: 'number', unit: '°', default: 0, min: -60, max: 60, step: 1, label: 'Roller skew', desc: 'Angle the rollers so cargo drifts sideways as it travels and squares itself against a side guard - the standard way to align product before a merge or a labeller. The surface velocity follows the angle, and the guard does the squaring, so leave the guard on that side up.' },
+    // skew: angle the rollers for angled product movement, so cargo tracks across the bed and squares against a
+    // side guard. layoutRollers() turns the rollers (lengthened to width/cos) and react() angles the surface
+    // velocity to match; the guard collision does the squaring. Capped at 20 degrees: roller beds are built with
+    // a few degrees of skew, and the gap at each end, which shorter rollers fill, grows with width * tan(skew).
+    skew: { type: 'number', unit: '°', default: 0, min: -20, max: 20, step: 1, label: 'Roller skew', desc: 'Angle the rollers so cargo drifts sideways as it travels and squares itself against a side guard - the standard way to align product before a merge or a labeller. The surface velocity follows the angle, and the guard does the squaring, so leave the guard on that side up. Real beds use a few degrees. Shorter rollers fill the corner the angle leaves at each end.' },
     // incline — tilt the whole rigid bed about its centre, +X head up. Host-owned via the rig inclineParam
     // marker: geometry + collision tilt as one, the trestle legs regrow to the floor, and the deck's surface
     // velocity gets the tilted tangent — so step() needs no incline math. ±30°: rollers shed product on a
@@ -408,81 +423,143 @@ definePart({
     runningTag: { type: 'tag', dir: 'out', stType: 'BOOL', default: '', label: 'Running tag (true while moving)', group: 'Comms', desc: 'Feedback the conveyor publishes for the program to read: true whenever it is actually moving. This is the EFFECTIVE speed, gates included, so a run tag holding it at zero reads false here.' },
     ...driveFeedbackParams(1.0, 'Comms'),
   },
-  // Geometry — the roller bed, and the skew transfer plates: the light-steel corner dead-plates that fill the
-  // triangular gaps the angled rollers leave at the head/tail once skewed. Render-only, emitted on the 'roller'
-  // rig link so they ride the incline.
+  // Geometry: the roller bed, and on a skewed bed the end cross members, the housings that hold the cut rollers
+  // on them, and the seam strip at a butted end. Render-only, drawn on the 'roller' rig link so it rides the incline.
   //
   // `ctx` is the host-resolved seam (GeometryContext): the world-phase roller grid this bed landed on, plus
-  // which of its ends abut a collinear neighbour. The plate needs it because it REPLACES the rollers the skew
-  // clipped away, so at a butt it has to finish where a roller would have. Ending it flush at the bed end
-  // leaves up to (pitch - R) of bare deck at the transfer — the neighbour's first roller is on the shared
-  // grid, wherever the pair happens to sit in world X — against the ONE roller gap an unskewed bed shows
-  // there. See the lip below.
+  // which of its ends abut a collinear neighbour.
   geometry(g, p, ctx) {
     // the rollers: the kit's bed on the grid's stations (tubes + axle stubs + drive bands), drawn on the 'roller'
-    // link at its axle datum (y 0 there). Stubs poke 9.5 mm past each (clipped) end and follow its yaw; the
-    // bands chain each roller to the next at the +Z end, alternating two grooves in from the bed edge - the look of
-    // a powered (MDR) bed. They turn at the effective speed step() reports.
+    // link at its axle datum (y 0 there). Stubs poke 9.5 mm past each end and follow its yaw; the bands chain each
+    // roller to the next at the +Z end, alternating two grooves in from the bed edge - the look of a powered (MDR)
+    // bed. They turn at the effective speed step() reports.
     var axle = (typeof p.width === 'number' ? p.width : 1.524) - 0.004
-    var bed = rollerBed(g, layoutRollers(ctx && ctx.deltas, p), { radius: R, y: 0, link: 'roller', stub: { radius: STUB_R, length: 0.045, protrude: 0.0095 }, bands: {}, fullAxle: axle, dropSlivers: true })
-    return bed.concat(skewPlates())
+    var rollers = layoutRollers(ctx && ctx.deltas, p, ctx && ctx.pitch)
+    var bed = rollerBed(g, rollers, { radius: R, y: 0, link: 'roller', stub: { radius: STUB_R, length: 0.045, protrude: 0.0095 }, bands: {}, fullAxle: axle, dropSlivers: true })
+    return bed.concat(endFrames(), housings(), seamStrips())
 
-    function skewPlates() {
+    // the end frames' top and bottom: a little under the roller tops, like the side frames, so cargo never appears
+    // to ride on them
+    function frameY() { var top = R - 0.004, bottom = -R - 0.006; return { top: top, depth: top - bottom, mid: (top + bottom) / 2 } }
+
+    // END FRAMES, on a skewed bed: a cross member across each end, in the frame's finish. The short rollers that
+    // fill the end gap stop at it (layoutRollers), held by the housings below.
+    function endFrames() {
       var skewRad = (typeof p.skew === 'number' ? p.skew : 0) * Math.PI / 180
       if (Math.abs(skewRad) < 1e-4) return []
       var width = typeof p.width === 'number' ? p.width : 1.524
       var length = typeof p.length === 'number' ? p.length : 4
       if (width <= 0 || length <= 0) return []
-      // the 'roller' link group sits R below the deck; lift the plate top to roller-top level + a hair (no z-fight),
-      // dropping a 2R skirt so it reads as a solid plate, not a paper-thin sheet.
-      var yTop = R + 0.001, yBot = yTop - 2 * R
-      var halfW = width / 2, headX = length / 2, tailX = -length / 2
-      // X-extent of the triangular gap the angled rollers leave at each end (clamped to the length)
-      var skewZone = Math.min(halfW * Math.abs(Math.tan(skewRad)), length)
-      var headInset = headX - skewZone, tailInset = tailX + skewZone
-      var zSign = skewRad > 0 ? 1 : skewRad < 0 ? -1 : 1 // which diagonal each plate leans along (the union is the same either way)
-      var s = g.surface()
-      function tri(ax, ay, az, bx, by, bz, cx, cy, cz) { s.triangle(s.vertex(ax, ay, az), s.vertex(bx, by, bz), s.vertex(cx, cy, cz)) }
-      // one triangular dead-plate: top face v1-v3-v2 + a skirt down the v1-v3 (diagonal) and v2-v3 (end) edges (the
-      // v1-v2 edge sits against the frame wall, no skirt). doubleSided, so winding is cosmetic.
-      function plate(x1, z1, x2, z2, x3, z3) {
-        tri(x1, yTop, z1, x3, yTop, z3, x2, yTop, z2)
-        tri(x1, yTop, z1, x1, yBot, z1, x3, yBot, z3); tri(x3, yBot, z3, x3, yTop, z3, x1, yTop, z1)
-        tri(x2, yTop, z2, x2, yBot, z2, x3, yBot, z3); tri(x3, yBot, z3, x3, yTop, z3, x2, yTop, z2)
+      var y = frameY(), bars = []
+      for (var e = -1; e <= 1; e += 2) bars.push({ position: [e * (length / 2 - END_BAR / 2), y.mid, 0], scale: [END_BAR, y.depth, width] })
+      return [{ desc: g.box([1, 1, 1], [0, 0, 0]), finish: 'frame', link: 'roller', instances: bars }]
+    }
+
+    // HOUSINGS, on a skewed bed: what holds each cut roller's end. A short roller has one end in the side frame.
+    // Its other end is out in the bed, and its path runs on from there to the cross member at a shallow angle, as a
+    // thin wedge with no roller in it. The housing is that wedge as one solid piece of frame steel, a right
+    // triangle in plan. One short side lies against the roller's end face, square to its axle and as wide as the
+    // roller. The other runs on along the roller's far side (the side away from the cross member), so the space
+    // beside the housing is the space between two rollers. The long side lies on the cross member. The roller's
+    // axle stub runs into it. The tip of the gap, past the last short roller, gets the same housing for the roller
+    // that was too short to draw, starting at the side frame. One bank of one wedge, so the count can change as the
+    // bed slides along its grid without the mesh changing shape.
+    function housings() {
+      var skewRad = (typeof p.skew === 'number' ? p.skew : 0) * Math.PI / 180
+      if (Math.abs(skewRad) < 1e-4 || rollers.length === 0) return []
+      var width = typeof p.width === 'number' ? p.width : 1.524
+      var length = typeof p.length === 'number' ? p.length : 4
+      if (width <= 0 || length <= 0) return []
+      var sin = Math.sin(skewRad), cos = Math.cos(skewRad), tan = Math.tan(skewRad)
+      var pitch = ctx && ctx.pitch > 0 && ctx.deltas && ctx.deltas.length ? ctx.pitch : PITCH
+      var y = frameY(), halfW = width / 2, side = R + 0.002 // the housing stands this far out from the axle
+      var wedges = []
+      // px, pz: the housing's square corner, at the far edge of the roller's end face. dir: +1 the head, -1 the
+      // tail. away: +1 when the axle runs on from the end face along +t (the axle's direction is (sin, cos)), -1
+      // along -t.
+      function housing(px, pz, dir, away) {
+        var bar = dir * (length / 2 - END_BAR) // the cross member's inner face
+        var cx = dir * cos, cz = -dir * sin // across the axle, toward the cross member
+        var wx = away * sin, wz = away * cos // along the axle, on from the end face
+        if (Math.abs(pz) > halfW || dir * (bar - px) < 0.003 || wx * dir <= 0) return // cut at the side frame, or no room
+        var a = (bar - px) / cx // along the end face to the cross member
+        var b = (bar - px) / wx // along the roller's far side to the cross member
+        var reach = wz > 0 ? (halfW - pz) / wz : (-halfW - pz) / wz // ...or to the side frame, if that comes first
+        if (reach < b) b = reach
+        if (a < 0.003 || b < 0.003) return
+        // Turn the wedge so its legs lie along the end face and the far side. A turn, never a mirror: a mirrored
+        // wedge is lit from underneath. Which leg takes which side depends on the way round the two run.
+        var swapped = Math.abs(wx + cz) > 1e-6 || Math.abs(wz - cx) > 1e-6 // the far side is not a quarter turn on from the end face
+        var lx = swapped ? wx : cx, lz = swapped ? wz : cz // where the wedge's own +X goes
+        wedges.push({ position: [px, y.top, pz], quaternion: yawQuat(Math.atan2(-lz, lx)), scale: swapped ? [b, y.depth, a] : [a, y.depth, b] })
       }
-      plate(headInset, zSign * halfW, headX, zSign * halfW, headX, 0)
-      plate(headInset, -zSign * halfW, headX, -zSign * halfW, headX, 0)
-      plate(tailInset, -zSign * halfW, tailX, -zSign * halfW, tailX, 0)
-      plate(tailInset, zSign * halfW, tailX, zSign * halfW, tailX, 0)
-      // TRANSFER LIP — the full-width strip that carries the plate across a butt seam to the neighbour's first
-      // roller. Two beds butted end to end share ONE world pitch grid, so that roller sits on the next grid line
-      // past this end: lap out to its face (grid line -/+ R) and the transfer is continuous at every phase.
-      // Bounded by R, the most a roller of our own would ever poke past the frame, which is also what stops the
-      // lip from cutting THROUGH the neighbour's roller when that roller lands right at the seam. Gated on
-      // `butt`: at a free end there is nothing to meet, so the plate stays flush with the frame as before.
-      // Both fall back to 0 without a ctx (headless / parity call) — the placement-free plate.
+      for (var i = 0; i < rollers.length; i++) {
+        var cut = rollers[i].cut
+        if (!cut) continue
+        var away = cut[0] > 0 ? 1 : -1
+        var t = cut[0] + away * TAB_GAP
+        // the end face's middle, stepped out to its far edge (across the axle, away from the cross member)
+        housing(rollers[i].x + t * sin - cut[1] * cos * side, rollers[i].z + t * cos + cut[1] * sin * side, cut[1], away)
+      }
+      // the tips: the next grid line past the last roller at each end, from the side frame its roller would start at
+      // Its end face is the line across the axle through the corner where the cross member meets the side frame,
+      // so the housing stays inside the frame. The square corner is where that line meets the roller's far side.
+      function tip(dir, dx) {
+        var zWall = (dir * tan > 0 ? -1 : 1) * halfW
+        var farX = dx - dir * side / Math.abs(cos) + zWall * tan // the far side's line, at the side frame
+        var a = (dir * (length / 2 - END_BAR) - farX) * dir * cos // from that line to the corner, across the axle
+        if (a < 0.003) return
+        housing(dir * (length / 2 - END_BAR) - dir * cos * a, zWall + dir * sin * a, dir, dir * sin > 0 ? 1 : -1)
+      }
+      tip(1, rollers[rollers.length - 1].dx + pitch)
+      tip(-1, rollers[0].dx - pitch)
+      if (wedges.length === 0) return []
+      // the wedge: a right triangle in plan, its square corner at the origin, legs 1 along +X and +Z, top at y 0,
+      // 1 deep, with a wall down each leg (the long side lies on the cross member and needs none)
+      var s = g.surface()
+      function tri(ax, ay, az, bx, by, bz, cx2, cy, cz2) { s.triangle(s.vertex(ax, ay, az), s.vertex(bx, by, bz), s.vertex(cx2, cy, cz2)) }
+      tri(0, 0, 0, 0, 0, 1, 1, 0, 0)
+      tri(0, 0, 0, 1, 0, 0, 1, -1, 0); tri(0, 0, 0, 1, -1, 0, 0, -1, 0)
+      tri(0, 0, 0, 0, -1, 0, 0, -1, 1); tri(0, 0, 0, 0, -1, 1, 0, 0, 1)
+      return [{ desc: s.build(), finish: 'frame', link: 'roller', instances: wedges, doubleSided: true }]
+    }
+
+    // SEAM STRIP: a full-width light-steel strip from a butted end of a skewed bed out to the neighbour's first
+    // roller. A skewed bed ends in its cross member, not a roller. Two
+    // beds butted end to end share ONE world pitch grid, so the neighbour's first roller sits on the next grid line
+    // past this end: the strip runs to its face (grid line -/+ R). Bounded by R, which stops it from cutting
+    // THROUGH that roller when it lands right at the seam. Only at a butt: a free end has nothing to meet. Without
+    // a ctx (a headless or parity call) there is no strip.
+    function seamStrips() {
+      var skewRad = (typeof p.skew === 'number' ? p.skew : 0) * Math.PI / 180
+      if (Math.abs(skewRad) < 1e-4) return []
+      var width = typeof p.width === 'number' ? p.width : 1.524
+      var length = typeof p.length === 'number' ? p.length : 4
       var c = ctx || {}
       var deltas = c.deltas, pitch = typeof c.pitch === 'number' ? c.pitch : 0
       var butt = c.butt || { head: false, tail: false }
-      var gridded = !!deltas && deltas.length > 0 && pitch > 0
+      if (width <= 0 || length <= 0 || !deltas || deltas.length === 0 || !(pitch > 0)) return []
+      // the 'roller' link group sits R below the deck; the strip's top is at roller-top level + a hair, with a 2R
+      // skirt on its outer edge so it reads as steel, not a paper-thin sheet
+      var yTop = R + 0.001, yBot = yTop - 2 * R
+      var halfW = width / 2, headX = length / 2, tailX = -length / 2
       // bare deck between our end and the neighbour's first roller face, clamped to [0, R]
-      function lapTo(on, edge, line) {
-        if (!on || !gridded) return 0
-        return Math.max(0, Math.min(R, Math.abs(line - edge) - R))
-      }
-      var lapHead = lapTo(butt.head, headX, gridded ? deltas[deltas.length - 1][0] + pitch : 0)
-      var lapTail = lapTo(butt.tail, tailX, gridded ? deltas[0][0] - pitch : 0)
-      // one end lip: the top strip from the bed end out to x2, plus the same 2R skirt the plates carry on its
-      // outer edge so it still reads as steel rather than a paper sheet. doubleSided, so winding is cosmetic.
-      function lip(x1, x2) {
+      function lapTo(on, edge, line) { return on ? Math.max(0, Math.min(R, Math.abs(line - edge) - R)) : 0 }
+      var lapHead = lapTo(butt.head, headX, deltas[deltas.length - 1][0] + pitch)
+      var lapTail = lapTo(butt.tail, tailX, deltas[0][0] - pitch)
+      if (lapHead < 1e-5 && lapTail < 1e-5) return []
+      var s = g.surface()
+      function tri(ax, ay, az, bx, by, bz, cx, cy, cz) { s.triangle(s.vertex(ax, ay, az), s.vertex(bx, by, bz), s.vertex(cx, cy, cz)) }
+      // doubleSided, so winding is cosmetic
+      function strip(x1, x2) {
         if (Math.abs(x2 - x1) < 1e-5) return
         tri(x1, yTop, -halfW, x2, yTop, -halfW, x2, yTop, halfW)
         tri(x1, yTop, -halfW, x2, yTop, halfW, x1, yTop, halfW)
         tri(x2, yTop, -halfW, x2, yBot, -halfW, x2, yBot, halfW)
         tri(x2, yBot, halfW, x2, yTop, halfW, x2, yTop, -halfW)
       }
-      lip(headX, headX + lapHead)
-      lip(tailX, tailX - lapTail)
+      strip(headX, headX + lapHead)
+      strip(tailX, tailX - lapTail)
       return [{ desc: s.build(), finish: 'gapfill', link: 'roller', castShadow: false, doubleSided: true }]
     }
   },

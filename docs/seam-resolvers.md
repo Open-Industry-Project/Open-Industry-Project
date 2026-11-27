@@ -147,8 +147,8 @@ render every roller on one pitch lattice.
 A part's `geometry()` takes a third argument, `GeometryContext` (`{ deltas, pitch, butt }`), carrying the same
 resolved grid plus whether each end abuts a collinear neighbour. `sdkPart.ts` forwards the whole resolved
 `RollerGrid`, not just `grid.anchor`, because `nudgeLo`/`nudgeHi` answer whether there is anything at that end to
-meet, which end-of-bed geometry needs. The skewed roller bed's transfer plate uses it to finish where a roller
-would have at a butt. Why it needs placement, and the re-emit-key trap, are in
+meet, which end-of-bed geometry needs. The skewed roller bed's seam strip uses it to reach the neighbour's first
+roller at a butt. Why it needs placement, and the re-emit-key trap, are in
 [sdk-geometry-flexibility.md](sdk-geometry-flexibility.md#geometrycontext-the-placement-seam-geometry-needs).
 Gated by `verify-skew-transfer-seam.mjs`.
 

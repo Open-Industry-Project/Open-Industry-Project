@@ -45,7 +45,12 @@ const ROLLER_TEMPLATE_BODY = 2 * 0.9371 // the kit's tube, rim to rim, in its na
 // the roller layout read back off the tube bank (the kit emits the tubes first, then the stubs, then the bands)
 const layout = (params: Record<string, unknown>, ctx?: GeometryContext): { x: number; z: number; yaw: number; length: number }[] =>
   draw(params, ctx).find((p) => p.finish === 'roller' && p.instances)!.instances!.map((i) => ({ x: i.position[0], z: i.position[2], yaw: 2 * Math.atan2(i.quaternion![1], i.quaternion![3]), length: i.scale![2] * ROLLER_TEMPLATE_BODY }))
+// the seam strip: the only sheet steel a roller bed draws
 const plates = (parts: MeshPart[]): MeshPart[] => parts.filter((p) => p.finish === 'gapfill')
+// a skewed bed's end frames are two banks in the frame's finish: boxes (the cross members) and wedges (the
+// housings that hold the cut rollers on them). A wedge is 5 triangles, a box 12.
+const isWedge = (p: MeshPart): boolean => p.desc.positions.length === 5 * 3 * 3
+const gapPlates = (parts: MeshPart[]): MeshPart[] => parts.filter((p) => p.finish === 'frame' && !!p.instances && isWedge(p))
 
 describe('Roller Conveyor custom-part rig - C-convey + part-drawn decorative rollers', () => {
   it('is a structurally valid package (rig + the conveying behavior)', () => {
@@ -116,7 +121,7 @@ describe('Roller Conveyor custom-part rig - C-convey + part-drawn decorative rol
 
 // The part's geometry() authors the skew roller clip (docs/sdk-geometry-flexibility.md). The host resolves the
 // (world-phased) grid deltas and the part shapes each roller. Feed it deltas and pin: straight → a full-length
-// un-rotated roller at every delta; skewed → rollers rotated to the skew, clipped near the ends.
+// un-rotated roller at every delta; skewed → full-length rollers turned to the skew, none past a bed end.
 describe('Roller Conveyor roller layout - skew clip authored in the part (SDK-expressed, not engine-coded)', () => {
   const AXLE = 1.524 - 0.004 // width − the roller shape's sizeParams add
   const grid = (n: number): [number, number, number][] => Array.from({ length: n }, (_, i) => [(-n / 2 + i) * 0.075, 0, 0])
@@ -128,13 +133,44 @@ describe('Roller Conveyor roller layout - skew clip authored in the part (SDK-ex
     insts.forEach((it, i) => { expect(it.x).toBeCloseTo(deltas[i]![0], 9); expect(it.yaw).toBe(0); expect(it.z).toBe(0); expect(it.length).toBeCloseTo(AXLE, 6) })
   })
 
-  it('skewed bed (skew 30): rollers rotate to the skew and clip near the ends (shorter, within width/cos)', () => {
-    const rad = (30 * Math.PI) / 180
+  it('skewed bed (skew 10): full rollers wall to wall, and shorter ones filling the gap at each end', () => {
+    const rad = (10 * Math.PI) / 180
     const full = AXLE / Math.cos(rad)
-    const skewed = layout({ length: 4, width: 1.524, skew: 30 }, { deltas: grid(60), pitch: 0.075 })
-    for (const it of skewed) expect(it.yaw).toBeCloseTo(rad, 6)
-    expect(skewed.some((it) => (it.length ?? 0) < full - 1e-3)).toBe(true) // some end rollers clip shorter
-    for (const it of skewed) expect(it.length!).toBeLessThanOrEqual(full + 1e-6) // none exceeds width/cos
+    const deltas = grid(52)
+    const skewed = layout({ length: 4, width: 1.524, skew: 10 }, { deltas, pitch: 0.075 })
+    expect(skewed.filter((it) => Math.abs(it.length - full) < 1e-6).length).toBeGreaterThan(40)
+    const short = skewed.filter((it) => it.length < full - 1e-6)
+    expect(short.length).toBeGreaterThan(4) // a 0.27 m gap an end at this skew, on a 0.075 m pitch
+    for (const it of skewed) {
+      expect(it.yaw).toBeCloseTo(rad, 6)
+      expect(it.length).toBeLessThanOrEqual(full + 1e-6)
+      expect(it.length).toBeGreaterThanOrEqual(0.1) // nothing shorter is drawn
+      // neither end of any roller reaches the cross member at a bed end (20 mm thick)
+      expect(Math.abs(it.x) + (it.length / 2) * Math.sin(rad) + 0.024 * Math.cos(rad)).toBeLessThan(2 - 0.02)
+    }
+    // the short ones sit on the same pitch as the rest, carried past the grid the host resolved
+    const centreLine = skewed.map((it) => it.x - it.z * Math.tan(rad))
+    for (let i = 1; i < centreLine.length; i++) expect(centreLine[i]! - centreLine[i - 1]!).toBeCloseTo(0.075, 9)
+    expect(centreLine[centreLine.length - 1]!).toBeGreaterThan(deltas[deltas.length - 1]![0])
+    // the head's short rollers are on the side cargo drifts to (-Z for +skew), the tail's on the other
+    for (const it of short) expect(it.x > 0 ? it.z : -it.z).toBeLessThan(0)
+  })
+
+  // A short roller has one end out in the bed, at the cross member the part draws across each end of a skewed bed.
+  it('skewed bed: a cross member across each end, none on a straight bed', () => {
+    const frames = (params: Record<string, unknown>): MeshPart[] => draw(params).filter((p) => p.finish === 'frame' && !isWedge(p))
+    expect(frames({ length: 4, width: 1.524, skew: 0 })).toHaveLength(0)
+    const bank = frames({ length: 4, width: 1.524, skew: 10 })
+    expect(bank).toHaveLength(1)
+    expect(bank[0]!.link).toBe('roller') // rides the incline with the rollers
+    const bars = bank[0]!.instances!
+    expect(bars).toHaveLength(2)
+    // full width, at the two bed ends, top under the roller tops (R above the link's datum)
+    for (const b of bars) {
+      expect(Math.abs(b.position[0])).toBeCloseTo(2 - 0.01, 9)
+      expect(b.scale![2]).toBeCloseTo(1.524, 9)
+      expect(b.position[1] + b.scale![1] / 2).toBeLessThan(0.024)
+    }
   })
 
   it('with no grid (a headless call) it lays a centred one at the same pitch, so the bed still draws', () => {
@@ -212,66 +248,77 @@ describe('Roller Conveyor rig - world-phase seam parity with the built-in grid',
   })
 })
 
-// The skew transfer plates (the light-steel corner dead-plates that fill the gaps the angled rollers leave) are
-// authored by the part's own geometry() as a render-only surface() MeshPart, not hard-coded in the engine
-// (docs/sdk-geometry-flexibility.md). Eval the committed behavior's geometry() and pin that plate: empty on a
-// straight bed, one render-only double-sided gapfill plate on the 'roller' link when skewed, all within the frame.
-describe('Roller Conveyor geometry() - skew transfer plates authored in the part (SDK-expressed, not engine-coded)', () => {
-  const R = 0.024 // ROLLER_CLASSES.light.radius - the plate is authored in the roller-group frame (group sits R below the deck)
+// A skewed bed fills its end gaps with rollers, not plate. The one piece of sheet steel is the seam strip at a butted end,
+// authored by the part's own geometry() as a render-only surface() MeshPart (docs/sdk-geometry-flexibility.md).
+describe('Roller Conveyor geometry() - a skewed bed draws no plate in its end gap, and a seam strip at a butt', () => {
+  const R = 0.024 // ROLLER_CLASSES.light.radius - the strip is authored in the roller-group frame (group sits R below the deck)
 
-  it('emits no plate on a straight bed (skew 0)', () => {
-    expect(plates(draw({ length: 4, width: 1.524, skew: 0 }))).toHaveLength(0)
-    expect(plates(draw({ length: 4, width: 1.524, skew: 0.0001 }))).toHaveLength(0)
-  })
-
-  it('emits one render-only, double-sided, gapfill plate on the roller link when skewed', () => {
-    const found = plates(draw({ length: 4, width: 1.524, skew: 30 }))
-    expect(found.length).toBe(1)
-    const plate = found[0]!
-    expect(plate.finish).toBe('gapfill')
-    expect(plate.link).toBe('roller') // rides the roller group → inclines with the bed
-    expect(plate.castShadow).toBe(false) // the transfer plate casts no shadow
-    expect(plate.doubleSided).toBe(true)
-    expect(plate.desc.positions.length).toBe(4 * 5 * 3 * 3) // 4 corner plates × 5 tris × 3 verts × 3 floats
-  })
-
-  // (no seam ctx ⇒ the placement-free plate. The transfer lip below is the one thing allowed past ±length/2,
-  // and only at a butt - see the 'transfer lip across a butt seam' block.)
-  it('keeps every plate vertex inside the frame (±length/2 X, ±width/2 Z) at/below the roller top', () => {
-    const pos = plates(draw({ length: 4, width: 1.524, skew: 45 }))[0]!.desc.positions
-    const halfL = 2, halfW = 0.762, yTop = R + 0.001, yBot = yTop - 2 * R
-    for (let i = 0; i < pos.length; i += 3) {
-      const x = pos[i]!, y = pos[i + 1]!, z = pos[i + 2]!
-      expect(x).toBeGreaterThanOrEqual(-halfL - 1e-6); expect(x).toBeLessThanOrEqual(halfL + 1e-6)
-      expect(z).toBeGreaterThanOrEqual(-halfW - 1e-6); expect(z).toBeLessThanOrEqual(halfW + 1e-6)
-      expect(y).toBeGreaterThanOrEqual(yBot - 1e-6); expect(y).toBeLessThanOrEqual(yTop + 1e-6)
-    }
-  })
-
-  it('the corner-gap inset from each end tracks (width/2)·tan(skew) - the plate grows with the skew', () => {
-    const halfL = 2, halfW = 0.762
-    for (const deg of [15, 30, 50]) {
-      const pos = plates(draw({ length: 4, width: 1.524, skew: deg }))[0]!.desc.positions
-      let minHeadWallX = Infinity // head-half wall verts (x>0, |z|=halfW) run from the inset corner to the head edge
-      for (let i = 0; i < pos.length; i += 3) {
-        const x = pos[i]!, z = pos[i + 2]!
-        if (x > 0 && Math.abs(Math.abs(z) - halfW) < 1e-6) minHeadWallX = Math.min(minHeadWallX, x)
+  // What holds a cut roller's end: one solid wedge of frame steel. Its square corner is at the far edge of the
+  // roller's end face. One leg lies against the end face, square to the axle. The other runs on along the roller's
+  // far side. Both reach the cross member, so the wedge's long side lies on it. One more wedge fills the tip of the
+  // gap, where a roller would be under 0.1 m.
+  it('a skewed bed has a housing at each cut roller\'s end and in the tip of each end gap, a straight bed none', () => {
+    expect(gapPlates(draw({ length: 4, width: 1.524, skew: 0 }))).toHaveLength(0)
+    for (const deg of [5, 10, 20, -10]) {
+      const rad = (deg * Math.PI) / 180
+      const full = (1.524 - 0.004) / Math.cos(rad)
+      for (const shift of [0, 0.02, 0.05]) {
+        const deltas: [number, number, number][] = []
+        for (let x = -1.97 + shift; x <= 1.976; x += 0.075) deltas.push([x, 0, 0])
+        const ctx = { deltas, pitch: 0.075 }
+        const short = layout({ length: 4, width: 1.524, skew: deg }, ctx).filter((r) => r.length < full - 1e-6)
+        const found = gapPlates(draw({ length: 4, width: 1.524, skew: deg }, ctx))
+        expect(found).toHaveLength(1)
+        expect(found[0]!.link).toBe('roller')
+        const bank = found[0]!.instances!
+        // one per cut roller (less one an end where the cut is right at the far side frame), and up to one more
+        // at each end for the tip
+        expect(bank.length).toBeGreaterThanOrEqual(short.length - 2)
+        expect(bank.length).toBeLessThanOrEqual(short.length + 2)
+        const bar = 2 - 0.02 // the cross member's inner face
+        for (const b of bank) {
+          const [x, y, z] = b.position
+          const [sx, sy, sz] = b.scale!
+          expect(sx).toBeGreaterThan(0) // turned into place, never mirrored (a mirrored wedge is lit from below)
+          expect(sz).toBeGreaterThan(0)
+          expect(y).toBeCloseTo(0.024 - 0.004, 9) // top a little under the roller tops, like the side frames
+          expect(sy).toBeGreaterThan(2 * 0.024) // as deep as the roller
+          // the wedge's two legs in the bed's frame: its own +X and +Z, turned by the instance's yaw
+          const yaw = 2 * Math.atan2(b.quaternion![1], b.quaternion![3])
+          const legs = [[Math.cos(yaw) * sx, -Math.sin(yaw) * sx], [Math.sin(yaw) * sz, Math.cos(yaw) * sz]] as const
+          // one leg is square to the axle (the end face), the other along it, whichever way round
+          const axle = [Math.sin(rad), Math.cos(rad)]
+          const dots = legs.map((l) => Math.abs(l[0] * axle[0]! + l[1] * axle[1]!) / Math.hypot(l[0], l[1]))
+          expect(Math.min(...dots)).toBeCloseTo(0, 6)
+          expect(Math.max(...dots)).toBeCloseTo(1, 6)
+          expect(Math.abs(x)).toBeLessThan(bar) // the square corner is in the bed
+          expect(Math.abs(z)).toBeLessThanOrEqual(0.762 + 1e-9)
+          for (const l of legs) {
+            const ex = x + l[0], ez = z + l[1]
+            expect(Math.abs(ex)).toBeLessThanOrEqual(bar + 1e-9) // neither leg passes the cross member's inner face
+            expect(Math.abs(ez)).toBeLessThanOrEqual(0.762 + 1e-6) // or a side frame
+            // each leg ends on the cross member, or on a side frame where that comes first
+            expect(Math.min(bar - Math.abs(ex), 0.762 - Math.abs(ez))).toBeLessThan(1e-6)
+          }
+        }
       }
-      expect(halfL - minHeadWallX).toBeCloseTo(halfW * Math.tan((deg * Math.PI) / 180), 5)
     }
   })
 
-  // The transfer lip (GeometryContext). Two butted beds share one world pitch grid, so the seam pair is always
-  // exactly a pitch apart and the clear gap there is pitch − 2R whatever the phase. That is why a butt join
-  // looks like one continuous bed. A skewed bed ends in the plate, not a roller, so a plate stopping flush at
-  // the frame leaves the neighbour's first roller wherever the grid put it: up to pitch − R (~51 mm) of bare
-  // deck at the transfer, against the 27 mm an unskewed bed shows. So the plate extends to that roller's face.
-  // Gated on `butt` (a free end has nothing to meet) and bounded by R (so the lip never overlaps a roller that
-  // straddles the seam). e2e/verify-skew-transfer-seam.mjs sweeps this through a whole pitch on the
-  // rendered bed; these pin the part's own arithmetic.
-  describe('transfer lip across a butt seam', () => {
+  it('emits no seam strip on a straight bed, or on a skewed bed with no neighbour', () => {
+    expect(plates(draw({ length: 4, width: 1.524, skew: 0 }))).toHaveLength(0)
+    expect(plates(draw({ length: 4, width: 1.524, skew: 10 }))).toHaveLength(0)
+    expect(plates(draw({ length: 0.5, width: 1.524, skew: 20 }))).toHaveLength(0)
+  })
+
+  // The seam strip (GeometryContext). Two butted beds share one world pitch grid, so the neighbour's first roller
+  // is on the next grid line past this bed's end. A skewed bed ends in its cross member, not a roller, so the
+  // strip carries the seam out to that roller's face. Gated on `butt` (a free end has nothing to meet) and bounded
+  // by R (so it never overlaps a roller that straddles the seam). e2e/verify-skew-transfer-seam.mjs sweeps this
+  // through a whole pitch on the rendered bed; these pin the part's own arithmetic.
+  describe('seam strip across a butt', () => {
     const PITCH = 0.075
-    const P = { length: 4, width: 1.524, skew: 35 }
+    const P = { length: 4, width: 1.524, skew: 15 }
     const HEAD = 2 // length/2
     /** grid whose last line sits `gap` short of the head (so the next line, the neighbour's first roller, is
      *  at head − gap + pitch), and whose first line mirrors it at the tail */
@@ -281,14 +328,29 @@ describe('Roller Conveyor geometry() - skew transfer plates authored in the part
       return { deltas, pitch: PITCH }
     }
     const maxX = (parts: ReturnType<typeof evalPartGeometry>): number => {
-      const pos = plates(parts!)[0]!.desc.positions
-      let m = -Infinity
+      const pos = plates(parts!)[0]?.desc.positions ?? []
+      let m = HEAD // no strip: the bed ends at its frame
       for (let i = 0; i < pos.length; i += 3) m = Math.max(m, pos[i]!)
       return m
     }
 
-    it('no ctx at all (headless / parity call) ⇒ the plain flush plate', () => {
-      expect(maxX(evalPartGeometry(ROLLER_BEHAVIOR, P))).toBeCloseTo(HEAD, 9)
+    it('the strip is render-only, double-sided gapfill on the roller link, from the bed end outward', () => {
+      const found = plates(draw(P, { ...gridEndingShortOf(0.001), butt: { head: true, tail: false } }))
+      expect(found).toHaveLength(1)
+      const strip = found[0]!
+      expect(strip.link).toBe('roller') // rides the roller group → inclines with the bed
+      expect(strip.castShadow).toBe(false)
+      expect(strip.doubleSided).toBe(true)
+      const pos = strip.desc.positions
+      for (let i = 0; i < pos.length; i += 3) {
+        expect(pos[i]!).toBeGreaterThanOrEqual(HEAD - 1e-9)
+        expect(Math.abs(pos[i + 2]!)).toBeLessThanOrEqual(0.762 + 1e-9)
+        expect(pos[i + 1]!).toBeLessThanOrEqual(R + 0.001 + 1e-9)
+      }
+    })
+
+    it('no ctx at all (headless / parity call) ⇒ no strip', () => {
+      expect(plates(evalPartGeometry(ROLLER_BEHAVIOR, P)!)).toHaveLength(0)
     })
 
     it('a free end grows no lip even with the grid resolved', () => {
@@ -307,12 +369,12 @@ describe('Roller Conveyor geometry() - skew transfer plates authored in the part
       }
     })
 
-    it('the lip is a full-width strip - 4 extra triangles per lapped end, and only where it laps', () => {
-      const tris = (parts: ReturnType<typeof evalPartGeometry>): number => plates(parts!)[0]!.desc.positions.length / 9
+    it('the strip is 4 triangles per lapped end, and only where it laps', () => {
+      const tris = (parts: ReturnType<typeof evalPartGeometry>): number => (plates(parts!)[0]?.desc.positions.length ?? 0) / 9
       const g = gridEndingShortOf(0.001)
-      expect(tris(evalPartGeometry(ROLLER_BEHAVIOR, P, undefined, { ...g, butt: { head: false, tail: false } }))).toBe(20)
-      expect(tris(evalPartGeometry(ROLLER_BEHAVIOR, P, undefined, { ...g, butt: { head: true, tail: false } }))).toBe(24)
-      expect(tris(evalPartGeometry(ROLLER_BEHAVIOR, P, undefined, { ...g, butt: { head: true, tail: true } }))).toBe(28)
+      expect(tris(evalPartGeometry(ROLLER_BEHAVIOR, P, undefined, { ...g, butt: { head: false, tail: false } }))).toBe(0)
+      expect(tris(evalPartGeometry(ROLLER_BEHAVIOR, P, undefined, { ...g, butt: { head: true, tail: false } }))).toBe(4)
+      expect(tris(evalPartGeometry(ROLLER_BEHAVIOR, P, undefined, { ...g, butt: { head: true, tail: true } }))).toBe(8)
     })
 
     it('a straight bed still emits no plate, butt or no butt', () => {

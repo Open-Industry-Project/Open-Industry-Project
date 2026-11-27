@@ -1,7 +1,8 @@
 // Verify: SDK Roller Conveyor skew (skew_angle parity).
-// Loads a straight bed (skew 0) beside a skewed bed (skew 35), waits for the roller beds to lay out, then reads the
-// rendered roller InstancedMesh matrices to confirm the skewed bed's rollers are (a) rotated ~35° about +Y,
-// (b) lengthened (bigger axle scale so they still span the width), and (c) that the axle-stub InstancedMesh,
+// Loads a straight bed (skew 0) beside a skewed bed (skew 15), waits for the roller beds to lay out, then reads the
+// rendered roller InstancedMesh matrices to confirm the skewed bed's rollers are (a) rotated ~15° about +Y,
+// (b) lengthened (bigger axle scale so they still span the width), (c) shorter at the ends, where they fill the gap the
+// skew leaves, and (d) that the axle-stub InstancedMesh,
 // folded into the roller bank (docs/sdk-geometry-flexibility.md), follows each roller (present on both beds,
 // rotated to match, not hidden). Screenshots both to e2e/shots/roller-skew.png.
 // Run: node e2e/verify-roller-skew.mjs [--headed]
@@ -13,7 +14,7 @@ import { mkdirSync } from 'node:fs'
 const { port: PORT, vite } = await startServer()
 const URL = `http://localhost:${PORT}/app/`
 const HEADED = process.argv.includes('--headed')
-const SKEW_DEG = 35
+const SKEW_DEG = 15
 
 async function waitForApp(page) {
   await page.waitForFunction(() => !!(window.__oip && window.__oip.store && window.__oip.view), { timeout: 20000 })
@@ -25,10 +26,10 @@ function inspectPart(page, partId) {
     let group = null
     window.__oip.view.scene.traverse((o) => { if (o.userData && o.userData.partId === partId) group = o })
     if (!group) return { found: false }
-    let rollerCount = 0, stubCount = 0, maxAngle = 0, maxAxleScale = 0, hasBed = false
-    // the skew transfer plate (render-only corner dead-plate), authored by the part's geometry() as a
-    // DoubleSide + no-shadow gapfill Mesh, emitted only while skewed. (Frame/guard steel is also DoubleSide, but
-    // casts shadow; the plate is the only double-sided, shadow-off mesh, matching its castShadow:false authoring.)
+    let rollerCount = 0, stubCount = 0, maxAngle = 0, maxAxleScale = 0, minAxleScale = Infinity, hasBed = false
+    // Sheet steel authored by the part's geometry(): a DoubleSide + no-shadow gapfill Mesh. The only one is the
+    // seam strip at a butted end of a skewed bed, so a free-standing bed has none. (Frame/guard steel is also
+    // DoubleSide, but casts shadow.)
     let plate = null
     group.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && o.material && o.material.side === 2 && o.castShadow === false) plate = o })
     const plateTris = plate && plate.geometry.getAttribute('position') ? plate.geometry.getAttribute('position').count / 3 : 0
@@ -49,9 +50,10 @@ function inspectPart(page, partId) {
         const ang = Math.abs((Math.atan2(zx, zz) * 180) / Math.PI)
         if (ang > maxAngle) maxAngle = ang
         if (len > maxAxleScale) maxAxleScale = len
+        if (len < minAxleScale) minAxleScale = len
       }
     })
-    return { found: true, hasBed, rollerCount, stubCount, maxAngle, maxAxleScale, hasPlate: !!plate, plateTris }
+    return { found: true, hasBed, rollerCount, stubCount, maxAngle, maxAxleScale, minAxleScale, hasPlate: !!plate, plateTris }
   }, partId)
 }
 
@@ -98,19 +100,19 @@ async function main() {
     ok('straight rollers are axis-aligned (~0°)', straight.hasBed && straight.maxAngle < 2)
     ok('straight bed keeps its axle stubs', straight.stubCount > 0)
     ok(`skewed rollers rotate ~${SKEW_DEG}°`, skewed.hasBed && Math.abs(skewed.maxAngle - SKEW_DEG) < 3)
-    ok('skewed rollers lengthen (axle scale grows vs straight)', skewed.maxAxleScale > straight.maxAxleScale * 1.05)
+    ok('skewed rollers lengthen (axle scale grows vs straight)', skewed.maxAxleScale > straight.maxAxleScale * 1.02)
     ok('skewed bed keeps its axle stubs (folded into the bank, following each roller)', skewed.stubCount > 0)
-    // transfer plates (part-authored geometry()): absent on the straight bed, 4 corner plates (20 tris) when skewed.
-    ok('straight bed draws no transfer plate', !straight.hasPlate)
-    ok('skewed bed draws its transfer plate', skewed.hasPlate)
-    ok('skewed transfer plate has 4 corner plates (20 tris)', skewed.plateTris === 20)
+    ok('shorter rollers fill the skewed bed\'s end gaps', skewed.minAxleScale < skewed.maxAxleScale * 0.5 && skewed.rollerCount > straight.rollerCount)
+    // no sheet steel on either bed: rollers fill the skewed bed's end gaps, and neither bed is butted
+    ok('straight bed draws no plate', !straight.hasPlate)
+    ok('free-standing skewed bed draws no plate', !skewed.hasPlate)
 
-    // Live edit: skewing an already-placed bed. Adding the plate mesh to the scene graph is not enough:
-    // a recorded WebGPU render bundle bakes the draw list, so rig.ts's realizeProceduralGeometry must
-    // bump the visual root's structureVersion (the counter view.syncBundleInvalidation polls), or the
-    // plates stay invisible until some unrelated interaction triggers a re-record (measured: 8 s+ with
-    // no re-record at all, e2e/probes/skew-inventory.mjs). structureVersion is backend-independent, so
-    // this check is real on the headless WebGL path too, where the bundles themselves don't exist.
+    // Live edit: skewing an already-placed bed adds its end frames (the cross members and axle tabs). Adding a
+    // mesh to the scene graph is not enough: a recorded WebGPU render bundle bakes the draw list, so rig.ts's
+    // realizeProceduralGeometry must bump the visual root's structureVersion (the counter
+    // view.syncBundleInvalidation polls), or the new mesh stays invisible until some unrelated interaction
+    // triggers a re-record. structureVersion is backend-independent, so this check is real on the headless WebGL
+    // path too, where the bundles themselves don't exist.
     const structRev = (partId) =>
       page.evaluate((partId) => {
         let g = null
@@ -131,7 +133,7 @@ async function main() {
     await page.waitForTimeout(500)
     const nowSkewed = await inspectPart(page, 'straight')
     const revAfterSkew = await structRev('straight')
-    ok('live skew edit adds the transfer plate', nowSkewed.hasPlate && nowSkewed.plateTris === 20)
+    ok('live skew edit turns the rollers', Math.abs(nowSkewed.maxAngle - 20) < 3)
     ok('live skew edit bumps structureVersion (bundle re-record)', revAfterSkew > revBefore)
 
     // …and the converse, so the bump only fires when needed: a param geometry() ignores re-emits identical
@@ -140,15 +142,14 @@ async function main() {
     await page.waitForTimeout(500)
     ok('a geometry-neutral param edit does NOT bump structureVersion', (await structRev('straight')) === revAfterSkew)
 
-    // removing the skew drops the plate again. (No structureVersion assertion here: un-skewing also
-    // re-lays out the rollers, which bumps on its own, so a rev check on this edit can't tell the two apart.
-    // The add case above is the one that isolates the geometry() seam.)
+    // removing the skew straightens the rollers and puts back the ones the skew left out
     await editParam('straight', 'skew', 0)
     await page.waitForTimeout(500)
-    ok('un-skewing drops the transfer plate again', !(await inspectPart(page, 'straight')).hasPlate)
+    const unskewed = await inspectPart(page, 'straight')
+    ok('un-skewing straightens the rollers', unskewed.maxAngle < 2)
 
     const allPass = checks.every((c) => c.cond)
-    console.log(`\nVERDICT: ${allPass ? 'PASS - the part roller layout rotates + lengthens + clips the rollers; the stubs follow each roller' : 'FAIL - see checks above'}`)
+    console.log(`\nVERDICT: ${allPass ? 'PASS - the part roller layout rotates + lengthens the rollers; the stubs follow each roller' : 'FAIL - see checks above'}`)
     console.log('screenshot: e2e/shots/roller-skew.png')
     if (!allPass) process.exitCode = 1
   } finally {
