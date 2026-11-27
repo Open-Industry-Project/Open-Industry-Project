@@ -409,21 +409,29 @@ function placeModule(tpl: ModuleTemplate, x: number, y: number, z: number, yaw: 
   return m
 }
 
+// The wall panels stand on the edge of the footprint and are this deep (their outer face, base.ts's overhang).
+// Their inner face is not flat, and stands a little outside the footprint at the foot.
+const FLOOR_UNDER_WALLS = 0.25
+
 /**
  * The floor: one plane at y=0 (the part-rest plane) over the whole footprint, `lengthSections` x
- * `widthSections` cells, centred. The texture repeats once per cell in the orientation the floor tile
- * model used (u runs along -Z, v along +X from the cell corner), so it reads the same as the tiles did.
+ * `widthSections` cells, centred, and on under the walls to their outer face. A floor that stopped at the
+ * footprint left a slot at the foot of every wall, where the wall's inner face stands just outside it, and the
+ * background showed through: a pale line round the hall, bright when the lights are down. The texture repeats
+ * once per cell in the orientation the floor tile model used (u runs along -Z, v along +X from the cell corner),
+ * so it reads the same as the tiles did, and runs on unbroken under the walls.
  */
 function floorGeometry(lengthSections: number, widthSections: number): BufferGeometry {
-  const x0 = (-lengthSections * SECTION) / 2
-  const z0 = (-widthSections * SECTION) / 2
+  const x0 = (-lengthSections * SECTION) / 2 - FLOOR_UNDER_WALLS
+  const z0 = (-widthSections * SECTION) / 2 - FLOOR_UNDER_WALLS
   const x1 = -x0
   const z1 = -z0
+  const e = FLOOR_UNDER_WALLS / SECTION // the strip under the walls, in cells
   const g = new BufferGeometry()
   // corners (x1,z1) (x1,z0) (x0,z1) (x0,z0), wound to face +Y
   g.setAttribute('position', new BufferAttribute(new Float32Array([x1, 0, z1, x1, 0, z0, x0, 0, z1, x0, 0, z0]), 3))
   g.setAttribute('normal', new BufferAttribute(new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]), 3))
-  g.setAttribute('uv', new BufferAttribute(new Float32Array([-widthSections, lengthSections, 0, lengthSections, -widthSections, 0, 0, 0]), 2))
+  g.setAttribute('uv', new BufferAttribute(new Float32Array([-widthSections - e, lengthSections + e, e, lengthSections + e, -widthSections - e, -e, e, -e]), 2))
   g.setIndex([0, 1, 3, 0, 3, 2])
   g.computeBoundingBox()
   g.computeBoundingSphere()
