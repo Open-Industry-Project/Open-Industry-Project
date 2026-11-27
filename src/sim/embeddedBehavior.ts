@@ -131,7 +131,7 @@ function tagKey(name: string): string {
 }
 
 /** A cargo-spawn request this tick (C-spawn); the host fulfills it after step(). */
-type SpawnReq = { part?: string; params?: Record<string, number | boolean | string>; kind?: 'box' | 'pallet' | 'tote'; size?: [number, number, number]; color?: [number, number, number]; mass?: number; offset?: [number, number, number]; marks?: Record<string, CargoMark> }
+type SpawnReq = { part?: string; params?: Record<string, number | boolean | string>; kind?: 'box' | 'pallet' | 'tote'; size?: [number, number, number]; color?: [number, number, number]; mass?: number; offset?: [number, number, number]; yaw?: number; marks?: Record<string, CargoMark> }
 /** one ctx.wrap request: stretch-wrap the load in `zone` up to `upTo` m above the part origin */
 /** a mark a machine leaves on cargo (ctx.mark) */
 type CargoMark = number | boolean | string
@@ -802,6 +802,8 @@ export function create(source: string, paramsJson = '{}', jointsJson?: string, a
         if (color) req.color = color
         const offset = readVec3(opts?.offset)
         if (offset) req.offset = offset
+        const turn = finiteOrUndef(opts?.yaw)
+        if (turn !== undefined && turn !== 0) req.yaw = turn
         const mass = finiteOrUndef(opts?.mass)
         if (mass !== undefined && mass > 0) req.mass = mass
         // the facts it starts with, copied value by value like `params`

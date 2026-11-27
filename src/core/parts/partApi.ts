@@ -852,6 +852,9 @@ export interface PartContext<P extends ParamSchema = ParamSchema, J extends stri
     color?: [number, number, number]
     mass?: number
     offset?: [number, number, number]
+    /** how far the item is turned about the vertical from the part's own heading (radians, + is counter-clockwise
+     *  seen from above). Left out, it lies as the part does. */
+    yaw?: number
     marks?: Record<string, number | boolean | string>
   }): void
   /**

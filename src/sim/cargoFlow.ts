@@ -35,6 +35,8 @@ export interface SpawnRequest {
   color?: [number, number, number]
   mass?: number
   offset?: [number, number, number]
+  /** its turn about the vertical from the part's heading (ctx.spawn `yaw`) */
+  yaw?: number
   /** facts the item starts with (ctx.spawn `marks`) */
   marks?: Record<string, CargoMarkValue>
 }
@@ -555,8 +557,9 @@ export class CargoFlow {
   fulfillSpawns(b: BehaviorRecord, spawns: SpawnRequest[]): void {
     const fx = b.fwd[0]
     const fz = b.fwd[2] // part yaw from forward = [cosθ, 0, -sinθ]
-    const yaw = Math.atan2(-fz, fx)
+    const partYaw = Math.atan2(-fz, fx)
     for (const s of spawns) {
+      const yaw = partYaw + (s.yaw ?? 0)
       const off = s.offset ?? [0, 0, 0]
       const wx = b.pos[0] + off[0] * fx - off[2] * fz
       const wy = b.pos[1] + off[1]

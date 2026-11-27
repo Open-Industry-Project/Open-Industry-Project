@@ -3,7 +3,8 @@
 // ctx.spawn({ part, params }); the host creates that part's body at the part's pose + the given local offset, as if
 // placed. A Box takes this part's own size, colour and mass settings (the part's id is still oip.box-spawner). Cargo
 // drops at the exact spawn point (no positional scatter), so downstream handling (picks, aligned queues) sees a
-// repeatable pose. A pilot "Use" toggles the feed (a runtime latch, so it resets on stop/reload). Optionally gated by
+// repeatable pose. Turn sets how each item lies, and Random turn spreads that from item to item (ctx.spawn `yaw`):
+// the untidy feed a squaring bed, a length check or a jam timer is tested against. A pilot "Use" toggles the feed (a runtime latch, so it resets on stop/reload). Optionally gated by
 // a conveyor interlock (conveyorId → ctx.conveyorRunning) or a PLC run tag.
 //
 // A mixed stream: `mixAttribute` names a product attribute and `mixValues` the values handed out one per item, in
@@ -87,6 +88,8 @@ definePart({
     height: { type: 'number', default: 0.4, min: 0.1, step: 0.05, label: 'Box height (m)', group: 'Box', visibleWhen: { param: 'product', is: 'oip.box' }, desc: 'Extent along local Y of each spawned box. Ignored while Random size is on.' },
     randomSize: { type: 'boolean', default: false, label: 'Random size', group: 'Box', visibleWhen: { param: 'product', is: 'oip.box' }, desc: 'Give each box a random size and IGNORE the three dimensions above. The random range is fixed by the part (0.4-0.8 long, 0.3-0.5 high, 0.3-0.5 wide), not derived from them.' },
     mass: { type: 'number', default: 10, min: 0.5, max: 100, step: 0.5, label: 'Mass (kg)', group: 'Box', visibleWhen: { param: 'product', is: 'oip.box' }, desc: 'Mass given to every spawned box, whatever its size.' },
+    turn: { type: 'number', unit: '°', default: 0, min: -180, max: 180, step: 5, label: 'Turn', desc: 'How far each item is turned about the vertical from the way the spawner faces, positive counter-clockwise seen from above. 90 drops a box crosswise.' },
+    turnSpread: { type: 'number', unit: '°', default: 0, min: 0, max: 180, step: 5, label: 'Random turn (±)', desc: 'Turn each item a random amount up to this far either side of Turn. 0 drops every item the same way. 15 is an untidy feed for a squaring bed or a length check; 180 is any way round, as parcels tipped from a chute lie.' },
     disable: { type: 'boolean', default: false, label: 'Paused', desc: 'Stop spawning entirely. Use (C, or E while walking) is a separate hand stop: it pauses and resumes the feed during a run without changing this setting, and is cleared when the run stops.' },
     release: {
       type: 'enum', default: 'interval', label: 'Release',
@@ -147,13 +150,16 @@ definePart({
       }
       const color = pal.length > 0 ? pal[ci] : p.product === 'oip.box' ? hexRgb(p.boxColor) : undefined
       const marks = values.length > 0 ? { [p.mixAttribute]: values[vi] } : undefined
+      // only a spread draws from the random stream
+      const turned = p.turn + (p.turnSpread > 0 ? (ctx.rng() * 2 - 1) * p.turnSpread : 0)
+      const yaw = turned !== 0 ? { yaw: (turned * Math.PI) / 180 } : {}
       if (p.product === 'oip.box') {
         const rnd = (i) => SIZE_MIN[i] + ctx.rng() * (SIZE_MAX[i] - SIZE_MIN[i])
         const size = p.randomSize ? [rnd(0), rnd(1), rnd(2)] : [p.length, p.height, p.width]
-        ctx.spawn({ part: 'oip.box', params: { length: size[0], height: size[1], width: size[2] }, color: color, mass: p.mass, offset: [0, -0.2, 0], ...(marks ? { marks } : {}) })
+        ctx.spawn({ part: 'oip.box', params: { length: size[0], height: size[1], width: size[2] }, color: color, mass: p.mass, offset: [0, -0.2, 0], ...yaw, ...(marks ? { marks } : {}) })
       } else if (p.product) {
         // any other product drops as itself, with its settings from the Inspector; a colour only from the cycle list
-        ctx.spawn({ part: p.product, params: settingsOf(p.productSettings), ...(color ? { color } : {}), offset: [0, -0.2, 0], ...(marks ? { marks } : {}) })
+        ctx.spawn({ part: p.product, params: settingsOf(p.productSettings), ...(color ? { color } : {}), offset: [0, -0.2, 0], ...yaw, ...(marks ? { marks } : {}) })
       } else {
         continue // no product: the feed paces on and drops nothing
       }
